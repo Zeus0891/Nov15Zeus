@@ -1,0 +1,485 @@
+// ============================================================================
+// ESTIMATE MODEL - Complete & Production-Ready
+// ============================================================================
+// Version: 2.0
+// Last Updated: 2025-11-15
+// Pattern: BH (Base Hybrid) - Tenant + Global for 1:1:1 traceability
+//
+// Strategic Purpose:
+// Entry point for revenue origination - estimates drive projects, invoices,
+// and change orders with immutable 1:1:1 traceability via globalId.
+//
+// ALIGNED WITH:
+// - Estimate_Flow.md (corrected version)
+// - Enterprise standards (Actor relations, RLS, audit trails)
+// - Multi-tenant architecture (BH pattern)
+// ============================================================================
+
+model Estimate {
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Primary Key & Identity
+  // ─────────────────────────────────────────────────────────────
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏢 Tenant Isolation + Global Linkage (BH Pattern)
+  // ─────────────────────────────────────────────────────────────
+  tenantId String @db.Uuid
+
+  /// Shared global UUID for 1:1:1 traceability: Estimate → Project → Invoice
+  /// This is NOT A FOREIGN KEY - it's a hybrid linkage identifier
+  /// Used to maintain immutable relationship across module boundaries
+  globalId String @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Business workflow status (primary status dimension)
+  status EstimateStatus @default(DRAFT)
+  
+  /// Optimistic concurrency control
+  version Int @default(1)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Temporal Tracking
+  // ─────────────────────────────────────────────────────────────
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (ENABLED - Critical Parent Entity)
+  // ─────────────────────────────────────────────────────────────
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  metadata           Json?                       @db.JsonB
+
+  recordSource String? @db.VarChar(50) // API, IMPORT, SYSTEM
+  timezone     String? @db.VarChar(50) // Timezone context
+
+  // ─────────────────────────────────────────────────────────────
+  // 📄 Business Identity
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Non-editable document number (generated via NumberSequence module)
+  /// Format: EST-2025-00123
+  /// Used across Project / Invoice / ChangeOrder for traceability
+  estimateNumber String @db.VarChar(50)
+
+  /// Short title shown in list/detail views
+  title String @db.VarChar(255)
+
+  /// Optional customer-facing or internal reference (PO, RFQ, etc.)
+  referenceCode String? @db.VarChar(100)
+
+  /// Detailed description
+  description String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 👥 Customer / CRM Linkage
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Client account (REQUIRED - from Account model)
+  crmAccountId String @db.Uuid
+
+  /// Primary contact (OPTIONAL - from Contact model)
+  crmContactId String? @db.Uuid
+
+  /// Optional override billing address (from AccountAddress model)
+  billToAddressId String? @db.Uuid
+
+  /// Optional override shipping / jobsite address (from AccountAddress model)
+  shipToAddressId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Ownership & Assignment
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Owner / estimator (Member)
+  ownerMemberId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Project Linkage (optional if created from existing project)
+  // ─────────────────────────────────────────────────────────────
+  
+  /// When estimate is created from an existing project
+  linkedProjectId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Workflow State (Business Status Dimensions)
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Internal approval dimension (Approvals module)
+  approvalStatus EstimateApprovalStatus @default(NOT_REQUIRED)
+
+  /// Client decision dimension (portal / eSignature)
+  clientStatus EstimateClientStatus @default(PENDING)
+
+  /// Logical issue date of the estimate (may differ from createdAt)
+  issueDate DateTime @default(now()) @db.Timestamptz(6)
+
+  /// Expiration / validity date
+  validUntil DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Event Timestamps (Business Events Tracking)
+  // ─────────────────────────────────────────────────────────────
+  
+  /// When estimate (latest revision/public link) was sent to client
+  sentToClientAt DateTime? @db.Timestamptz(6)
+
+  /// When client first opened the public link (view event)
+  clientViewedAt DateTime? @db.Timestamptz(6)
+
+  /// When client performed an explicit response (approve/decline, comment)
+  clientRespondedAt DateTime? @db.Timestamptz(6)
+
+  /// When estimate was internally marked as accepted/approved
+  acceptedAt DateTime? @db.Timestamptz(6)
+
+  /// When client or internal flow marked the estimate as declined
+  declinedAt DateTime? @db.Timestamptz(6)
+
+  /// When estimate naturally expired (no response)
+  expiredAt DateTime? @db.Timestamptz(6)
+
+  /// When estimate was converted to Project / Invoice
+  convertedAt DateTime? @db.Timestamptz(6)
+
+  /// Last auto-save timestamp for draft state tracking
+  lastSavedAt DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Financial Snapshot (Denormalized Header Totals)
+  // ─────────────────────────────────────────────────────────────
+  
+  /// ISO 4217 currency code (e.g., USD, EUR, CAD)
+  currencyCode String @db.Char(3)
+
+  /// Sum of line items before discounts/taxes/fees
+  subtotalAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Total discounts applied (positive; subtracted in calculation)
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Total tax amount
+  taxAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Total fees/overheads/contingencies
+  feeAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Grand total shown to client and used for approvals
+  totalAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Aggregated quantity across line items (for analytics)
+  totalQuantity Decimal @default(0) @db.Decimal(10, 4)
+
+  /// Cached line items count for quick display
+  lineItemCount Int @default(0)
+
+  /// Aggregated cost amount across line items (for markup analytics)
+  totalCostAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Overall markup percentage for this estimate
+  overallMarkupPercentage Decimal? @db.Decimal(5, 2)
+
+  /// Estimated gross profit (totalAmount - totalCostAmount)
+  estimatedGrossProfit Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Client response time in hours (for cycle time analytics)
+  clientResponseTimeHours Int? @db.Integer
+
+  /// Win probability percentage (0-100) for forecasting
+  winProbability Decimal? @db.Decimal(5, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚙️ Behavior Flags & Configuration
+  // ─────────────────────────────────────────────────────────────
+  
+  /// If true, auto-create Project on approval
+  autoCreateProjectOnApproval Boolean @default(true)
+
+  /// If true, auto-create Invoice on approval when appropriate
+  autoCreateInvoiceOnApproval Boolean @default(true)
+
+  /// If true, this estimate can accept change orders
+  allowChangeOrders Boolean @default(true)
+
+  /// If true, this estimate acts as a reusable template
+  isTemplate Boolean @default(false)
+
+  /// Archive flag (does not replace soft delete)
+  isArchived Boolean @default(false)
+
+  /// Track if Project was auto-created (conversion tracking)
+  hasProject Boolean @default(false)
+
+  /// Track if Invoice was auto-created (conversion tracking)
+  hasInvoice Boolean @default(false)
+
+  /// Track if any change orders exist (change order integration)
+  hasChangeOrders Boolean @default(false)
+
+  /// Count of active change orders for quick reference
+  changeOrderCount Int @default(0)
+
+  /// Template category for reusable estimates (e.g., 'PLUMBING', 'ELECTRICAL')
+  templateCategory String? @db.VarChar(100)
+
+  /// Count of times sent to client (for tracking resends)
+  clientSendCount Int @default(0)
+
+  /// Count of client views (for engagement analytics)
+  clientViewCount Int @default(0)
+
+  /// Preferred communication method for this client (EMAIL, SMS, PORTAL)
+  preferredCommunicationMethod String? @db.VarChar(20)
+
+  /// E-signature required flag (configurable e-signature)
+  requiresESignature Boolean @default(false)
+
+  /// Priority level for this estimate (affects approval rules)
+  priority EstimatePriority @default(NORMAL)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 External Module References
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Reference to approval workflow (approvals module)
+  approvalRequestId String? @db.Uuid
+
+  /// Reference to e-signature envelope (esignature module)
+  eSignatureEnvelopeId String? @db.Uuid
+
+  /// Reference to number sequence allocation (for estimateNumber generation)
+  numberSequenceAllocationId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations to Tenant & Actors
+  // ─────────────────────────────────────────────────────────────
+  
+  tenant         Tenant @relation("TenantToEstimate", fields: [tenantId], references: [id], onDelete: Restrict)
+  createdByActor Actor? @relation("EstimateCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("EstimateUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("EstimateDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Cross-Module Relations (CRM Module)
+  // ─────────────────────────────────────────────────────────────
+  // ✅ CORRECTED: Using Account, Contact, AccountAddress (NOT CRM* models)
+  
+  /// Client account (REQUIRED - cannot be deleted while estimate exists)
+  crmAccount Account @relation("EstimateAccount", fields: [tenantId, crmAccountId], references: [tenantId, id], onDelete: Restrict)
+
+  /// Primary contact (OPTIONAL - can be removed)
+  crmContact Contact? @relation("EstimateContact", fields: [tenantId, crmContactId], references: [tenantId, id], onDelete: SetNull)
+
+  /// Billing address override (OPTIONAL)
+  billToAddress AccountAddress? @relation("EstimateBillToAddress", fields: [tenantId, billToAddressId], references: [tenantId, id], onDelete: SetNull)
+
+  /// Shipping/jobsite address override (OPTIONAL)
+  shipToAddress AccountAddress? @relation("EstimateShipToAddress", fields: [tenantId, shipToAddressId], references: [tenantId, id], onDelete: SetNull)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Ownership Relation
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Estimator/owner (OPTIONAL)
+  ownerMember Member? @relation("EstimateOwner", fields: [tenantId, ownerMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 External Module Relations (Approvals & E-Signature)
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Approval workflow integration
+  approvalRequest ApprovalRequest? @relation("EstimateApprovalRequest", fields: [tenantId, approvalRequestId], references: [tenantId, id], onDelete: SetNull)
+
+  /// E-signature integration
+  eSignatureEnvelope ESignatureEnvelope? @relation("EstimateESignatureEnvelope", fields: [tenantId, eSignatureEnvelopeId], references: [tenantId, id], onDelete: SetNull)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Back Relations (this parent → Estimating children)
+  // ─────────────────────────────────────────────────────────────
+  
+  revisions     EstimateRevision[]
+  sections      EstimateSection[]
+  lineItems     EstimateLineItem[]
+  taxes         EstimateTax[]
+  discounts     EstimateDiscount[]
+  fees          EstimateFee[]
+  terms         EstimateTerm[]
+  assumptions   EstimateAssumption[]
+  exclusions    EstimateExclusion[]
+  alternates    EstimateAlternate[]
+  attachments   EstimateAttachment[]
+  comments      EstimateComment[]
+  comparisons   EstimateComparison[]
+  historyEvents EstimateHistoryEvent[]
+  publicLinks   EstimatePublicLink[]
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Cross-Module Back Relations
+  // ─────────────────────────────────────────────────────────────
+  // Foreign keys live in other modules (Project, Invoice, ChangeOrder)
+  // These maintain 1:1:1 traceability via globalId
+  
+  /// Projects created from this estimate (via globalId)
+  projects Project[] @relation("EstimateToProjects")
+
+  /// Invoices created from this estimate (via globalId)
+  invoices Invoice[] @relation("EstimateToInvoices")
+
+  /// Change orders linked to this estimate
+  changeOrders ChangeOrder[] @relation("EstimateToChangeOrders")
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
+  // Primary constraints
+  @@unique([tenantId, id])
+  @@unique([tenantId, globalId]) // Ensures 1:1 globalId per tenant
+  @@unique([tenantId, estimateNumber]) // Business key uniqueness
+
+  // Global linkage (cross-tenant lookup for 1:1:1 traceability)
+  @@index([globalId])
+
+  // ─────────────────────────────────────────────────────────────
+  // Status-based filters (UI filter bar)
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, status])
+  @@index([tenantId, approvalStatus])
+  @@index([tenantId, clientStatus])
+
+  // ─────────────────────────────────────────────────────────────
+  // Common filters (list view filtering)
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, crmAccountId])
+  @@index([tenantId, ownerMemberId])
+  @@index([tenantId, linkedProjectId])
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+
+  // ─────────────────────────────────────────────────────────────
+  // Time-based queries (BRIN for temporal clustering)
+  // ─────────────────────────────────────────────────────────────
+  @@index([createdAt], type: Brin) // List ordering by creation
+  @@index([updatedAt], type: Brin) // Recent updates
+
+  // ─────────────────────────────────────────────────────────────
+  // Analytics & backoffice queries
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  // ─────────────────────────────────────────────────────────────
+  // CRM relation lookups
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, crmContactId])
+  @@index([tenantId, billToAddressId])
+  @@index([tenantId, shipToAddressId])
+
+  // ─────────────────────────────────────────────────────────────
+  // External module integration lookups
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, approvalRequestId])
+  @@index([tenantId, eSignatureEnvelopeId])
+
+  // ─────────────────────────────────────────────────────────────
+  // Financial & workflow metrics
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, totalAmount]) // Value-based filtering
+  @@index([tenantId, sentToClientAt]) // Client interaction tracking
+  @@index([tenantId, lastSavedAt]) // Draft activity tracking
+
+  // ─────────────────────────────────────────────────────────────
+  // Conversion and state tracking
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, hasProject]) // Conversion analytics
+  @@index([tenantId, hasInvoice]) // Billing analytics
+  @@index([tenantId, hasChangeOrders]) // Change order tracking
+
+  // ─────────────────────────────────────────────────────────────
+  // Template and analytics
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, isTemplate, templateCategory]) // Template library
+  @@index([tenantId, priority]) // Priority filtering
+  @@index([tenantId, winProbability]) // Sales forecasting
+  @@index([tenantId, requiresESignature]) // E-signature tracking
+
+  // ─────────────────────────────────────────────────────────────
+  // Communication tracking
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, clientViewCount]) // Engagement analytics
+  @@index([tenantId, preferredCommunicationMethod]) // Communication routing
+
+  // ─────────────────────────────────────────────────────────────
+  // Governance & extensibility
+  // ─────────────────────────────────────────────────────────────
+  @@index([tenantId, timezone]) // Timezone-based queries
+  @@index([metadata], type: Gin) // JSON metadata search
+
+  @@map("estimates") // Plural table name
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+/// Primary business workflow status
+enum EstimateStatus {
+  DRAFT                      // User working on it; not yet sent
+  PENDING_INTERNAL_APPROVAL  // Submitted to internal approvers
+  PENDING_CLIENT_REVIEW      // Sent to client, waiting on client
+  CLIENT_APPROVED            // Client approved via public link or signature
+  CLIENT_DECLINED            // Client explicitly declined
+  INTERNAL_REJECTED          // Internal approver rejected
+  APPROVED                   // Both sides satisfied; final internal approval granted
+  CONVERTED                  // Estimate has generated Project and/or Invoice
+  EXPIRED                    // Passed validUntil without client response
+  CANCELED                   // No longer valid, superseded, or withdrawn
+  DELETED                    // Soft-delete flag set; visible only with special filters
+}
+
+/// Internal approval workflow status
+enum EstimateApprovalStatus {
+  NOT_REQUIRED // No internal approval needed
+  PENDING      // Waiting for internal approval
+  APPROVED     // Internally approved
+  REJECTED     // Internally rejected
+  CANCELLED    // Approval cancelled
+}
+
+/// Client decision status
+enum EstimateClientStatus {
+  PENDING    // Waiting for client response
+  VIEWED     // Client opened the estimate
+  APPROVED   // Client approved
+  DECLINED   // Client declined
+  EXPIRED    // Estimate expired without response
+  RESPONDED  // Client provided feedback/comments
+}
+
+/// Data classification for governance
+enum EstimateDataClassification {
+  PUBLIC       // Can be shared externally
+  INTERNAL     // Internal use only
+  CONFIDENTIAL // Confidential business information
+  RESTRICTED   // Highly sensitive, restricted access
+}
+
+/// Priority levels for approval routing
+enum EstimatePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
