@@ -65,7 +65,7 @@ Estimate (globalId: ABC123) → Project (globalId: ABC123) → Invoice (globalId
 - **Complete audit trail forever**
 - **Prevents 95% of revenue leakage**
 
-### ✅ **AI-Powered Intelligence** (13 AI Models)
+### ✅ **AI-Powered Intelligence**
 - **60% process automation** (document processing, data entry)
 - **3x faster decision making** with predictive analytics
 - **Automatic anomaly detection** prevents fraud
@@ -357,7 +357,7 @@ Analytics:
 
 ## 🏛️ Platform Architecture
 
-### **54 Modules | 1,800+ Models | Enterprise-Grade**
+### **62 Modules | 1,800+ Models | Enterprise-Grade**
 
 ```mermaid
 graph TB
@@ -371,6 +371,9 @@ graph TB
         T[Tenant] --> AC[Access Control]
         AC --> M[Members]
         M --> R[Roles/Permissions]
+    end
+    subgraph "Workflow"
+      APR[Approvals Engine]
     end
     
     subgraph "AI Intelligence"
@@ -389,7 +392,8 @@ graph TB
 ### **Multi-Tenant Architecture Pattern**
 
 ```typescript
-// Every entity follows our BH (Base Hybrid) pattern
+// Scope-aware base patterns: most Tenant-scoped and Hybrid entities follow this BH (Base Hybrid) shape.
+// Global-scope entities (e.g., User, Session, Identity) omit tenantId and may carry global-only fields.
 interface BaseEntity {
   // Identity
   id: string;          // UUIDv7
@@ -423,6 +427,14 @@ interface BaseEntity {
 }
 ```
 
+Note on authorization semantics:
+- Authentication terminates at global `User` (identity core). Authorization is evaluated via tenant `Member` (or `ServiceAccount`) in AccessControl (RBAC + ABAC + scopes), with all audit mapped to `Actor`.
+
+Scope semantics used across modules:
+- Global: no `tenantId` (e.g., `User`, `Session`, `Actor`, `Tenant` catalog entries)
+- Tenant: always carries `tenantId` and participates in RLS
+- Hybrid: bridge/entry points that connect global identity to tenant context (e.g., `Project`, `Invoice`, `Estimate`)
+
 ### **Database Design Principles**
 
 ```sql
@@ -453,6 +465,7 @@ ALTER TABLE estimates ADD CONSTRAINT uk_tenant_estimate
 | **Tenant Management** | 10 | Multi-tenant isolation | • Subscription management<br>• Usage tracking<br>• Domain management<br>• Feature flags |
 | **Identity & Security** | 11 | Authentication & authorization | • SSO/SAML support<br>• MFA/2FA<br>• Device tracking<br>• Session management |
 | **Access Control** | 12 | RBAC & ABAC | • Role hierarchies<br>• Dynamic permissions<br>• Audit trail<br>• Service accounts |
+| **Approvals Engine** | 10 | Centralized approvals | • Multi-level workflows<br>• Threshold rules<br>• Escalations & SLAs<br>• Conditional routing & full audit |
 | **Integrations** | 19 | External system connectivity | • OAuth management<br>• Webhook processing<br>• API rate limiting<br>• Sync engine |
 
 ### **Financial Management Modules**
@@ -471,7 +484,7 @@ ALTER TABLE estimates ADD CONSTRAINT uk_tenant_estimate
 | **Projects Core** | 10 | Project management | • Phases & milestones<br>• Budget management<br>• Team assignments<br>• Document control |
 | **Task Scheduling** | 10 | Work planning | • Critical path<br>• Dependencies<br>• Resource leveling<br>• Baselines |
 | **Estimates** | 16 | Quote to cash origin | • Sections & line items<br>• Public links<br>• Approval workflow<br>• Auto-conversion |
-| **Change Orders** | 9 | Scope management | • Impact analysis<br>• Schedule impacts<br>• Approval chains<br>• Version control |
+| **Change Orders** | 9 | Scope management | • Impact analysis<br>• Schedule impacts<br>• Approval chains (centralized via Approvals)<br>• Version control |
 
 ### **AI & Intelligence Modules**
 
@@ -481,6 +494,8 @@ ALTER TABLE estimates ADD CONSTRAINT uk_tenant_estimate
 | **Document AI** | 10 | Document processing | • 95% OCR accuracy<br>• Auto-extraction<br>• Semantic search |
 | **AI Insights** | 10 | Predictive analytics | • Risk detection<br>• Trend analysis<br>• What-if scenarios |
 | **Weather Intelligence** | 20 | Environmental impact | • Schedule optimization<br>• Risk mitigation<br>• Delay predictions |
+
+For the complete, canonical catalog of modules and models (source of truth), see `structure/ERP_Modules.md`. This README is aligned to that document.
 
 ---
 
@@ -650,7 +665,7 @@ spec:
 ## 🗺️ Product Roadmap
 
 ### **Q4 2024** ✅ Complete
-- Core architecture (54 modules defined)
+- Core architecture (62 modules defined)
 - Database schema (1,800+ models)
 - Tenant management
 - Identity & access control
@@ -917,7 +932,7 @@ We're not just another construction software. We're the complete digital transfo
 **Platform Status**: Production Ready (Core Modules)  
 **Schema Version**: 7.0  
 **Total Models**: 1,800+  
-**Total Modules**: 54  
+**Total Modules**: 62  
 
 © 2025 Construction ERP Platform. All rights reserved. 🏗️
 
