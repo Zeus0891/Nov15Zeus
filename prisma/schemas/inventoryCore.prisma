@@ -41,6 +41,9 @@ model InventoryItem {
   // updatedByActor Actor? @relation("InventoryItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("InventoryItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
+  // 🔗 Opposite relations - Invoice module (billing integration)
+  invoiceLineItems InvoiceLineItem[] @relation("InventoryItemToInvoiceLineItem")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

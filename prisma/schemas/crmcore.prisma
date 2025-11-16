@@ -38,6 +38,7 @@ model CRMAccount {
 
   // 🔗 Opposite relations (cross-module)
   estimates Estimate[] @relation("EstimateAccount")
+  invoices  Invoice[]  @relation("InvoiceAccount")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("CRMAccountCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
@@ -96,6 +97,7 @@ model CRMContact {
 
   // 🔗 Opposite relations (cross-module)
   estimates Estimate[] @relation("EstimateContact")
+  invoices  Invoice[]  @relation("InvoiceContact")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("CRMContactCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
@@ -155,6 +157,7 @@ model CRMAddress {
   // 🔗 Opposite relations (cross-module)
   billToEstimates Estimate[] @relation("EstimateBillToAddress")
   shipToEstimates Estimate[] @relation("EstimateShipToAddress")
+  billToInvoices  Invoice[]  @relation("InvoiceBillToAddress")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("CRMAddressCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)

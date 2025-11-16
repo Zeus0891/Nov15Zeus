@@ -9,8 +9,8 @@ This is a **multi-tenant ERP system** built with **Prisma ORM** and **PostgreSQL
 - **Tenant Models**: 569 tables (tenant-isolated business data)
 
 See complete model inventory in [`Tables.v2.md`](../structure/Tables.v2.md)
-See complete estimate flow [`Estimate_Flow_CORRECTED.md`](../files2/Estimate_Flow_Corrected.md)
-See complete Estimate diagram in [`ESTIMATE_ARCHITECTURE_DIAGRAM.md`](../files2/ESTIMATE_ARCHITECTURE_DIAGRAM.md)
+See complete invoice flow [`Invoice_Flow.v7.md`](../docs/modules/invoice/Invoice_Flow.v7.md)
+See complete invoice diagram in [`Invoice_Architecture_invoice.v7.md`](../docs/modules/invoice/Invoice_Architecture_invoice.v7.md)
 
 ---
 
@@ -163,6 +163,22 @@ model Estimate {  // Critical revenue entity
   deletedByActor Actor? @relation("EstimateDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 }
 
+model Invoice {  // Critical revenue entity (Pattern BH - Base Hybrid)
+  // Identity & Hybrid Pattern
+  id String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+  globalId String @db.Uuid  // 1:1:1 traceability with Estimate/Project
+  
+  // Actor audit with full relations (Pattern B)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+  
+  createdByActor Actor? @relation("InvoiceCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("InvoiceUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("InvoiceDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+}
+
 model EstimateLineItem {  // Critical business entity with attachments
   // Same Pattern B implementation
   createdByActor Actor? @relation("EstimateLineItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
@@ -206,6 +222,14 @@ model Actor {
   estimateLineItemsUpdated EstimateLineItem[] @relation("EstimateLineItemUpdatedByActor")
   estimateLineItemsDeleted EstimateLineItem[] @relation("EstimateLineItemDeletedByActor")
   
+  invoicesCreated Invoice[] @relation("InvoiceCreatedByActor")
+  invoicesUpdated Invoice[] @relation("InvoiceUpdatedByActor")
+  invoicesDeleted Invoice[] @relation("InvoiceDeletedByActor")
+  
+  invoiceLineItemsCreated InvoiceLineItem[] @relation("InvoiceLineItemCreatedByActor")
+  invoiceLineItemsUpdated InvoiceLineItem[] @relation("InvoiceLineItemUpdatedByActor")
+  invoiceLineItemsDeleted InvoiceLineItem[] @relation("InvoiceLineItemDeletedByActor")
+  
   // NO relations for Pattern A entities (EstimateTax, EstimateDiscount, EstimateFee, etc.)
   // This keeps Actor model lean and prevents relation bloat
 }
@@ -219,6 +243,10 @@ model Member {
   ownedEstimates    Estimate[]         @relation("EstimateOwner")
   approvedDiscounts EstimateDiscount[] @relation("EstimateDiscountApprover")
   approvedFees      EstimateFee[]      @relation("EstimateFeeApprover")
+  
+  ownedInvoices     Invoice[]          @relation("InvoiceOwner")
+  approvedInvoiceDiscounts InvoiceDiscount[] @relation("InvoiceDiscountApprover")
+  approvedInvoiceFees      InvoiceFee[]      @relation("InvoiceFeeApprover")
 }
 ```
 
@@ -228,10 +256,12 @@ model Member {
 
 | Module/Entity Type | Pattern | Actor Relations | Example Models |
 |-------------------|---------|-----------------|----------------|
-| **Critical Revenue** | B | Full relations | `Estimate`, `EstimateLineItem` |
-| **Financial Line Items** | A | IDs only | `EstimateTax`, `EstimateDiscount`, `EstimateFee` |
-| **Content/Notes** | A | IDs only | `EstimateComment`, `EstimateAssumption` |
-| **Attachments** | A | IDs only | `EstimateAttachment`, `EstimateExclusion` |
+| **Critical Revenue** | B | Full relations | `Estimate`, `EstimateLineItem`, `Invoice`, `InvoiceLineItem` |
+| **Financial Line Items** | A | IDs only | `EstimateTax`, `EstimateDiscount`, `EstimateFee`, `InvoiceTax`, `InvoiceDiscount`, `InvoiceFee` |
+| **Progress/Retainage** | A | IDs only | `InvoiceProgress`, `InvoiceRetainage`, `InvoiceMilestone` |
+| **Payment & Collections** | A | IDs only | `InvoicePaymentApplication`, `InvoiceReminder`, `InvoicePublicLink` |
+| **Content/Notes** | A | IDs only | `EstimateComment`, `EstimateAssumption`, `InvoiceComment` |
+| **Attachments** | A | IDs only | `EstimateAttachment`, `EstimateExclusion`, `InvoiceAttachment` |
 | **Room Planning** | A | IDs only | `RoomModel`, `RoomScanSession` |
 | **AI/Analytics** | A | IDs only | ML jobs, embeddings |
 
@@ -545,6 +575,30 @@ model Estimate {
   
   // Business fields...
 }
+
+// Pattern BH - Hybrid parent entities (Invoice module example)
+model Invoice {
+  id String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+  globalId String @db.Uuid  // Cross-tenant 1:1:1 traceability
+  
+  // Pattern B: Full Actor relations for critical revenue entity
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+  
+  createdByActor Actor? @relation("InvoiceCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("InvoiceUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("InvoiceDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  
+  // Invoice-specific business fields (70+ fields per architecture)
+  invoiceNumber String @db.VarChar(50)
+  sourceEstimateId String? @db.Uuid  // 1:1:1 linkage
+  status InvoiceStatus @default(DRAFT)
+  paymentStatus InvoicePaymentStatus @default(UNPAID)
+  collectionStatus InvoiceCollectionStatus @default(CURRENT)
+  // ... additional 65+ fields per Invoice_Architecture_invoice.v7.md
+}
 ```
 
 ### For Financial Child Entities (Pattern A)
@@ -613,6 +667,35 @@ model EstimateDiscount {
   @@unique([tenantId, id])
   @@index([tenantId, estimateId])
   @@map("estimate_discounts")
+}
+
+model InvoiceDiscount {
+  // Pattern A for Invoice module financial child entities
+  id String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+  
+  // Pattern A: Actor audit IDs only (no cross-relations)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+  
+  // Member approval (tenant-scoped composite key)
+  approvedByMemberId String? @db.Uuid
+  approvedByMember Member? @relation("InvoiceDiscountApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+  
+  // Business fields
+  invoiceId String @db.Uuid
+  discountName String @db.VarChar(100)
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+  discountType InvoiceDiscountType @default(AMOUNT)
+  
+  // Relations
+  tenant Tenant @relation("TenantToInvoiceDiscount", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation(fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId])
+  @@map("invoice_discounts")
 }
 ```
 

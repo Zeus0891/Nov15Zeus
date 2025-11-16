@@ -41,6 +41,9 @@ model Payment {
   // updatedByActor Actor? @relation("PaymentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("PaymentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
+  // 🔗 Opposite relations - Invoice module (cash application)
+  invoicePaymentApplications InvoicePaymentApplication[] @relation("PaymentToInvoiceApplications")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

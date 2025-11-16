@@ -957,13 +957,12 @@ model EstimateLineItem {
   // ─────────────────────────────────────────────────────────────
   // 🔗 Cross-Module Relations (via inheritance to Project/Invoice)
   // ─────────────────────────────────────────────────────────────
-  // Note: These are conceptual - actual relations live in other modules
 
   /// Project tasks created from this line item (conceptual)
   // projectTasks ProjectTask[] @relation("EstimateLineItemToProjectTasks")
 
-  /// Invoice line items created from this line item (conceptual)
-  // invoiceLineItems InvoiceLineItem[] @relation("EstimateLineItemToInvoiceLineItems")
+  /// Invoice line items created from this line item (actual relation)
+  invoiceLineItems InvoiceLineItem[] @relation("EstimateLineItemToInvoiceLineItem")
 
   // ─────────────────────────────────────────────────────────────
   // 📏 Constraints & Indexes

@@ -49,6 +49,26 @@ model Tenant {
   estimatePublicLinks  EstimatePublicLink[]  @relation("TenantToEstimatePublicLink")
   estimateHistoryEvents EstimateHistoryEvent[] @relation("TenantToEstimateHistoryEvent")
 
+  // 🔗 Opposite relations - Invoice module
+  invoices                     Invoice[]                     @relation("TenantToInvoice")
+  invoiceLineItems             InvoiceLineItem[]             @relation("TenantToInvoiceLineItem")
+  invoiceTaxes                 InvoiceTax[]                  @relation("TenantToInvoiceTax")
+  invoiceDiscounts             InvoiceDiscount[]             @relation("TenantToInvoiceDiscount")
+  invoiceFees                  InvoiceFee[]                  @relation("TenantToInvoiceFee")
+  invoiceRetainages            InvoiceRetainage[]            @relation("TenantToInvoiceRetainage")
+  invoiceProgresses            InvoiceProgress[]             @relation("TenantToInvoiceProgress")
+  invoiceMilestones            InvoiceMilestone[]            @relation("TenantToInvoiceMilestone")
+  invoicePaymentApplications   InvoicePaymentApplication[]   @relation("TenantToInvoicePaymentApplication")
+  invoiceAttachments           InvoiceAttachment[]           @relation("TenantToInvoiceAttachment")
+  invoiceComments              InvoiceComment[]              @relation("TenantToInvoiceComment")
+  invoiceRevisions             InvoiceRevision[]             @relation("TenantToInvoiceRevision")
+  invoiceAdjustments           InvoiceAdjustment[]           @relation("TenantToInvoiceAdjustment")
+  invoiceCredits               InvoiceCredit[]               @relation("TenantToInvoiceCredit")
+  invoiceDebits                InvoiceDebit[]                @relation("TenantToInvoiceDebit")
+  invoiceHistories             InvoiceHistory[]              @relation("TenantToInvoiceHistory")
+  invoicePublicLinks           InvoicePublicLink[]           @relation("TenantToInvoicePublicLink")
+  invoiceReminders             InvoiceReminder[]             @relation("TenantToInvoiceReminder")
+
   // Enable ONLY if you use these fields:
   // @@index([hashToken])
   // @@index([recordSource])

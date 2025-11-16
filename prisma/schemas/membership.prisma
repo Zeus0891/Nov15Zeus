@@ -49,6 +49,18 @@ model Member {
   assignedComments  EstimateComment[]  @relation("EstimateCommentAssignee")
   initiatedHistoryEvents EstimateHistoryEvent[] @relation("HistoryEventInitiator")
 
+  // 🔗 Opposite relations - Invoice module
+  // Business workflow relations (ownership & approval chains)
+  ownedInvoices                Invoice[]                @relation("InvoiceOwner")
+  approvedInvoiceDiscounts     InvoiceDiscount[]        @relation("InvoiceDiscountApprover")
+  approvedInvoiceFees          InvoiceFee[]             @relation("InvoiceFeeApprover")
+  approvedInvoiceRetainages    InvoiceRetainage[]       @relation("InvoiceRetainageApprover")
+  reviewedInvoiceProgresses    InvoiceProgress[]        @relation("InvoiceProgressReviewer")
+  approvedInvoiceMilestones    InvoiceMilestone[]       @relation("InvoiceMilestoneApprover")
+  approvedInvoiceAdjustments   InvoiceAdjustment[]      @relation("InvoiceAdjustmentApprover")
+  approvedInvoiceCredits       InvoiceCredit[]          @relation("InvoiceCreditApprover")
+  approvedInvoiceDebits        InvoiceDebit[]           @relation("InvoiceDebitApprover")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

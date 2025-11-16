@@ -43,6 +43,9 @@ model ApprovalRequest {
 
   // 🔗 Opposite relations - Estimate module
   estimates Estimate[] @relation("EstimateApprovalRequest")
+  
+  // 🔗 Opposite relations - Invoice module (approval workflows)
+  invoices Invoice[] @relation("InvoiceApproval")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])

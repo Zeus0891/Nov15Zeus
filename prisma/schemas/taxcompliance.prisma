@@ -151,6 +151,9 @@ model TaxCode {
   // updatedByActor Actor? @relation("TaxCodeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("TaxCodeDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
+  // 🔗 Opposite relations - Invoice module (tax integration)
+  invoiceTaxes InvoiceTax[] @relation("TaxCodeToInvoiceTax")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

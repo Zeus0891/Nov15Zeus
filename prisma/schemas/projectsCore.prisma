@@ -46,6 +46,9 @@ model Project {
 
   // 🔗 Opposite relations - Estimate module
   estimates Estimate[] @relation("EstimateToProjects")
+  
+  // 🔗 Opposite relations - Invoice module (1:1:1 traceability via globalId)
+  invoices Invoice[] @relation("ProjectToInvoices")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])

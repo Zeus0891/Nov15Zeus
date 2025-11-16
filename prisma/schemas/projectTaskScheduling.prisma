@@ -41,6 +41,9 @@ model ProjectTask {
   // updatedByActor Actor? @relation("ProjectTaskUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("ProjectTaskDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
+  // 🔗 Opposite relations - Invoice module (billing integration)
+  invoiceLineItems InvoiceLineItem[] @relation("ProjectTaskToInvoiceLineItem")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

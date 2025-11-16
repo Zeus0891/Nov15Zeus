@@ -1,68 +1,222 @@
-// This file is auto-generated. Do not edit manually.
-// Module: invoice.prisma
-// Generated from Modules_Structure.md and models.generated.prisma
-
 model Invoice {
-  // 🆔 Identity, Tenant and Global
+  // 🆔 Identity & Hybrid Pattern (Pattern BH - Base Hybrid)
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
-  globalId String @db.Uuid // referencia a entidad BG
+  globalId String @db.Uuid // 1:1:1 traceability with Estimate/Project
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceStatus @default(DRAFT)
+  version   Int           @default(1)
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?     @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern B - Full Relations for Critical Revenue Entity)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
+  createdByActor Actor? @relation("InvoiceCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("InvoiceUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("InvoiceDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("CONFIDENTIAL") @db.VarChar(50)
+  auditCorrelationId String?                      @db.Uuid
+  dataClassification InvoiceDataClassification    @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                      @db.VarChar(50)
+  metadata           Json?                        @db.JsonB
+  timezone           String?                      @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255)
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)
-  // timezone     String? @db.VarChar(50)
+  // 📄 Business Identity
+  invoiceNumber      String  @db.VarChar(50)
+  invoiceDate        DateTime @default(now()) @db.Timestamptz(6)
+  dueDate            DateTime @db.Timestamptz(6)
+  title              String? @db.VarChar(255)
+  referenceCode      String? @db.VarChar(100)
+  description        String? @db.Text
+  termsAndConditions String? @db.Text
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoice", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 👥 CRM Linkage (Corrected Model Names)
+  crmAccountId     String  @db.Uuid
+  crmContactId     String? @db.Uuid
+  billToAddressId  String? @db.Uuid
 
-  // Relation to the Global entity (adjust the real BG model)
-  // global <YourGlobalModel> @relation(fields: [globalId], references: [id], onDelete: Restrict)
+  // 🔗 Source Linkage (1:1:1 Traceability)
+  sourceEstimateId String? @db.Uuid // 1:1:1 linkage via globalId
+  relatedProjectId String? @db.Uuid // 1:1:1 linkage via globalId  
+  contractId       String? @db.Uuid
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  // 👤 Ownership & Terms
+  ownerMemberId   String? @db.Uuid
+  paymentTermsId  String? @db.Uuid
 
-  // 🔗 Opposite relations - Estimate module
-  estimates Estimate[] @relation("EstimateToInvoices")
+  // 📊 Triple Status Dimension
+  paymentStatus    InvoicePaymentStatus    @default(UNPAID)
+  collectionStatus InvoiceCollectionStatus @default(CURRENT)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
+  // 📅 Event Timestamps
+  issueDate        DateTime? @db.Timestamptz(6)
+  sentToClientAt   DateTime? @db.Timestamptz(6)
+  clientViewedAt   DateTime? @db.Timestamptz(6)
+  firstPaymentAt   DateTime? @db.Timestamptz(6)
+  fullyPaidAt      DateTime? @db.Timestamptz(6)
+  voidedAt         DateTime? @db.Timestamptz(6)
+  writtenOffAt     DateTime? @db.Timestamptz(6)
+  lastReminderAt   DateTime? @db.Timestamptz(6)
+  nextReminderAt   DateTime? @db.Timestamptz(6)
 
-  // 🗂️ Indexes & constraints
-  @@unique([tenantId, id]) // Required for foreign key references
-  @@unique([tenantId, globalId]) // un override por globalId en cada tenant
-  @@index([globalId])
+  // 💰 Financial Totals (Denormalized for Performance)
+  currencyCode              String  @default("USD") @db.Char(3)
+  subtotalAmount            Decimal @default(0) @db.Decimal(12, 2)
+  discountAmount            Decimal @default(0) @db.Decimal(12, 2)
+  taxAmount                 Decimal @default(0) @db.Decimal(12, 2)
+  feeAmount                 Decimal @default(0) @db.Decimal(12, 2)
+  retainageAmount           Decimal @default(0) @db.Decimal(12, 2) // Construction-specific
+  retainagePercentage       Decimal @default(0) @db.Decimal(8, 4) // Construction-specific
+  totalAmount               Decimal @default(0) @db.Decimal(12, 2)
+  amountPaid                Decimal @default(0) @db.Decimal(12, 2)
+  amountDue                 Decimal @default(0) @db.Decimal(12, 2)
+  lineItemCount             Int     @default(0)
+  totalQuantity             Decimal @default(0) @db.Decimal(10, 4)
+
+  // 📊 Payment Tracking
+  lastPaymentDate       DateTime? @db.Timestamptz(6)
+  lastPaymentAmount     Decimal   @default(0) @db.Decimal(12, 2)
+  paymentCount          Int       @default(0)
+  partialPaymentAllowed Boolean   @default(true)
+  earlyPaymentDiscount  Decimal   @default(0) @db.Decimal(8, 4)
+
+  // 🏗️ Billing Type & Progress
+  billingType              InvoiceBillingType @default(STANDARD)
+  progressPercentage       Decimal            @default(0) @db.Decimal(8, 4)
+  cumulativeBilledAmount   Decimal            @default(0) @db.Decimal(12, 2)
+  previouslyBilledAmount   Decimal            @default(0) @db.Decimal(12, 2)
+  currentPeriodAmount      Decimal            @default(0) @db.Decimal(12, 2)
+  milestoneId              String?            @db.Uuid
+
+  // ⚙️ Behavior Flags
+  isRecurring         Boolean @default(false)
+  isProgress          Boolean @default(false)
+  isMilestone         Boolean @default(false)
+  isRetainage         Boolean @default(false)
+  isFinal             Boolean @default(false)
+  isVoided            Boolean @default(false)
+  isWrittenOff        Boolean @default(false)
+  autoSendReminders   Boolean @default(true)
+  allowPartialPayment Boolean @default(true)
+  requiresApproval    Boolean @default(false)
+
+  // 🔗 External Module References
+  approvalRequestId             String? @db.Uuid
+  eSignatureEnvelopeId          String? @db.Uuid
+  numberSequenceAllocationId    String? @db.Uuid
+
+  // 🔗 Relations
+  tenant Tenant @relation("TenantToInvoice", fields: [tenantId], references: [id], onDelete: Restrict)
+  
+  // CRM Relations (tenant-to-tenant composite keys)
+  crmAccount     CRMAccount? @relation("InvoiceAccount", fields: [tenantId, crmAccountId], references: [tenantId, id], onDelete: Restrict)
+  crmContact     CRMContact? @relation("InvoiceContact", fields: [tenantId, crmContactId], references: [tenantId, id], onDelete: SetNull)
+  billToAddress  CRMAddress? @relation("InvoiceBillToAddress", fields: [tenantId, billToAddressId], references: [tenantId, id], onDelete: SetNull)
+
+  // Source Relations (1:1:1 traceability)
+  sourceEstimate Estimate? @relation("EstimateToInvoices", fields: [tenantId, sourceEstimateId], references: [tenantId, id], onDelete: SetNull)
+  relatedProject Project?  @relation("ProjectToInvoices", fields: [tenantId, relatedProjectId], references: [tenantId, id], onDelete: SetNull)
+
+  // Ownership (tenant-to-tenant)
+  ownerMember Member? @relation("InvoiceOwner", fields: [tenantId, ownerMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // External Relations (external modules)
+  approvalRequest ApprovalRequest? @relation("InvoiceApproval", fields: [tenantId, approvalRequestId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🔗 Child Relations (1:M)
+  invoiceLineItems          InvoiceLineItem[]          @relation("InvoiceToLineItems")
+  invoiceTaxes              InvoiceTax[]               @relation("InvoiceToTaxes")
+  invoiceDiscounts          InvoiceDiscount[]          @relation("InvoiceToDiscounts")
+  invoiceFees               InvoiceFee[]               @relation("InvoiceToFees")
+  invoiceRetainages         InvoiceRetainage[]         @relation("InvoiceToRetainages")
+  invoiceProgresses         InvoiceProgress[]          @relation("InvoiceToProgresses")
+  invoiceMilestones         InvoiceMilestone[]         @relation("InvoiceToMilestones")
+  invoicePaymentApplications InvoicePaymentApplication[] @relation("InvoiceToPaymentApplications")
+  invoiceAttachments        InvoiceAttachment[]        @relation("InvoiceToAttachments")
+  invoiceComments           InvoiceComment[]           @relation("InvoiceToComments")
+  invoiceRevisions          InvoiceRevision[]          @relation("InvoiceToRevisions")
+  invoiceAdjustments        InvoiceAdjustment[]        @relation("InvoiceToAdjustments")
+  invoiceCredits            InvoiceCredit[]            @relation("InvoiceToCredits")
+  invoiceDebits             InvoiceDebit[]             @relation("InvoiceToDebits")
+  invoiceHistories          InvoiceHistory[]           @relation("InvoiceToHistory")
+  invoicePublicLinks        InvoicePublicLink[]        @relation("InvoiceToPublicLinks")
+  invoiceReminders          InvoiceReminder[]          @relation("InvoiceToReminders")
+
+  // 🗂️ Constraints & Strategic Indexes (35+ indexes per architecture)
+  @@unique([tenantId, id])              // Primary constraint
+  @@unique([tenantId, globalId])        // Hybrid pattern constraint
+  @@unique([tenantId, invoiceNumber])   // Business constraint
+
+  // Global linkage
+  @@index([globalId])                   // Cross-tenant 1:1:1 traceability
+
+  // Status filters (most common queries)
   @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
+  @@index([tenantId, paymentStatus])
+  @@index([tenantId, collectionStatus])
+
+  // Critical business filters
+  @@index([tenantId, crmAccountId])     // Customer invoice lists (most common)
+  @@index([tenantId, ownerMemberId])    // Ownership queries
+  @@index([tenantId, sourceEstimateId]) // 1:1:1 traceability
+  @@index([tenantId, relatedProjectId]) // 1:1:1 traceability
+  @@index([tenantId, deletedAt])        // Soft delete filtering
+
+  // Temporal indexes (BRIN for performance)
+  @@index([invoiceDate], type: Brin)    // Revenue reports
+  @@index([dueDate], type: Brin)        // Collections workflow
+  @@index([createdAt], type: Brin)      // Audit queries
+
+  // Financial queries
+  @@index([tenantId, totalAmount])      // Revenue analysis
+  @@index([tenantId, amountDue])        // AR balance queries
+  @@index([tenantId, amountPaid])       // Cash reports
+  @@index([tenantId, retainageAmount])  // Construction tracking
+
+  // Date-based workflows
+  @@index([tenantId, sentToClientAt])
+  @@index([tenantId, fullyPaidAt])
+  @@index([tenantId, nextReminderAt])   // Reminder scheduling
+  @@index([tenantId, lastReminderAt])
+
+  // Governance & analytics
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("invoice")
+
+  // CRM lookups
+  @@index([tenantId, crmContactId])
+  @@index([tenantId, billToAddressId])
+
+  // External module integration
+  @@index([tenantId, approvalRequestId])
+  @@index([tenantId, eSignatureEnvelopeId])
+  @@index([tenantId, contractId])
+  @@index([tenantId, milestoneId])
+
+  // Billing type filters
+  @@index([tenantId, billingType])
+  @@index([tenantId, isProgress])
+  @@index([tenantId, isMilestone])
+  @@index([tenantId, isRetainage])
+  @@index([tenantId, isFinal])
+
+  // Behavior flags
+  @@index([tenantId, isVoided])
+  @@index([tenantId, isWrittenOff])
+  @@index([tenantId, autoSendReminders])
+
+  // Extensibility
+  @@index([tenantId, timezone])
+  @@index([metadata], type: Gin)       // JSON search
+
+  @@map("invoices")
 }
 
 model InvoiceLineItem {
@@ -71,53 +225,85 @@ model InvoiceLineItem {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceLineItemStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern B - Critical Business Entity)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
+  createdByActor Actor? @relation("InvoiceLineItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("InvoiceLineItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("InvoiceLineItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                      @db.Uuid
+  dataClassification InvoiceDataClassification    @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                      @db.VarChar(50)
+  metadata           Json?                        @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceLineItem", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Business Fields (Inherited from EstimateLineItem)
+  lineNumber            Int     @default(1)
+  description           String  @db.Text
+  quantity              Decimal @db.Decimal(10, 4)
+  unitPrice             Decimal @db.Decimal(12, 2)
+  lineTotal             Decimal @db.Decimal(12, 2)
+  unitOfMeasure         String? @db.VarChar(50)
+  
+  // 🏗️ Construction-specific
+  laborHours            Decimal? @db.Decimal(10, 2)
+  laborRate             Decimal? @db.Decimal(12, 2)
+  materialCost          Decimal? @db.Decimal(12, 2)
+  equipmentCost         Decimal? @db.Decimal(12, 2)
+  subcontractAmount     Decimal? @db.Decimal(12, 2)
+  overheadPercentage    Decimal? @db.Decimal(8, 4)
+  profitMarginPercentage Decimal? @db.Decimal(8, 4)
+  
+  // 🔗 Source Traceability
+  sourceEstimateLineItemId String? @db.Uuid
+  relatedProjectTaskId     String? @db.Uuid
+  inventoryItemId          String? @db.Uuid
+  
+  // 📊 Progress Tracking
+  percentComplete       Decimal @default(0) @db.Decimal(8, 4)
+  billedToDate         Decimal @default(0) @db.Decimal(12, 2)
+  remainingToBill      Decimal @default(0) @db.Decimal(12, 2)
+  
+  // ⚙️ Flags
+  isTaxable            Boolean @default(true)
+  isDiscountable       Boolean @default(true)
+  requiresApproval     Boolean @default(false)
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceLineItem", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToLineItems", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Source relations (optional)
+  sourceEstimateLineItem EstimateLineItem? @relation("EstimateLineItemToInvoiceLineItem", fields: [tenantId, sourceEstimateLineItemId], references: [tenantId, id], onDelete: SetNull)
+  relatedProjectTask     ProjectTask?      @relation("ProjectTaskToInvoiceLineItem", fields: [tenantId, relatedProjectTaskId], references: [tenantId, id], onDelete: SetNull)
+  inventoryItem          InventoryItem?    @relation("InventoryItemToInvoiceLineItem", fields: [tenantId, inventoryItemId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceLineItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceLineItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceLineItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
+  @@index([tenantId, invoiceId])           // Parent lookup (most common)
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
+  @@index([tenantId, sourceEstimateLineItemId]) // Traceability
+  @@index([tenantId, relatedProjectTaskId])     // Project integration
+  @@index([tenantId, inventoryItemId])          // Inventory lookup
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("invoice_line_item")
+  @@index([metadata], type: Gin)
+  @@map("invoice_line_items")
 }
 
 model InvoiceTax {
@@ -126,53 +312,58 @@ model InvoiceTax {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceTaxStatus @default(ACTIVE)
+  version   Int              @default(1)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?        @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceTax", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Business Fields
+  taxName          String  @db.VarChar(100)
+  taxType          InvoiceTaxType @default(SALES_TAX)
+  taxRate          Decimal @default(0) @db.Decimal(8, 4)
+  taxAmount        Decimal @default(0) @db.Decimal(12, 2)
+  taxableAmount    Decimal @default(0) @db.Decimal(12, 2)
+  jurisdictionCode String? @db.VarChar(20)
+  taxCodeId        String? @db.Uuid
+  
+  // 📊 Compliance
+  isExempt         Boolean @default(false)
+  exemptionReason  String? @db.VarChar(255)
+  exemptionCertId  String? @db.Uuid
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceTax", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToTaxes", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Tax system integration (optional)
+  taxCode TaxCode? @relation("TaxCodeToInvoiceTax", fields: [tenantId, taxCodeId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceTaxCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceTaxUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceTaxDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
   @@index([tenantId, deletedAt])
+  @@index([tenantId, taxCodeId])           // Tax system integration
+  @@index([tenantId, jurisdictionCode])    // Jurisdiction reporting
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_tax")
+  @@index([metadata], type: Gin)
+  @@map("invoice_taxes")
 }
 
 model InvoiceDiscount {
@@ -181,53 +372,64 @@ model InvoiceDiscount {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceDiscountStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceDiscount", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Business Fields
+  discountName        String               @db.VarChar(100)
+  discountType        InvoiceDiscountType  @default(AMOUNT)
+  discountRate        Decimal              @default(0) @db.Decimal(8, 4)
+  discountAmount      Decimal              @default(0) @db.Decimal(12, 2)
+  maximumAmount       Decimal?             @db.Decimal(12, 2)
+  applicableAmount    Decimal              @default(0) @db.Decimal(12, 2)
+  
+  // 📅 Terms & Conditions
+  earlyPaymentDays    Int?     // Days for early payment discount
+  validFrom          DateTime? @db.Timestamptz(6)
+  validUntil         DateTime? @db.Timestamptz(6)
+  description        String?   @db.Text
+  
+  // ✅ Approval Workflow (Member approval for discounts)
+  requiresApproval   Boolean @default(true)
+  approvedByMemberId String? @db.Uuid
+  approvedAt         DateTime? @db.Timestamptz(6)
+  approvalNotes      String?   @db.Text
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceDiscount", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToDiscounts", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Member approval workflow (tenant-scoped composite key)
+  approvedByMember Member? @relation("InvoiceDiscountApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceDiscountCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceDiscountUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceDiscountDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
   @@index([tenantId, deletedAt])
+  @@index([tenantId, approvedByMemberId])  // Approval workflow
+  @@index([tenantId, requiresApproval])    // Pending approvals
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_discount")
+  @@index([metadata], type: Gin)
+  @@map("invoice_discounts")
 }
 
 model InvoiceFee {
@@ -236,53 +438,68 @@ model InvoiceFee {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceFeeStatus @default(ACTIVE)
+  version   Int              @default(1)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?        @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceFee", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Business Fields
+  feeName         String          @db.VarChar(100)
+  feeType         InvoiceFeeType  @default(PROCESSING_FEE)
+  feeAmount       Decimal         @default(0) @db.Decimal(12, 2)
+  feeRate         Decimal?        @db.Decimal(8, 4)
+  applicableAmount Decimal        @default(0) @db.Decimal(12, 2)
+  
+  // 📅 Late Fee Specifics
+  daysPastDue     Int?            // For late fees
+  gracePeriodDays Int?            // Grace period before applying
+  maximumAmount   Decimal?        @db.Decimal(12, 2)
+  
+  // 📊 Calculation Details
+  calculationBasis InvoiceFeeCalculationBasis? @default(TOTAL_AMOUNT)
+  description      String?                      @db.Text
+  isRecurring      Boolean                      @default(false)
+  
+  // ✅ Approval Workflow (Member approval for fees)
+  requiresApproval   Boolean   @default(false)
+  approvedByMemberId String?   @db.Uuid
+  approvedAt         DateTime? @db.Timestamptz(6)
+  approvalNotes      String?   @db.Text
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceFee", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToFees", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Member approval workflow (tenant-scoped composite key)
+  approvedByMember Member? @relation("InvoiceFeeApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceFeeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceFeeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceFeeDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
   @@index([tenantId, deletedAt])
+  @@index([tenantId, feeType])             // Fee type filtering
+  @@index([tenantId, approvedByMemberId])  // Approval workflow
+  @@index([tenantId, requiresApproval])    // Pending approvals
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_fee")
+  @@index([metadata], type: Gin)
+  @@map("invoice_fees")
 }
 
 model InvoiceRetainage {
@@ -291,53 +508,82 @@ model InvoiceRetainage {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceRetainageStatus @default(WITHHELD)
+  version   Int                    @default(1)
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?              @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceRetainage", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Retainage Business Fields
+  retainageType        InvoiceRetainageType @default(PERCENTAGE)
+  retainageRate        Decimal              @default(0) @db.Decimal(8, 4) // e.g., 10.00% = 0.1000
+  retainageAmount      Decimal              @default(0) @db.Decimal(12, 2)
+  baseAmount           Decimal              @default(0) @db.Decimal(12, 2) // Amount retainage is calculated on
+  
+  // 📊 Cumulative Tracking
+  cumulativeRetainage  Decimal              @default(0) @db.Decimal(12, 2)
+  previousRetainage    Decimal              @default(0) @db.Decimal(12, 2)
+  currentRetainage     Decimal              @default(0) @db.Decimal(12, 2)
+  
+  // 🔓 Release Management
+  releaseType          InvoiceRetainageReleaseType? @default(NONE)
+  releasedAmount       Decimal              @default(0) @db.Decimal(12, 2)
+  remainingRetainage   Decimal              @default(0) @db.Decimal(12, 2)
+  releaseDate          DateTime?            @db.Timestamptz(6)
+  releaseApprovedAt    DateTime?            @db.Timestamptz(6)
+  releaseApprovedBy    String?              @db.Uuid
+  
+  // 📋 Release Conditions
+  releaseConditions    String?              @db.Text
+  releaseDocuments     String?              @db.Text // JSON array of document IDs
+  complianceVerified   Boolean              @default(false)
+  lienWaiverReceived   Boolean              @default(false)
+  finalInspectionPassed Boolean             @default(false)
+  
+  // 🏗️ Construction Compliance
+  contractClause       String?              @db.VarChar(100)
+  jurisdictionRules    String?              @db.Text
+  bondRequirements     String?              @db.Text
+  
+  // 👤 Member Approval (tenant-scoped composite key)
+  approvedByMemberId   String?              @db.Uuid
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceRetainage", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToRetainages", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Member approval relation
+  approvedByMember Member? @relation("InvoiceRetainageApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceRetainageCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceRetainageUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceRetainageDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, retainageType])       // Type filtering
+  @@index([tenantId, status])              // Status filtering
+  @@index([tenantId, releaseType])         // Release tracking
   @@index([tenantId, deletedAt])
+  @@index([tenantId, releaseDate])         // Release scheduling
+  @@index([tenantId, complianceVerified])  // Compliance tracking
+  @@index([tenantId, approvedByMemberId])  // Approval tracking
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_retainage")
+  @@index([metadata], type: Gin)
+  @@map("invoice_retainages")
 }
 
 model InvoiceProgress {
@@ -346,53 +592,89 @@ model InvoiceProgress {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceProgressStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceProgress", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 📊 Progress Billing Fields
+  billingPeriod        String  @db.VarChar(50) // "2025-11", "Q1-2025", etc.
+  progressDate         DateTime @default(now()) @db.Timestamptz(6)
+  
+  // 📈 Percentage Tracking
+  percentCompleteTotal  Decimal @default(0) @db.Decimal(8, 4) // Overall project %
+  percentCompletePrior  Decimal @default(0) @db.Decimal(8, 4) // Previous period %
+  percentCompleteCurrent Decimal @default(0) @db.Decimal(8, 4) // Current period %
+  
+  // 💰 Earned Value Analysis
+  scheduledValue       Decimal @default(0) @db.Decimal(12, 2) // Budgeted work scheduled
+  earnedValue          Decimal @default(0) @db.Decimal(12, 2) // Budgeted work performed
+  actualCost           Decimal @default(0) @db.Decimal(12, 2) // Actual cost of work
+  
+  // 📊 Cumulative Billing Amounts
+  totalContractAmount  Decimal @default(0) @db.Decimal(12, 2)
+  cumulativeEarned     Decimal @default(0) @db.Decimal(12, 2)
+  previouslyBilled     Decimal @default(0) @db.Decimal(12, 2)
+  currentBilling       Decimal @default(0) @db.Decimal(12, 2)
+  
+  // 🏗️ AIA G702/G703 Compliance Fields
+  aiaApplicationNumber String? @db.VarChar(50)  // AIA Application for Payment number
+  aiaG702Data          Json?   @db.JsonB       // AIA G702 structured data
+  aiaG703Data          Json?   @db.JsonB       // AIA G703 schedule of values
+  
+  // 📋 Schedule of Values Integration
+  scheduleOfValues     Json?   @db.JsonB       // Detailed breakdown by line item
+  workCompleted        Json?   @db.JsonB       // Work completed this period
+  materialStored       Json?   @db.JsonB       // Materials stored (if applicable)
+  
+  // ✅ Verification & Approval
+  verifiedByActorId    String?    @db.Uuid
+  verifiedAt           DateTime?  @db.Timestamptz(6)
+  verificationNotes    String?    @db.Text
+  
+  // 👤 Member Review (tenant-scoped composite key)
+  reviewedByMemberId   String? @db.Uuid
+  reviewedAt           DateTime? @db.Timestamptz(6)
+  reviewNotes          String? @db.Text
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceProgress", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToProgresses", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Member review relation
+  reviewedByMember Member? @relation("InvoiceProgressReviewer", fields: [tenantId, reviewedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceProgressCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceProgressUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceProgressDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, billingPeriod])       // Period filtering
+  @@index([tenantId, progressDate])        // Date-based queries
+  @@index([tenantId, status])              // Status filtering
   @@index([tenantId, deletedAt])
+  @@index([tenantId, aiaApplicationNumber]) // AIA tracking
+  @@index([tenantId, reviewedByMemberId])  // Review tracking
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_progress")
+  @@index([metadata], type: Gin)
+  @@index([aiaG702Data], type: Gin)        // AIA data queries
+  @@index([scheduleOfValues], type: Gin)   // SOV queries
+  @@map("invoice_progresses")
 }
 
 model InvoiceMilestone {
@@ -401,53 +683,99 @@ model InvoiceMilestone {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceMilestoneStatus @default(PENDING)
+  version   Int                    @default(1)
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?              @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceMilestone", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 🎯 Milestone Definition
+  milestoneName        String    @db.VarChar(255)
+  milestoneDescription String?   @db.Text
+  milestoneType        InvoiceMilestoneType @default(COMPLETION_BASED)
+  sequenceOrder        Int       @default(1)
+  
+  // 📅 Scheduling
+  targetDate           DateTime  @db.Timestamptz(6)
+  actualStartDate      DateTime? @db.Timestamptz(6)
+  actualCompletionDate DateTime? @db.Timestamptz(6)
+  
+  // 💰 Financial Terms
+  milestoneAmount      Decimal   @default(0) @db.Decimal(12, 2)
+  percentOfTotal       Decimal   @default(0) @db.Decimal(8, 4)
+  paymentTerms         String?   @db.VarChar(255)
+  
+  // ✅ Completion Criteria
+  completionCriteria   String?   @db.Text
+  deliverables         Json?     @db.JsonB       // Array of deliverable requirements
+  acceptanceCriteria   String?   @db.Text
+  
+  // 📋 Verification & Approval
+  verificationRequired Boolean   @default(true)
+  verifiedAt          DateTime? @db.Timestamptz(6)
+  verifiedByActorId   String?   @db.Uuid
+  verificationNotes   String?   @db.Text
+  
+  // 📄 Deliverable Tracking
+  deliverableStatus   InvoiceMilestoneDeliverableStatus @default(NOT_STARTED)
+  deliverableCount    Int       @default(0)
+  deliverablesPending Int       @default(0)
+  deliverablesComplete Int      @default(0)
+  
+  // 💳 Payment Trigger
+  paymentTrigger      InvoiceMilestonePaymentTrigger @default(COMPLETION)
+  autoCreateInvoice   Boolean   @default(false)
+  invoiceCreated      Boolean   @default(false)
+  
+  // 🔗 External References
+  sourceProjectMilestoneId String? @db.Uuid  // Link to ProjectMilestone
+  sourceTaskId             String? @db.Uuid  // Link to ProjectTask
+  
+  // 👤 Member Verification (tenant-scoped composite key)
+  approvedByMemberId  String?   @db.Uuid
+  approvedAt          DateTime? @db.Timestamptz(6)
+  approvalNotes       String?   @db.Text
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceMilestone", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToMilestones", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Member approval relation
+  approvedByMember Member? @relation("InvoiceMilestoneApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceMilestoneCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceMilestoneUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceMilestoneDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, milestoneName])       // Name search
+  @@index([tenantId, milestoneType])       // Type filtering
+  @@index([tenantId, status])              // Status filtering
+  @@index([tenantId, targetDate])          // Date-based queries
+  @@index([tenantId, deliverableStatus])   // Deliverable tracking
+  @@index([tenantId, paymentTrigger])      // Payment automation
+  @@index([tenantId, sequenceOrder])       // Ordering
   @@index([tenantId, deletedAt])
+  @@index([tenantId, sourceProjectMilestoneId]) // External references
+  @@index([tenantId, approvedByMemberId])  // Approval tracking
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_milestone")
+  @@index([metadata], type: Gin)
+  @@index([deliverables], type: Gin)       // Deliverable queries
+  @@map("invoice_milestones")
 }
 
 model InvoicePaymentApplication {
@@ -456,53 +784,63 @@ model InvoicePaymentApplication {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoicePaymentApplicationStatus @default(APPLIED)
+  version   Int                            @default(1)
+  createdAt DateTime                       @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                       @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationships (Required)
+  invoiceId String @db.Uuid
+  paymentId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoicePaymentApplication", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Business Fields
+  appliedAmount    Decimal   @db.Decimal(12, 2)
+  applicationDate  DateTime  @default(now()) @db.Timestamptz(6)
+  sequenceNumber   Int       @default(1)
+  notes           String?   @db.Text
+  
+  // 📊 Allocation Details
+  allocationType   PaymentAllocationType @default(FULL_APPLICATION)
+  originalAmount   Decimal               @db.Decimal(12, 2)
+  remainingAmount  Decimal               @default(0) @db.Decimal(12, 2)
+  
+  // 🔄 Reversal Support
+  isReversed       Boolean   @default(false)
+  reversedAt       DateTime? @db.Timestamptz(6)
+  reversalReason   String?   @db.VarChar(255)
+  reversedByActorId String?  @db.Uuid
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoicePaymentApplication", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToPaymentApplications", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Payment integration (external module)
+  payment Payment @relation("PaymentToInvoiceApplications", fields: [tenantId, paymentId], references: [tenantId, id], onDelete: Restrict)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoicePaymentApplicationCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoicePaymentApplicationUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoicePaymentApplicationDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Invoice payment lookup
+  @@index([tenantId, paymentId])           // Payment allocation lookup
+  @@index([tenantId, applicationDate])     // Date-based reports
   @@index([tenantId, deletedAt])
+  @@index([tenantId, isReversed])          // Reversal tracking
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_payment_application")
+  @@index([metadata], type: Gin)
+  @@map("invoice_payment_applications")
 }
 
 model InvoiceAttachment {
@@ -511,53 +849,68 @@ model InvoiceAttachment {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceAttachmentStatus @default(ACTIVE)
+  version   Int                     @default(1)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?               @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceAttachment", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Business Fields
+  attachmentType    InvoiceAttachmentType @default(SUPPORTING_DOCUMENT)
+  fileName          String                @db.VarChar(255)
+  originalFileName  String?               @db.VarChar(255)
+  fileSize          Int?                  // in bytes
+  mimeType          String?               @db.VarChar(100)
+  attachmentUrl     String                @db.VarChar(2048)
+  
+  // 📄 Document Details
+  title            String? @db.VarChar(255)
+  description      String? @db.Text
+  category         String? @db.VarChar(100)
+  tags            String? @db.VarChar(500) // Comma-separated
+  
+  // 🔒 Access Control
+  isPublic         Boolean @default(false)
+  requiresApproval Boolean @default(false)
+  approvedAt       DateTime? @db.Timestamptz(6)
+  approvedByActorId String? @db.Uuid
+  
+  // 📊 File Metadata
+  checksum         String? @db.VarChar(255)
+  uploadedFrom     String? @db.VarChar(100) // Source: WEB, MOBILE, API, EMAIL
+  documentDate     DateTime? @db.Timestamptz(6)
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceAttachment", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToAttachments", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceAttachmentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceAttachmentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceAttachmentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, attachmentType])      // Type filtering
   @@index([tenantId, deletedAt])
+  @@index([tenantId, fileName])            // File search
+  @@index([tenantId, mimeType])            // File type filtering
+  @@index([tenantId, isPublic])            // Access control
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_attachment")
+  @@index([metadata], type: Gin)
+  @@map("invoice_attachments")
 }
 
 model InvoiceComment {
@@ -566,53 +919,68 @@ model InvoiceComment {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceCommentStatus @default(ACTIVE)
+  version   Int                  @default(1)
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?            @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceComment", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 💼 Business Fields
+  commentText      String                   @db.Text
+  commentType      InvoiceCommentType       @default(GENERAL)
+  isInternal       Boolean                  @default(true)
+  isClientVisible  Boolean                  @default(false)
+  
+  // 🔗 Threading Support
+  parentCommentId  String?                  @db.Uuid
+  threadId         String?                  @db.Uuid
+  
+  // 🏷️ Priority & Status
+  priority         InvoiceCommentPriority   @default(NORMAL)
+  requiresResponse Boolean                  @default(false)
+  respondedAt      DateTime?                @db.Timestamptz(6)
+  
+  // 📅 Follow-up
+  followUpDate     DateTime?                @db.Timestamptz(6)
+  reminderDate     DateTime?                @db.Timestamptz(6)
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceComment", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToComments", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Threading support
+  parentComment InvoiceComment?  @relation("CommentToReplies", fields: [tenantId, parentCommentId], references: [tenantId, id], onDelete: Cascade)
+  replies       InvoiceComment[] @relation("CommentToReplies")
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceCommentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceCommentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceCommentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, isInternal])          // Internal/external filtering
+  @@index([tenantId, isClientVisible])     // Client visibility
+  @@index([tenantId, commentType])         // Type filtering
+  @@index([tenantId, parentCommentId])     // Threading
+  @@index([tenantId, threadId])            // Thread grouping
+  @@index([tenantId, requiresResponse])    // Follow-up tracking
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_comment")
+  @@index([metadata], type: Gin)
+  @@map("invoice_comments")
 }
 
 model InvoiceRevision {
@@ -621,53 +989,72 @@ model InvoiceRevision {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceRevisionStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceRevision", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 📋 Revision Management
+  revisionNumber      Int       @default(1)
+  revisionDate        DateTime  @default(now()) @db.Timestamptz(6)
+  revisionType        InvoiceRevisionType @default(CONTENT_CHANGE)
+  changeReason        String    @db.VarChar(255)
+  changeDescription   String?   @db.Text
+  
+  // 📄 Snapshot Data
+  snapshotData        Json      @db.JsonB       // Complete invoice state before change
+  changedFields       Json?     @db.JsonB       // Array of field names that changed
+  previousValues      Json?     @db.JsonB       // Previous values of changed fields
+  newValues          Json?     @db.JsonB       // New values of changed fields
+  
+  // 🔍 Comparison
+  parentRevisionId   String?   @db.Uuid        // Previous revision in chain
+  isBaselineRevision Boolean   @default(false) // First revision for this invoice
+  
+  // ✅ Approval (if required)
+  requiresApproval   Boolean   @default(false)
+  approvedAt         DateTime? @db.Timestamptz(6)
+  approvedByActorId  String?   @db.Uuid
+  approvalNotes      String?   @db.Text
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceRevision", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToRevisions", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Revision chain
+  parentRevision InvoiceRevision?  @relation("RevisionChain", fields: [tenantId, parentRevisionId], references: [tenantId, id], onDelete: SetNull)
+  childRevisions InvoiceRevision[] @relation("RevisionChain")
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceRevisionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceRevisionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceRevisionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@unique([tenantId, invoiceId, revisionNumber]) // Unique revision per invoice
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, revisionType])        // Type filtering
+  @@index([tenantId, revisionDate])        // Date-based queries
+  @@index([tenantId, requiresApproval])    // Approval tracking
+  @@index([tenantId, isBaselineRevision])  // Baseline identification
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_revision")
+  @@index([snapshotData], type: Gin)       // Snapshot queries
+  @@index([changedFields], type: Gin)      // Field change tracking
+  @@map("invoice_revisions")
 }
 
 model InvoiceAdjustment {
@@ -709,6 +1096,15 @@ model InvoiceAdjustment {
   // updatedByActor Actor? @relation("InvoiceAdjustmentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("InvoiceAdjustmentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
+  // 👤 Member Approval (tenant-scoped composite key)
+  invoiceId          String  @db.Uuid
+  approvedByMemberId String? @db.Uuid
+  
+  // 🔗 Relations
+  tenant           Tenant  @relation("TenantToInvoiceAdjustment", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice          Invoice @relation("InvoiceToAdjustments", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  approvedByMember Member? @relation("InvoiceAdjustmentApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])
@@ -731,53 +1127,84 @@ model InvoiceCredit {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceCreditStatus @default(PENDING)
+  version   Int                 @default(1)
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime            @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?           @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceCredit", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 📋 Credit Memo Details
+  creditMemoNumber   String               @db.VarChar(50)  // CM-2025-001
+  creditDate         DateTime             @default(now()) @db.Timestamptz(6)
+  creditType         InvoiceCreditType    @default(BILLING_ERROR)
+  
+  // 💰 Financial Details
+  creditAmount       Decimal              @db.Decimal(12, 2)
+  originalAmount     Decimal              @db.Decimal(12, 2)
+  remainingAmount    Decimal              @default(0) @db.Decimal(12, 2)
+  
+  // 📄 Credit Reason & Documentation
+  creditReason       InvoiceCreditReason  @default(OTHER)
+  reasonDescription  String               @db.Text
+  supportingDocuments String?             @db.Text // JSON array of document IDs
+  
+  // 💳 Refund Management
+  refundMethod       InvoiceCreditRefundMethod @default(ACCOUNT_CREDIT)
+  refundProcessed    Boolean              @default(false)
+  refundProcessedAt  DateTime?            @db.Timestamptz(6)
+  refundReference    String?              @db.VarChar(100)
+  
+  // ✅ Approval Workflow
+  requiresApproval   Boolean              @default(true)
+  approvalThreshold  Decimal?             @db.Decimal(12, 2)
+  approvedAt         DateTime?            @db.Timestamptz(6)
+  approvedByActorId  String?              @db.Uuid
+  approvalNotes      String?              @db.Text
+  
+  // 👤 Customer Communication
+  customerNotified   Boolean              @default(false)
+  notificationDate   DateTime?            @db.Timestamptz(6)
+  customerAccepted   Boolean?             
+  customerResponse   String?              @db.Text
+  
+  // 👤 Member Approval (tenant-scoped composite key)
+  approvedByMemberId String?              @db.Uuid
+  
+  // 🔗 Relations
+  tenant           Tenant  @relation("TenantToInvoiceCredit", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice          Invoice @relation("InvoiceToCredits", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  approvedByMember Member? @relation("InvoiceCreditApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceCreditCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceCreditUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceCreditDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@unique([tenantId, creditMemoNumber])   // Unique credit memo number per tenant
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, creditType])          // Type filtering
+  @@index([tenantId, creditDate])          // Date-based queries
+  @@index([tenantId, refundMethod])        // Refund processing
+  @@index([tenantId, refundProcessed])     // Refund tracking
+  @@index([tenantId, requiresApproval])    // Approval tracking
   @@index([tenantId, deletedAt])
+  @@index([tenantId, approvedByMemberId])  // Approval tracking
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_credit")
+  @@index([metadata], type: Gin)
+  @@map("invoice_credits")
 }
 
 model InvoiceDebit {
@@ -786,53 +1213,84 @@ model InvoiceDebit {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceDebitStatus @default(PENDING)
+  version   Int                @default(1)
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?          @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceDebit", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 📋 Debit Memo Details
+  debitMemoNumber   String            @db.VarChar(50)  // DM-2025-001
+  debitDate         DateTime          @default(now()) @db.Timestamptz(6)
+  debitType         InvoiceDebitType  @default(ADDITIONAL_CHARGES)
+  
+  // 💰 Financial Details
+  debitAmount       Decimal           @db.Decimal(12, 2)
+  originalAmount    Decimal           @db.Decimal(12, 2)
+  newTotalAmount    Decimal           @db.Decimal(12, 2)
+  
+  // 📄 Debit Reason & Documentation
+  debitReason       InvoiceDebitReason @default(OTHER)
+  reasonDescription String            @db.Text
+  supportingDocuments String?         @db.Text // JSON array of document IDs
+  
+  // ✅ Approval Workflow
+  requiresApproval  Boolean           @default(true)
+  approvalThreshold Decimal?          @db.Decimal(12, 2)
+  approvedAt        DateTime?         @db.Timestamptz(6)
+  approvedByActorId String?           @db.Uuid
+  approvalNotes     String?           @db.Text
+  
+  // 👥 Customer Communication
+  customerNotified  Boolean           @default(false)
+  notificationDate  DateTime?         @db.Timestamptz(6)
+  customerAccepted  Boolean?          
+  customerResponse  String?           @db.Text
+  
+  // 💳 Payment Integration
+  paymentDueDate    DateTime?         @db.Timestamptz(6)
+  paymentReceived   Boolean           @default(false)
+  paymentReceivedAt DateTime?         @db.Timestamptz(6)
+  paymentAmount     Decimal?          @db.Decimal(12, 2)
+  
+  // 👤 Member Approval (tenant-scoped composite key)
+  approvedByMemberId String?          @db.Uuid
+  
+  // 🔗 Relations
+  tenant           Tenant  @relation("TenantToInvoiceDebit", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice          Invoice @relation("InvoiceToDebits", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  approvedByMember Member? @relation("InvoiceDebitApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceDebitCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceDebitUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceDebitDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@unique([tenantId, debitMemoNumber])    // Unique debit memo number per tenant
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, debitType])           // Type filtering
+  @@index([tenantId, debitDate])           // Date-based queries
+  @@index([tenantId, paymentDueDate])      // Payment tracking
+  @@index([tenantId, paymentReceived])     // Payment status
+  @@index([tenantId, requiresApproval])    // Approval tracking
   @@index([tenantId, deletedAt])
+  @@index([tenantId, approvedByMemberId])  // Approval tracking
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_debit")
+  @@index([metadata], type: Gin)
+  @@map("invoice_debits")
 }
 
 model InvoiceHistory {
@@ -840,53 +1298,65 @@ model InvoiceHistory {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  // 📊 Lifecycle (Simplified for audit records)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
-  updatedByActorId String? @db.Uuid
-  deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceHistory", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 📋 Event Details
+  eventType         InvoiceHistoryEventType @default(OTHER)
+  eventTimestamp    DateTime                @default(now()) @db.Timestamptz(6)
+  eventDescription  String                  @db.VarChar(255)
+  eventDetails      String?                 @db.Text
+  
+  // 📄 Context Information
+  beforeState       Json?                   @db.JsonB  // State before the event
+  afterState        Json?                   @db.JsonB  // State after the event
+  changedFields     Json?                   @db.JsonB  // Array of field names that changed
+  
+  // 🌐 System Context
+  userAgent         String?                 @db.VarChar(500)
+  ipAddress         String?                 @db.VarChar(45)  // IPv6 support
+  sessionId         String?                 @db.Uuid
+  requestId         String?                 @db.Uuid
+  
+  // 🔗 Entity References (optional)
+  relatedEntityType String?                 @db.VarChar(50)  // Payment, Reminder, etc.
+  relatedEntityId   String?                 @db.Uuid
+  
+  // 📊 Business Impact
+  impactLevel       String?                 @db.VarChar(20)  // LOW, MEDIUM, HIGH, CRITICAL
+  businessImpact    String?                 @db.Text
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceHistory", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToHistory", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceHistoryCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceHistoryUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceHistoryDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup - most common query
+  @@index([tenantId, eventType])          // Event type filtering
+  @@index([tenantId, eventTimestamp])     // Time-based queries
+  @@index([tenantId, createdByActorId])   // Actor-based filtering
+  @@index([tenantId, relatedEntityType, relatedEntityId]) // Related entity lookup
+  @@index([tenantId, impactLevel])        // Business impact queries
   @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
+  @@index([eventTimestamp], type: Brin)   // Temporal clustering
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
+  @@index([beforeState], type: Gin)       // State search
+  @@index([afterState], type: Gin)        // State search
+  @@index([changedFields], type: Gin)     // Field change tracking
   @@map("invoice_history")
 }
 
@@ -896,53 +1366,86 @@ model InvoicePublicLink {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoicePublicLinkStatus @default(ACTIVE)
+  version   Int                     @default(1)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?               @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoicePublicLink", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 🔐 Security & Access
+  secureToken       String                      @db.VarChar(255) // Cryptographically secure token
+  accessType        InvoicePublicLinkAccessType @default(VIEW_AND_PAY)
+  expiresAt         DateTime?                   @db.Timestamptz(6)
+  maxUses           Int?                        // Optional usage limit
+  currentUses       Int                         @default(0)
+  
+  // 🌐 Public URL Configuration
+  publicUrl         String                      @db.VarChar(2048)
+  shortUrl          String?                     @db.VarChar(255)
+  customSlug        String?                     @db.VarChar(100)
+  
+  // 📊 Analytics & Tracking
+  viewCount         Int                         @default(0)
+  paymentCount      Int                         @default(0)
+  downloadCount     Int                         @default(0)
+  lastViewedAt      DateTime?                   @db.Timestamptz(6)
+  lastPaymentAt     DateTime?                   @db.Timestamptz(6)
+  lastDownloadAt    DateTime?                   @db.Timestamptz(6)
+  
+  // 💳 Payment Options
+  allowOnlinePayment Boolean                    @default(true)
+  allowPartialPayment Boolean                   @default(true)
+  allowDownloadPDF   Boolean                    @default(true)
+  requireContactInfo Boolean                    @default(false)
+  
+  // 🎨 Customization
+  brandingEnabled   Boolean                     @default(true)
+  customMessage     String?                     @db.Text
+  customCSS         String?                     @db.Text
+  
+  // 🔒 Security Settings
+  passwordProtected Boolean                     @default(false)
+  passwordHash      String?                     @db.VarChar(255)
+  ipRestrictions    Json?                       @db.JsonB // Array of allowed IP addresses/ranges
+  requireSSL        Boolean                     @default(true)
+  
+  // 📱 Mobile Optimization
+  mobileOptimized   Boolean                     @default(true)
+  responsiveDesign  Boolean                     @default(true)
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoicePublicLink", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToPublicLinks", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoicePublicLinkCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoicePublicLinkUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoicePublicLinkDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@unique([secureToken])                  // Global unique token
+  @@unique([tenantId, customSlug])         // Unique custom slug per tenant
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, status])              // Status filtering
+  @@index([tenantId, expiresAt])           // Expiration cleanup
+  @@index([tenantId, lastViewedAt])        // Recent activity
+  @@index([tenantId, allowOnlinePayment])  // Payment enabled links
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_public_link")
+  @@index([metadata], type: Gin)
+  @@map("invoice_public_links")
 }
 
 model InvoiceReminder {
@@ -951,51 +1454,560 @@ model InvoiceReminder {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    InvoiceReminderStatus @default(SCHEDULED)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToInvoiceReminder", fields: [tenantId], references: [id], onDelete: Cascade)
+  // 📋 Reminder Configuration
+  reminderType       InvoiceReminderType           @default(PAYMENT_DUE)
+  deliveryMethod     InvoiceReminderDeliveryMethod @default(EMAIL)
+  scheduledAt        DateTime                      @db.Timestamptz(6)
+  sequenceNumber     Int                           @default(1) // 1st, 2nd, 3rd reminder, etc.
+  
+  // 📧 Content & Messaging
+  emailTemplateId    String?                       @db.Uuid
+  smsTemplateId      String?                       @db.Uuid
+  customSubject      String?                       @db.VarChar(255)
+  customMessage      String?                       @db.Text
+  
+  // 📊 Delivery Tracking
+  sentAt             DateTime?                     @db.Timestamptz(6)
+  deliveredAt        DateTime?                     @db.Timestamptz(6)
+  openedAt           DateTime?                     @db.Timestamptz(6)
+  clickedAt          DateTime?                     @db.Timestamptz(6)
+  
+  // 🔗 External Message References
+  emailMessageId     String?                       @db.Uuid
+  smsMessageId       String?                       @db.Uuid
+  phoneCallId        String?                       @db.Uuid
+  
+  // 📈 Effectiveness Tracking
+  responseReceived   Boolean                       @default(false)
+  responseDate       DateTime?                     @db.Timestamptz(6)
+  paymentReceived    Boolean                       @default(false)
+  paymentReceivedAt  DateTime?                     @db.Timestamptz(6)
+  
+  // 🔄 Retry Logic
+  maxRetries         Int                           @default(3)
+  currentRetries     Int                           @default(0)
+  nextRetryAt        DateTime?                     @db.Timestamptz(6)
+  
+  // ❌ Failure Handling
+  failureReason      String?                       @db.VarChar(255)
+  errorDetails       Json?                         @db.JsonB
+  
+  // 🎯 Targeting & Personalization
+  recipientEmail     String?                       @db.VarChar(255)
+  recipientPhone     String?                       @db.VarChar(20)
+  recipientName      String?                       @db.VarChar(255)
+  
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceReminder", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToReminders", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("InvoiceReminderCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("InvoiceReminderUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("InvoiceReminderDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & constraints
   @@unique([tenantId, id])
-  @@index([tenantId, status])
+  @@index([tenantId, invoiceId])           // Parent lookup
+  @@index([tenantId, status])              // Status filtering
+  @@index([tenantId, reminderType])        // Type filtering
+  @@index([tenantId, scheduledAt])         // Scheduling engine - CRITICAL
+  @@index([tenantId, deliveryMethod])      // Delivery channel filtering
+  @@index([tenantId, sequenceNumber])      // Reminder sequence
+  @@index([tenantId, sentAt])              // Delivery tracking
+  @@index([tenantId, paymentReceived])     // Success tracking
+  @@index([tenantId, nextRetryAt])         // Retry processing
   @@index([tenantId, deletedAt])
+  @@index([scheduledAt], type: Brin)       // Temporal clustering for cron jobs
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("invoice_reminder")
+  @@index([metadata], type: Gin)
+  @@index([errorDetails], type: Gin)       // Error analysis
+  @@map("invoice_reminders")
+}
+
+// 📊 INVOICE MODULE ENUMS
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  VIEWED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  COLLECTIONS
+  VOIDED
+  WRITTEN_OFF
+  CLOSED
+}
+
+enum InvoicePaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERPAID
+  REFUNDED
+  CREDITED
+}
+
+enum InvoiceCollectionStatus {
+  CURRENT
+  OVERDUE_30
+  OVERDUE_60
+  OVERDUE_90
+  OVERDUE_120
+  COLLECTIONS
+  WRITTEN_OFF
+}
+
+enum InvoiceBillingType {
+  STANDARD
+  PROGRESS
+  MILESTONE
+  RECURRING
+  TIME_AND_MATERIALS
+  RETAINAGE_RELEASE
+  FINAL
+}
+
+enum InvoiceDataClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+enum InvoiceLineItemStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceTaxStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceTaxType {
+  SALES_TAX
+  USE_TAX
+  VAT
+  GST
+  EXCISE_TAX
+  PROPERTY_TAX
+  OTHER
+}
+
+enum InvoiceDiscountStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceDiscountType {
+  AMOUNT
+  PERCENTAGE
+  EARLY_PAYMENT
+  VOLUME
+  PROMOTIONAL
+  LOYALTY
+}
+
+enum InvoiceFeeStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceFeeType {
+  LATE_FEE
+  PROCESSING_FEE
+  CONVENIENCE_FEE
+  EXPEDITE_FEE
+  ADMINISTRATIVE_FEE
+  FINANCE_CHARGE
+  COLLECTION_FEE
+  OTHER
+}
+
+enum InvoiceFeeCalculationBasis {
+  TOTAL_AMOUNT
+  SUBTOTAL_AMOUNT
+  OVERDUE_AMOUNT
+  FIXED_AMOUNT
+  DAILY_RATE
+}
+
+// === Payment Application Enums ===
+enum InvoicePaymentApplicationStatus {
+  APPLIED
+  REVERSED
+  PENDING
+  FAILED
+  CANCELLED
+}
+
+enum PaymentAllocationType {
+  FULL_APPLICATION
+  PARTIAL_APPLICATION
+  OVERPAYMENT
+  WRITE_OFF_APPLICATION
+  CREDIT_APPLICATION
+}
+
+// === Attachment Enums ===
+enum InvoiceAttachmentStatus {
+  ACTIVE
+  ARCHIVED
+  PENDING_APPROVAL
+  REJECTED
+  DELETED
+}
+
+enum InvoiceAttachmentType {
+  INVOICE_PDF
+  SUPPORTING_DOCUMENT
+  RECEIPT
+  PHOTO
+  SIGNATURE
+  CONTRACT
+  PURCHASE_ORDER
+  DELIVERY_CONFIRMATION
+  TIME_RECORD
+  EXPENSE_RECEIPT
+  OTHER
+}
+
+// === Comment Enums ===
+enum InvoiceCommentStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+  PENDING
+  RESOLVED
+}
+
+enum InvoiceCommentType {
+  GENERAL
+  PAYMENT_INQUIRY
+  BILLING_QUESTION
+  DISPUTE
+  APPROVAL_NOTE
+  COLLECTIONS_NOTE
+  INTERNAL_NOTE
+  CLIENT_COMMUNICATION
+  CHANGE_REQUEST
+  FOLLOW_UP
+}
+
+enum InvoiceCommentPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+// === Retainage Enums ===
+enum InvoiceRetainageStatus {
+  WITHHELD
+  PARTIALLY_RELEASED
+  FULLY_RELEASED
+  PENDING_RELEASE
+  CANCELLED
+}
+
+enum InvoiceRetainageType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  TIERED
+}
+
+enum InvoiceRetainageReleaseType {
+  NONE
+  PARTIAL_RELEASE
+  FINAL_RELEASE
+  EARLY_RELEASE
+  COMPLIANCE_RELEASE
+}
+
+// === Progress Enums ===
+enum InvoiceProgressStatus {
+  ACTIVE
+  COMPLETED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+// === Milestone Enums ===
+enum InvoiceMilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum InvoiceMilestoneType {
+  COMPLETION_BASED
+  DATE_BASED
+  DELIVERABLE_BASED
+  APPROVAL_BASED
+  PAYMENT_BASED
+}
+
+enum InvoiceMilestoneDeliverableStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PENDING_REVIEW
+  COMPLETED
+  REJECTED
+}
+
+enum InvoiceMilestonePaymentTrigger {
+  COMPLETION
+  APPROVAL
+  DELIVERABLE_ACCEPTANCE
+  DATE_REACHED
+  MANUAL_TRIGGER
+}
+
+// === Revision Enums ===
+enum InvoiceRevisionStatus {
+  ACTIVE
+  ARCHIVED
+  SUPERSEDED
+  DELETED
+}
+
+enum InvoiceRevisionType {
+  CONTENT_CHANGE
+  PRICING_CHANGE
+  TAX_CHANGE
+  DISCOUNT_CHANGE
+  FEE_CHANGE
+  TERMS_CHANGE
+  CUSTOMER_CHANGE
+  APPROVAL_CHANGE
+  CORRECTION
+  ENHANCEMENT
+}
+
+// === Adjustment Enums ===
+enum InvoiceAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+  REVERSED
+  CANCELLED
+}
+
+enum InvoiceAdjustmentType {
+  BILLING_CORRECTION
+  PRICING_ADJUSTMENT
+  TAX_CORRECTION
+  DISCOUNT_ADJUSTMENT
+  FEE_ADJUSTMENT
+  QUANTITY_CORRECTION
+  LINE_ITEM_CORRECTION
+  TERMS_ADJUSTMENT
+  ACCOUNT_CORRECTION
+  OTHER
+}
+
+enum InvoiceAdjustmentReason {
+  BILLING_ERROR
+  PRICING_ERROR
+  TAX_CALCULATION_ERROR
+  QUANTITY_ERROR
+  CUSTOMER_REQUEST
+  SYSTEM_ERROR
+  DATA_ENTRY_ERROR
+  POLICY_CHANGE
+  REGULATORY_COMPLIANCE
+  GOODWILL_ADJUSTMENT
+  OTHER
+}
+
+// === Credit Enums ===
+enum InvoiceCreditStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ISSUED
+  APPLIED
+  REFUNDED
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceCreditType {
+  BILLING_ERROR
+  PRICING_ERROR
+  PRODUCT_RETURN
+  SERVICE_CANCELLATION
+  GOODWILL_CREDIT
+  PROMOTIONAL_CREDIT
+  SETTLEMENT_CREDIT
+  COMPLIANCE_CREDIT
+  OVERPAYMENT_CREDIT
+  OTHER
+}
+
+enum InvoiceCreditReason {
+  CUSTOMER_RETURN
+  DEFECTIVE_PRODUCT
+  SERVICE_NOT_RENDERED
+  BILLING_DISPUTE
+  PRICING_ERROR
+  TAX_ERROR
+  DUPLICATE_BILLING
+  QUALITY_ISSUE
+  DELIVERY_ISSUE
+  CUSTOMER_SATISFACTION
+  OTHER
+}
+
+enum InvoiceCreditRefundMethod {
+  ACCOUNT_CREDIT
+  CASH_REFUND
+  CHECK_REFUND
+  CREDIT_CARD_REFUND
+  ACH_REFUND
+  WIRE_TRANSFER
+  OFFSET_FUTURE_INVOICES
+  NO_REFUND
+}
+
+// === Debit Enums ===
+enum InvoiceDebitStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+  WRITTEN_OFF
+}
+
+enum InvoiceDebitType {
+  ADDITIONAL_CHARGES
+  LATE_FEE
+  INTEREST_CHARGE
+  COLLECTION_FEE
+  RESTOCKING_FEE
+  CHANGE_ORDER
+  EXTRA_WORK
+  PENALTY_CHARGE
+  ADMINISTRATIVE_FEE
+  OTHER
+}
+
+enum InvoiceDebitReason {
+  LATE_PAYMENT
+  ADDITIONAL_WORK_PERFORMED
+  CHANGE_ORDER_APPROVED
+  RESTOCKING_REQUIRED
+  COLLECTION_COSTS
+  ADMINISTRATIVE_COSTS
+  PENALTY_ASSESSMENT
+  CONTRACT_VIOLATION
+  SCOPE_EXPANSION
+  OTHER
+}
+
+// === History Enums ===
+enum InvoiceHistoryEventType {
+  INVOICE_CREATED
+  INVOICE_UPDATED
+  INVOICE_SENT
+  INVOICE_VIEWED
+  PAYMENT_RECEIVED
+  PAYMENT_APPLIED
+  REMINDER_SENT
+  STATUS_CHANGED
+  APPROVAL_REQUESTED
+  APPROVED
+  REJECTED
+  VOIDED
+  WRITTEN_OFF
+  ADJUSTMENT_APPLIED
+  CREDIT_ISSUED
+  DEBIT_ISSUED
+  REVISION_CREATED
+  DOCUMENT_ATTACHED
+  COMMENT_ADDED
+  DISPUTE_RAISED
+  DISPUTE_RESOLVED
+  COLLECTION_ACTION
+  OTHER
+}
+
+// === Public Link Enums ===
+enum InvoicePublicLinkStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+  REVOKED
+  SUSPENDED
+}
+
+enum InvoicePublicLinkAccessType {
+  VIEW_ONLY
+  VIEW_AND_PAY
+  VIEW_AND_DOWNLOAD
+  FULL_ACCESS
+}
+
+// === Reminder Enums ===
+enum InvoiceReminderStatus {
+  SCHEDULED
+  SENT
+  DELIVERED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceReminderType {
+  PAYMENT_DUE_SOON
+  PAYMENT_DUE
+  OVERDUE
+  SECOND_NOTICE
+  FINAL_NOTICE
+  COLLECTIONS
+  THANK_YOU
+  CUSTOM
+}
+
+enum InvoiceReminderDeliveryMethod {
+  EMAIL
+  SMS
+  PHONE_CALL
+  MAIL
+  BOTH_EMAIL_SMS
+  MULTI_CHANNEL
 }
