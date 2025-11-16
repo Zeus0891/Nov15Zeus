@@ -32,7 +32,22 @@ model Tenant {
   // recordSource String? @db.VarChar(50)
 
   // 🔗 Opposite relations
-  estimates Estimate[] @relation("TenantToEstimate")
+  estimates             Estimate[]             @relation("TenantToEstimate")
+  estimateRevisions     EstimateRevision[]     @relation("TenantToEstimateRevision")
+  estimateSections      EstimateSection[]      @relation("TenantToEstimateSection")
+  estimateLineItems     EstimateLineItem[]     @relation("TenantToEstimateLineItem")
+  estimateTaxes         EstimateTax[]          @relation("TenantToEstimateTax")
+  estimateDiscounts     EstimateDiscount[]     @relation("TenantToEstimateDiscount")
+  estimateFees          EstimateFee[]          @relation("TenantToEstimateFee")
+  estimateTerms         EstimateTerm[]         @relation("TenantToEstimateTerm")
+  estimateAttachments   EstimateAttachment[]   @relation("TenantToEstimateAttachment")
+  estimateAssumptions  EstimateAssumption[]  @relation("TenantToEstimateAssumption")
+  estimateExclusions   EstimateExclusion[]   @relation("TenantToEstimateExclusion")
+  estimateAlternates   EstimateAlternate[]   @relation("TenantToEstimateAlternate")
+  estimateComments     EstimateComment[]     @relation("TenantToEstimateComment")
+  estimateComparisons  EstimateComparison[]  @relation("TenantToEstimateComparison")
+  estimatePublicLinks  EstimatePublicLink[]  @relation("TenantToEstimatePublicLink")
+  estimateHistoryEvents EstimateHistoryEvent[] @relation("TenantToEstimateHistoryEvent")
 
   // Enable ONLY if you use these fields:
   // @@index([hashToken])

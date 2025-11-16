@@ -61,10 +61,9 @@ model Estimate {
   auditCorrelationId String?                    @db.Uuid
   dataClassification EstimateDataClassification @default(CONFIDENTIAL)
   retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?      // API, IMPORT, SYSTEM
   metadata           Json?                      @db.JsonB
-
-  recordSource String? @db.VarChar(50) // API, IMPORT, SYSTEM
-  timezone     String? @db.VarChar(50) // Timezone context
+  timezone           String?                    @db.VarChar(50) // Timezone context
 
   // ─────────────────────────────────────────────────────────────
   // 📄 Business Identity
@@ -232,8 +231,8 @@ model Estimate {
   /// Count of active change orders for quick reference
   changeOrderCount Int @default(0)
 
-  /// Template category for reusable estimates (e.g., 'PLUMBING', 'ELECTRICAL')
-  templateCategory String? @db.VarChar(100)
+  /// Template category for reusable estimates
+  templateCategory EstimateTemplateCategory?
 
   /// Count of times sent to client (for tracking resends)
   clientSendCount Int @default(0)
@@ -241,8 +240,8 @@ model Estimate {
   /// Count of client views (for engagement analytics)
   clientViewCount Int @default(0)
 
-  /// Preferred communication method for this client (EMAIL, SMS, PORTAL)
-  preferredCommunicationMethod String? @db.VarChar(20)
+  /// Preferred communication method for this client
+  preferredCommunicationMethod EstimateCommunicationMethod?
 
   /// E-signature required flag (configurable e-signature)
   requiresESignature Boolean @default(false)
@@ -481,7 +480,7 @@ model EstimateRevision {
   // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle & Concurrency
   // ─────────────────────────────────────────────────────────────
-  status    String    @default("ACTIVE")
+  status    EstimateRevisionStatus @default(ACTIVE)
   version   Int       @default(1)
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
@@ -497,10 +496,10 @@ model EstimateRevision {
   // ─────────────────────────────────────────────────────────────
   // 🔍 Enterprise Governance
   // ─────────────────────────────────────────────────────────────
-  auditCorrelationId String?          @db.Uuid
-  dataClassification String           @default("INTERNAL") @db.VarChar(50)
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
   retentionPolicy    RetentionPolicy?
-  metadata           Json?            @db.JsonB
+  metadata           Json?                      @db.JsonB
 
   // ─────────────────────────────────────────────────────────────
   // 🔗 Parent Relation
@@ -549,7 +548,7 @@ model EstimateRevision {
   snapshotLineItemCount Int? @db.Integer
 
   /// Snapshot of estimate status
-  snapshotStatus String? @db.VarChar(50)
+  snapshotStatus EstimateStatus?
 
   /// Full JSON snapshot of entire estimate for audit/comparison
   snapshotData Json? @db.JsonB
@@ -573,7 +572,12 @@ model EstimateRevision {
   // 🔗 Relations
   // ─────────────────────────────────────────────────────────────
 
+  tenant   Tenant   @relation("TenantToEstimateRevision", fields: [tenantId], references: [id], onDelete: Cascade)
   estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Public links referencing this revision
+  publicLinks EstimatePublicLink[] @relation("PublicLinkRevision")
+  historyEvents EstimateHistoryEvent[] @relation("HistoryEventRevision")
 
   // ─────────────────────────────────────────────────────────────
   // 📏 Constraints & Indexes
@@ -603,7 +607,7 @@ model EstimateSection {
   // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle & Concurrency
   // ─────────────────────────────────────────────────────────────
-  status    String    @default("ACTIVE")
+  status    EstimateSectionStatus @default(ACTIVE)
   version   Int       @default(1)
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
@@ -619,10 +623,10 @@ model EstimateSection {
   // ─────────────────────────────────────────────────────────────
   // 🔍 Enterprise Governance
   // ─────────────────────────────────────────────────────────────
-  auditCorrelationId String?          @db.Uuid
-  dataClassification String           @default("INTERNAL") @db.VarChar(50)
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
   retentionPolicy    RetentionPolicy?
-  metadata           Json?            @db.JsonB
+  metadata           Json?                      @db.JsonB
 
   // ─────────────────────────────────────────────────────────────
   // 🔗 Parent Relation
@@ -722,10 +726,17 @@ model EstimateSection {
   // 🔗 Relations
   // ─────────────────────────────────────────────────────────────
 
+  tenant   Tenant   @relation("TenantToEstimateSection", fields: [tenantId], references: [id], onDelete: Cascade)
   estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
 
   /// Line items belonging to this section
-  lineItems EstimateLineItem[]
+  lineItems EstimateLineItem[] @relation("EstimateLineItemToSection")
+  
+  /// Comments related to this specific section
+  comments EstimateComment[] @relation("EstimateCommentSection")
+  
+  /// History events for this section
+  historyEvents EstimateHistoryEvent[] @relation("HistoryEventSection")
 
   /// Self-referential hierarchy for nested sections
   parentSection EstimateSection?  @relation("SectionHierarchy", fields: [tenantId, parentSectionId], references: [tenantId, id], onDelete: Restrict)
@@ -754,754 +765,3934 @@ model EstimateSection {
 }
 
 model EstimateLineItem {
-  // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Primary Key & Identity
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateLineItemStatus @default(ACTIVE)
   version   Int       @default(1)
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Minimal Audit (UUIDs only for child entities)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 🧠 Governance
+  // ─────────────────────────────────────────────────────────────
   auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  metadata           Json?   @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relations (REQUIRED)
+  // ─────────────────────────────────────────────────────────────
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateLineItem", fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Parent estimate (CASCADE delete - line items belong to estimate)
+  estimateId String @db.Uuid
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateLineItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateLineItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateLineItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Optional section grouping (line items can exist without section)
+  sectionId String? @db.Uuid
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  // ─────────────────────────────────────────────────────────────
+  // 📄 Business Identity & Description
+  // ─────────────────────────────────────────────────────────────
 
-  /// Optional section grouping
-  section   EstimateSection? @relation(fields: [tenantId, sectionId], references: [tenantId, id], onDelete: Restrict)
-  sectionId String?          @db.Uuid
+  /// Item name/title (inherited to ProjectTask.name)
+  itemName String @db.VarChar(255)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Detailed description (inherited to ProjectTask.description)
+  itemDescription String? @db.Text
+
+  /// Line item display order within estimate/section
+  sortOrder Int @default(0)
+
+  /// Line item category for classification
+  category EstimateLineItemCategory?
+
+  /// Optional product/service code for catalog integration
+  productCode String? @db.VarChar(100)
+
+  /// Unit of measure for quantities
+  unitOfMeasure EstimateUnitOfMeasure?
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Pricing & Quantities
+  // ─────────────────────────────────────────────────────────────
+
+  /// Quantity ordered/estimated
+  quantity Decimal @db.Decimal(10, 4)
+
+  /// Unit price charged to client
+  unitPrice Decimal @db.Decimal(10, 2)
+
+  /// Line total (quantity × unitPrice) - can be overridden
+  lineTotal Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Unit cost (for markup calculations)
+  unitCost Decimal @default(0) @db.Decimal(10, 2)
+
+  /// Total cost for this line (quantity × unitCost)
+  totalCost Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Markup percentage applied to this line
+  markupPercentage Decimal @default(0) @db.Decimal(5, 2)
+
+  /// Discount percentage applied to this line
+  discountPercentage Decimal @default(0) @db.Decimal(5, 2)
+
+  /// Discount amount applied to this line
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Time Estimation (for Project/Task generation)
+  // ─────────────────────────────────────────────────────────────
+
+  /// Estimated labor hours for this work item
+  estimatedHours Decimal? @db.Decimal(8, 2)
+
+  /// Estimated duration in days for scheduling
+  estimatedDurationDays Decimal? @db.Decimal(6, 2)
+
+  /// Estimated start date for project scheduling
+  estimatedStartDate DateTime? @db.Timestamptz(6)
+
+  /// Estimated completion date for project scheduling
+  estimatedEndDate DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 External Integrations
+  // ─────────────────────────────────────────────────────────────
+
+  /// Job costing integration (optional cost code reference)
+  costCodeId String? @db.Uuid
+
+  /// Inventory item reference (for material tracking)
+  inventoryItemId String? @db.Uuid
+
+  /// Service catalog reference (for standardized services)
+  serviceCatalogItemId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚙️ Business Flags & Behavior
+  // ─────────────────────────────────────────────────────────────
+
+  /// If true, this line item is taxable
+  isTaxable Boolean @default(true)
+
+  /// If true, this line item can be modified during project execution
+  allowModification Boolean @default(true)
+
+  /// If true, this is a material item (vs labor/service)
+  isMaterial Boolean @default(false)
+
+  /// If true, this requires special handling or approval
+  requiresApproval Boolean @default(false)
+
+  /// If true, this line item is a standard/template item
+  isStandardItem Boolean @default(false)
+
+  /// Optional vendor/supplier for this line item
+  preferredVendorId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Additional Information
+  // ─────────────────────────────────────────────────────────────
+
+  /// Technical notes or specifications
+  technicalNotes String? @db.Text
+
+  /// Installation instructions or requirements
+  installationNotes String? @db.Text
+
+  /// Warranty information for this item
+  warrantyInfo String? @db.Text
+
+  /// Special terms or conditions for this line item
+  specialTerms String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations to Tenant & Actors
+  // ─────────────────────────────────────────────────────────────
+
+  tenant         Tenant @relation("TenantToEstimateLineItem", fields: [tenantId], references: [id], onDelete: Cascade)
+  createdByActor Actor? @relation("EstimateLineItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("EstimateLineItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("EstimateLineItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relations
+  // ─────────────────────────────────────────────────────────────
+
+  /// Parent estimate (CASCADE - line items belong to estimate)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  /// Optional section grouping (SetNull - can exist without section)
+  section EstimateSection? @relation("EstimateLineItemToSection", fields: [tenantId, sectionId], references: [tenantId, id], onDelete: SetNull)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Child Relations (Critical Feature: Up to 5 attachments per line)
+  // ─────────────────────────────────────────────────────────────
+
+  /// Line-item scoped attachments (up to 5 images/documents)
+  /// These are inherited to ProjectTaskAttachment on project creation
+  attachments EstimateAttachment[] @relation("EstimateLineItemAttachments")
+  
+  /// Comments related to this specific line item
+  comments EstimateComment[] @relation("EstimateCommentLineItem")
+  
+  /// History events for this line item
+  historyEvents EstimateHistoryEvent[] @relation("HistoryEventLineItem")
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Cross-Module Relations (via inheritance to Project/Invoice)
+  // ─────────────────────────────────────────────────────────────
+  // Note: These are conceptual - actual relations live in other modules
+
+  /// Project tasks created from this line item (conceptual)
+  // projectTasks ProjectTask[] @relation("EstimateLineItemToProjectTasks")
+
+  /// Invoice line items created from this line item (conceptual)
+  // invoiceLineItems InvoiceLineItem[] @relation("EstimateLineItemToInvoiceLineItems")
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
+  // Primary constraints
   @@unique([tenantId, id])
+
+  // Parent relationship indexes
+  @@index([tenantId, estimateId]) // Line items for estimate
+  @@index([tenantId, sectionId]) // Line items for section
+  @@index([tenantId, estimateId, sortOrder]) // Ordered line items
+
+  // Business filtering
   @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@index([tenantId, productCode])
   @@index([tenantId, deletedAt])
-  @@index([tenantId, sectionId]) // Section grouping queries
+
+  // Financial analysis
+  @@index([tenantId, lineTotal]) // Value-based filtering
+  @@index([tenantId, isTaxable]) // Tax calculations
+  @@index([tenantId, isMaterial]) // Material vs labor analysis
+
+  // Integration lookups
+  @@index([tenantId, costCodeId]) // Job costing integration
+  @@index([tenantId, inventoryItemId]) // Inventory integration
+  @@index([tenantId, serviceCatalogItemId]) // Service catalog integration
+  @@index([tenantId, preferredVendorId]) // Vendor analysis
+
+  // Time-based queries (BRIN for temporal clustering)
   @@index([createdAt], type: Brin)
+  @@index([updatedAt], type: Brin)
+
+  // Governance & analytics
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("estimate_line_item")
+
+  // Business flags for filtering
+  @@index([tenantId, requiresApproval])
+  @@index([tenantId, isStandardItem])
+  @@index([tenantId, allowModification])
+
+  // Project scheduling support
+  @@index([tenantId, estimatedStartDate])
+  @@index([tenantId, estimatedHours])
+
+  // JSON metadata search
+  @@index([metadata], type: Gin)
+
+  @@map("estimate_line_items") // Plural table name
 }
 
 model EstimateTax {
-  // 🆔 Identity & Tenant
-  id       String @id @default(uuid(7)) @db.Uuid
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Primary Key & Identity
+  // ─────────────────────────────────────────────────────────────
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏢 Tenant Isolation
+  // ─────────────────────────────────────────────────────────────
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status  EstimateTaxStatus @default(ACTIVE)
+  version Int               @default(1)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Temporal Tracking
+  // ─────────────────────────────────────────────────────────────
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Financial Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateTax", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Tax Rule Identity
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateTaxCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateTaxUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateTaxDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Tax rule name/description (e.g., "Sales Tax", "VAT", "GST")
+  taxName String @db.VarChar(100)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Tax rule code for compliance reporting (e.g., "ST-CA", "VAT-UK")
+  taxCode String? @db.VarChar(50)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Tax jurisdiction (state, province, country)
+  jurisdiction String? @db.VarChar(100)
+
+  /// Sort order for display purposes
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Tax Calculation
+  // ─────────────────────────────────────────────────────────────
+
+  /// Tax rate as percentage (e.g., 8.25 for 8.25%)
+  taxRate Decimal @default(0) @db.Decimal(8, 4)
+
+  /// Calculated tax amount (rate × taxable base)
+  taxAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Base amount used for tax calculation
+  taxableAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Currency for tax calculations (inherits from estimate)
+  currencyCode String @db.Char(3)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏛️ Tax Compliance & Regulation
+  // ─────────────────────────────────────────────────────────────
+
+  /// Tax category for compliance (SALES, VAT, EXCISE, etc.)
+  taxCategory EstimateTaxCategory @default(SALES)
+
+  /// Tax applicability scope
+  taxScope EstimateTaxScope @default(LINE_ITEMS)
+
+  /// Is this tax compound (applies to subtotal + other taxes)?
+  isCompound Boolean @default(false)
+
+  /// Is tax amount included in line item prices?
+  isInclusive Boolean @default(false)
+
+  /// Is tax calculation automatic or manual override?
+  isManualOverride Boolean @default(false)
+
+  /// Tax exemption flag (zero-rated items)
+  isExempt Boolean @default(false)
+
+  /// Exemption certificate number if applicable
+  exemptionCertificate String? @db.VarChar(100)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Tax Engine Integration
+  // ─────────────────────────────────────────────────────────────
+
+  /// Reference to external tax rule (Avalara, TaxJar, etc.)
+  externalTaxRuleId String? @db.VarChar(100)
+
+  /// Reference to tax compliance service transaction
+  externalTransactionId String? @db.VarChar(100)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Business Analytics
+  // ─────────────────────────────────────────────────────────────
+
+  /// Effective date for tax rate (when rate became active)
+  effectiveDate DateTime? @db.Timestamptz(6)
+
+  /// Tax calculation notes or compliance details
+  notes String? @db.Text
+
+  /// Additional metadata for tax compliance
+  metadata Json? @db.JsonB
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant @relation("TenantToEstimateTax", fields: [tenantId], references: [id], onDelete: Restrict)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Actor relations: Pattern A (IDs only) - no cross-relations for child financial entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_tax")
+  @@unique([tenantId, estimateId, taxCode]) // Prevent duplicate tax codes per estimate
+  @@index([tenantId, estimateId]) // Parent relationship lookup
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, taxCategory]) // Tax category reporting
+  @@index([tenantId, jurisdiction]) // Jurisdiction-based queries
+  @@index([tenantId, isExempt]) // Exemption tracking
+  @@index([tenantId, externalTaxRuleId]) // External system integration
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, effectiveDate]) // Tax rate history
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@map("estimate_taxes")
 }
 
 model EstimateDiscount {
-  // 🆔 Identity & Tenant
-  id       String @id @default(uuid(7)) @db.Uuid
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Primary Key & Identity
+  // ─────────────────────────────────────────────────────────────
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏢 Tenant Isolation
+  // ─────────────────────────────────────────────────────────────
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status  EstimateDiscountStatus @default(ACTIVE)
+  version Int                    @default(1)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Temporal Tracking
+  // ─────────────────────────────────────────────────────────────
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Financial Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateDiscount", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Discount Identity
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateDiscountCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateDiscountUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateDiscountDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Discount name/description (e.g., "Early Payment", "Volume Discount")
+  discountName String @db.VarChar(100)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Discount code for tracking and reporting
+  discountCode String? @db.VarChar(50)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Sort order for display purposes
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Discount Calculation
+  // ─────────────────────────────────────────────────────────────
+
+  /// Discount type (percentage vs fixed amount)
+  discountType EstimateDiscountType @default(PERCENTAGE)
+
+  /// Discount rate as percentage (e.g., 10.00 for 10%)
+  discountRate Decimal? @db.Decimal(8, 4)
+
+  /// Fixed discount amount (alternative to percentage)
+  fixedAmount Decimal? @db.Decimal(12, 2)
+
+  /// Calculated discount amount (applied to estimate)
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Maximum discount amount allowed (cap for percentage discounts)
+  maximumAmount Decimal? @db.Decimal(12, 2)
+
+  /// Minimum purchase amount required to qualify
+  minimumPurchaseAmount Decimal? @db.Decimal(12, 2)
+
+  /// Currency for discount calculations
+  currencyCode String @db.Char(3)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎯 Discount Rules & Scope
+  // ─────────────────────────────────────────────────────────────
+
+  /// Discount category for business classification
+  discountCategory EstimateDiscountCategory @default(COMMERCIAL)
+
+  /// What the discount applies to (line items, subtotal, etc.)
+  appliesTo EstimateDiscountScope @default(SUBTOTAL)
+
+  /// Is discount automatically calculated or manual?
+  isAutomatic Boolean @default(false)
+
+  /// Is discount approved and locked?
+  isApproved Boolean @default(false)
+
+  /// Approval required flag (for approval workflow)
+  requiresApproval Boolean @default(false)
+
+  /// Stackable with other discounts?
+  isStackable Boolean @default(true)
+
+  /// Tax implications - is discount taxable?
+  isTaxable Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Discount Validity
+  // ─────────────────────────────────────────────────────────────
+
+  /// Discount effective start date
+  effectiveDate DateTime? @db.Timestamptz(6)
+
+  /// Discount expiration date
+  expirationDate DateTime? @db.Timestamptz(6)
+
+  /// Is discount currently active and valid?
+  isActive Boolean @default(true)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Approval & Authorization
+  // ─────────────────────────────────────────────────────────────
+
+  /// Who approved this discount (if approval required)
+  approvedByMemberId String? @db.Uuid
+
+  /// When discount was approved
+  approvedAt DateTime? @db.Timestamptz(6)
+
+  /// Approval notes or justification
+  approvalNotes String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 External Integration
+  // ─────────────────────────────────────────────────────────────
+
+  /// Reference to external discount rule (CRM, PMS, etc.)
+  externalDiscountRuleId String? @db.VarChar(100)
+
+  /// Reference to promotion campaign
+  campaignId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Business Analytics
+  // ─────────────────────────────────────────────────────────────
+
+  /// Reason for discount (sales, competitive, etc.)
+  discountReason String? @db.VarChar(255)
+
+  /// Business justification notes
+  notes String? @db.Text
+
+  /// Additional metadata for discount logic
+  metadata Json? @db.JsonB
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant           Tenant @relation("TenantToEstimateDiscount", fields: [tenantId], references: [id], onDelete: Restrict)
+  estimate         Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+  approvedByMember Member? @relation("EstimateDiscountApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+  
+  // Actor relations: Pattern A (IDs only) - no cross-relations for child financial entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_discount")
+  @@unique([tenantId, estimateId, discountCode]) // Prevent duplicate codes per estimate
+  @@index([tenantId, estimateId]) // Parent relationship lookup
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, discountType]) // Discount type reporting
+  @@index([tenantId, discountCategory]) // Category-based queries
+  @@index([tenantId, isApproved]) // Approval tracking
+  @@index([tenantId, requiresApproval]) // Approval workflow
+  @@index([tenantId, approvedByMemberId]) // Approver tracking
+  @@index([tenantId, effectiveDate]) // Date range queries
+  @@index([tenantId, expirationDate]) // Expiration tracking
+  @@index([tenantId, isActive]) // Active discount filtering
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@map("estimate_discounts")
 }
 
 model EstimateFee {
-  // 🆔 Identity & Tenant
-  id       String @id @default(uuid(7)) @db.Uuid
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Primary Key & Identity
+  // ─────────────────────────────────────────────────────────────
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏢 Tenant Isolation
+  // ─────────────────────────────────────────────────────────────
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status  EstimateFeeStatus @default(ACTIVE)
+  version Int               @default(1)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Temporal Tracking
+  // ─────────────────────────────────────────────────────────────
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Financial Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateFee", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Fee Identity
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateFeeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateFeeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateFeeDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Fee name/description (e.g., "Overhead", "Contingency", "Processing Fee")
+  feeName String @db.VarChar(100)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Fee code for tracking and reporting
+  feeCode String? @db.VarChar(50)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Sort order for display purposes
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Fee Calculation
+  // ─────────────────────────────────────────────────────────────
+
+  /// Fee type (percentage vs fixed amount)
+  feeType EstimateFeeType @default(FIXED_AMOUNT)
+
+  /// Fee rate as percentage (e.g., 10.00 for 10% overhead)
+  feeRate Decimal? @db.Decimal(8, 4)
+
+  /// Fixed fee amount (alternative to percentage)
+  fixedAmount Decimal? @db.Decimal(12, 2)
+
+  /// Calculated fee amount (applied to estimate)
+  feeAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// What the fee is calculated against (subtotal, labor, materials, etc.)
+  calculationBase EstimateFeeCalculationBase @default(SUBTOTAL)
+
+  /// Base amount used for fee calculation
+  baseAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Currency for fee calculations
+  currencyCode String @db.Char(3)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎯 Fee Rules & Business Logic
+  // ─────────────────────────────────────────────────────────────
+
+  /// Fee category for business classification
+  feeCategory EstimateFeeCategory @default(OVERHEAD)
+
+  /// Is fee automatically calculated or manual?
+  isAutomatic Boolean @default(false)
+
+  /// Is fee approved and locked?
+  isApproved Boolean @default(false)
+
+  /// Approval required flag (for approval workflow)
+  requiresApproval Boolean @default(false)
+
+  /// Is fee mandatory (cannot be removed)?
+  isMandatory Boolean @default(false)
+
+  /// Is fee taxable?
+  isTaxable Boolean @default(false)
+
+  /// Is fee billable to client (vs internal cost)?
+  isBillable Boolean @default(true)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Fee Validity
+  // ─────────────────────────────────────────────────────────────
+
+  /// Fee effective start date
+  effectiveDate DateTime? @db.Timestamptz(6)
+
+  /// Fee expiration date
+  expirationDate DateTime? @db.Timestamptz(6)
+
+  /// Is fee currently active and valid?
+  isActive Boolean @default(true)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Approval & Authorization
+  // ─────────────────────────────────────────────────────────────
+
+  /// Who approved this fee (if approval required)
+  approvedByMemberId String? @db.Uuid
+
+  /// When fee was approved
+  approvedAt DateTime? @db.Timestamptz(6)
+
+  /// Approval notes or justification
+  approvalNotes String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 External Integration
+  // ─────────────────────────────────────────────────────────────
+
+  /// Reference to external fee rule (accounting system, etc.)
+  externalFeeRuleId String? @db.VarChar(100)
+
+  /// Reference to cost center or department
+  costCenterId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Business Analytics
+  // ─────────────────────────────────────────────────────────────
+
+  /// Business justification for fee
+  justification String? @db.VarChar(255)
+
+  /// Detailed fee description
+  description String? @db.Text
+
+  /// Additional metadata for fee logic
+  metadata Json? @db.JsonB
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant           Tenant @relation("TenantToEstimateFee", fields: [tenantId], references: [id], onDelete: Restrict)
+  estimate         Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+  approvedByMember Member? @relation("EstimateFeeApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+  
+  // Actor relations: Pattern A (IDs only) - no cross-relations for child financial entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_fee")
+  @@unique([tenantId, estimateId, feeCode]) // Prevent duplicate codes per estimate
+  @@index([tenantId, estimateId]) // Parent relationship lookup
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, feeCategory]) // Fee category reporting
+  @@index([tenantId, feeType]) // Fee type analysis
+  @@index([tenantId, isApproved]) // Approval tracking
+  @@index([tenantId, isMandatory]) // Mandatory fee queries
+  @@index([tenantId, isBillable]) // Billable vs cost analysis
+  @@index([tenantId, externalFeeRuleId]) // External system integration
+  @@index([tenantId, costCenterId]) // Cost center reporting
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, effectiveDate]) // Fee validity queries
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@map("estimate_fees")
 }
 
 model EstimateTerm {
-  // 🆔 Identity & Tenant
-  id       String @id @default(uuid(7)) @db.Uuid
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Primary Key & Identity
+  // ─────────────────────────────────────────────────────────────
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏢 Tenant Isolation
+  // ─────────────────────────────────────────────────────────────
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status  EstimateTermStatus @default(ACTIVE)
+  version Int                @default(1)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Temporal Tracking
+  // ─────────────────────────────────────────────────────────────
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateTerm", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Term Identity & Classification
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateTermCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateTermUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateTermDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Term type (payment, delivery, warranty, etc.)
+  termType EstimateTermType @default(PAYMENT)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Term title/name (e.g., "Payment Terms", "Delivery Schedule")
+  title String @db.VarChar(150)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Sort order for display purposes
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Term Content & Details
+  // ─────────────────────────────────────────────────────────────
+
+  /// Full term description/text (rich content)
+  content String @db.Text
+
+  /// Short summary for quick display
+  summary String? @db.VarChar(255)
+
+  /// Term category for grouping
+  category EstimateTermCategory @default(COMMERCIAL)
+
+  /// Is this term negotiable?
+  isNegotiable Boolean @default(true)
+
+  /// Is this term mandatory (cannot be removed)?
+  isMandatory Boolean @default(false)
+
+  /// Is this term visible to client?
+  isClientVisible Boolean @default(true)
+
+  /// Is this term part of contract?
+  isContractual Boolean @default(true)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Payment-Specific Fields (if termType = PAYMENT)
+  // ─────────────────────────────────────────────────────────────
+
+  /// Payment method (check, wire, credit card, etc.)
+  paymentMethod EstimatePaymentMethod?
+
+  /// Payment schedule type
+  paymentSchedule EstimatePaymentSchedule?
+
+  /// Days for payment (e.g., Net 30, Net 15)
+  paymentTermDays Int? @db.Integer
+
+  /// Percentage due upfront (e.g., 50% deposit)
+  depositPercentage Decimal? @db.Decimal(5, 2)
+
+  /// Fixed deposit amount (alternative to percentage)
+  depositAmount Decimal? @db.Decimal(12, 2)
+
+  /// Early payment discount percentage
+  earlyPaymentDiscountPercentage Decimal? @db.Decimal(5, 2)
+
+  /// Days for early payment discount (e.g., 2% if paid within 10 days)
+  earlyPaymentDiscountDays Int? @db.Integer
+
+  /// Late payment fee percentage
+  lateFeePercentage Decimal? @db.Decimal(5, 2)
+
+  /// Late payment fee flat amount
+  lateFeeAmount Decimal? @db.Decimal(10, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Delivery & Timeline Fields (if termType = DELIVERY)
+  // ─────────────────────────────────────────────────────────────
+
+  /// Estimated delivery/completion date
+  deliveryDate DateTime? @db.Timestamptz(6)
+
+  /// Delivery timeframe description (e.g., "4-6 weeks")
+  deliveryTimeframe String? @db.VarChar(100)
+
+  /// Delivery location details
+  deliveryLocation String? @db.VarChar(255)
+
+  /// Shipping method or delivery terms
+  shippingTerms String? @db.VarChar(100)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🛡️ Warranty & Liability Fields (if termType = WARRANTY)
+  // ─────────────────────────────────────────────────────────────
+
+  /// Warranty period in months
+  warrantyPeriodMonths Int? @db.Integer
+
+  /// Warranty coverage details
+  warrantyCoverage String? @db.Text
+
+  /// Liability limitation amount
+  liabilityLimitAmount Decimal? @db.Decimal(12, 2)
+
+  /// Insurance requirements
+  insuranceRequirements String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Compliance & Legal
+  // ─────────────────────────────────────────────────────────────
+
+  /// Legal jurisdiction for disputes
+  jurisdiction String? @db.VarChar(100)
+
+  /// Governing law reference
+  governingLaw String? @db.VarChar(100)
+
+  /// Compliance requirements
+  complianceNotes String? @db.Text
+
+  /// Is term governed by specific regulation?
+  isRegulated Boolean @default(false)
+
+  /// Regulatory reference number
+  regulatoryReference String? @db.VarChar(100)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Business Analytics & Tracking
+  // ─────────────────────────────────────────────────────────────
+
+  /// Client acceptance status for this term
+  clientAcceptanceStatus EstimateTermAcceptance @default(PENDING)
+
+  /// When client accepted/rejected this term
+  clientRespondedAt DateTime? @db.Timestamptz(6)
+
+  /// Client comments on this term
+  clientComments String? @db.Text
+
+  /// Internal notes (not visible to client)
+  internalNotes String? @db.Text
+
+  /// Term effective date
+  effectiveDate DateTime? @db.Timestamptz(6)
+
+  /// Term expiration date
+  expirationDate DateTime? @db.Timestamptz(6)
+
+  /// Additional metadata for complex terms
+  metadata Json? @db.JsonB
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant   @relation("TenantToEstimateTerm", fields: [tenantId], references: [id], onDelete: Restrict)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Actor relations: Pattern A (IDs only) - no cross-relations for child entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_term")
+  @@unique([tenantId, estimateId, title]) // Prevent duplicate term titles per estimate
+  @@index([tenantId, estimateId]) // Parent relationship lookup
+  @@index([tenantId, termType]) // Term type filtering
+  @@index([tenantId, category]) // Term category reporting
+  @@index([tenantId, isClientVisible]) // Client visibility queries
+  @@index([tenantId, isMandatory]) // Mandatory term queries
+  @@index([tenantId, isContractual]) // Contract term extraction
+  @@index([tenantId, clientAcceptanceStatus]) // Client acceptance tracking
+  @@index([tenantId, paymentMethod]) // Payment method analysis
+  @@index([tenantId, deliveryDate]) // Delivery scheduling
+  @@index([tenantId, isRegulated]) // Compliance tracking
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, effectiveDate]) // Term validity queries
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@map("estimate_terms")
 }
 
 model EstimateAssumption {
+  // ─────────────────────────────────────────────────────────────
   // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateAssumptionStatus @default(ACTIVE)
+  version   Int                      @default(1)
+  createdAt DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                 @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Supporting Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
+  metadata           Json?                      @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateAssumption", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Business Assumption Identity
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateAssumptionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateAssumptionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateAssumptionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Assumption title for quick reference (e.g., "Weather Conditions", "Site Access")
+  title String @db.VarChar(200)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Detailed assumption description
+  description String @db.Text
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Business category for classification and grouping
+  category EstimateAssumptionCategory @default(GENERAL)
+
+  /// Display order within the estimate
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Risk & Impact Assessment
+  // ─────────────────────────────────────────────────────────────
+
+  /// Risk level if assumption proves incorrect
+  riskLevel EstimateRiskLevel @default(MEDIUM)
+
+  /// Potential cost impact if assumption is wrong
+  potentialCostImpact Decimal? @db.Decimal(12, 2)
+
+  /// Potential schedule impact in days if assumption fails
+  potentialScheduleImpact Int? @db.Integer
+
+  /// Probability this assumption will hold true (0-100%)
+  probabilityPercentage Decimal? @db.Decimal(5, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Validation & Verification
+  // ─────────────────────────────────────────────────────────────
+
+  /// Source of this assumption (client meeting, site visit, etc.)
+  assumptionSource String? @db.VarChar(200)
+
+  /// Date when assumption was validated or confirmed
+  validatedAt DateTime? @db.Timestamptz(6)
+
+  /// Who validated this assumption
+  validatedBy String? @db.VarChar(200)
+
+  /// Notes from validation process
+  validationNotes String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Client Communication
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether this assumption is visible to client in public link
+  isVisibleToClient Boolean @default(true)
+
+  /// Whether client has explicitly acknowledged this assumption
+  clientAcknowledged Boolean @default(false)
+
+  /// When client acknowledged this assumption
+  clientAcknowledgedAt DateTime? @db.Timestamptz(6)
+
+  /// Client's response or comments on this assumption
+  clientResponse String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ Contingency Planning
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether this assumption requires a contingency plan
+  requiresContingency Boolean @default(false)
+
+  /// Contingency plan if assumption fails
+  contingencyPlan String? @db.Text
+
+  /// Additional cost buffer for this assumption
+  contingencyAmount Decimal? @db.Decimal(12, 2)
+
+  /// Whether to include contingency in client-facing total
+  includeContingencyInTotal Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant   @relation("TenantToEstimateAssumption", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  // Actor relations: Pattern A (IDs only) - no cross-relations for supporting entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
+  @@index([tenantId, estimateId])
   @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@index([tenantId, riskLevel])
   @@index([tenantId, deletedAt])
+  @@index([tenantId, isVisibleToClient])
+  @@index([tenantId, clientAcknowledged])
+  @@index([tenantId, requiresContingency])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_assumption")
+  @@index([tenantId, sortOrder])
+  @@map("estimate_assumptions")
 }
 
 model EstimateExclusion {
+  // ─────────────────────────────────────────────────────────────
   // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateExclusionStatus @default(ACTIVE)
+  version   Int                     @default(1)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?               @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Supporting Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
+  metadata           Json?                      @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateExclusion", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Business Exclusion Identity
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateExclusionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateExclusionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateExclusionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Exclusion title for quick reference (e.g., "Permits & Fees", "Electrical Work")
+  title String @db.VarChar(200)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Detailed exclusion description
+  description String @db.Text
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Business category for classification and grouping
+  category EstimateExclusionCategory @default(GENERAL)
+
+  /// Display order within the estimate
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Financial Impact Analysis
+  // ─────────────────────────────────────────────────────────────
+
+  /// Estimated cost if client requests this excluded work
+  estimatedCost Decimal? @db.Decimal(12, 2)
+
+  /// Currency for estimated cost
+  currencyCode String? @db.Char(3)
+
+  /// Whether this exclusion significantly impacts project scope
+  isSignificantExclusion Boolean @default(false)
+
+  /// Impact level on overall project if client adds this work
+  impactLevel EstimateImpactLevel @default(LOW)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Reason & Justification
+  // ─────────────────────────────────────────────────────────────
+
+  /// Reason for exclusion (cost, complexity, timeline, etc.)
+  exclusionReason EstimateExclusionReason @default(SCOPE_LIMITATION)
+
+  /// Detailed justification for why this is excluded
+  justification String? @db.Text
+
+  /// Whether exclusion is due to regulatory/legal requirements
+  isRegulatoryExclusion Boolean @default(false)
+
+  /// Reference to relevant regulation or code
+  regulatoryReference String? @db.VarChar(200)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Alternative Solutions
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether alternative solutions are available
+  hasAlternatives Boolean @default(false)
+
+  /// Description of alternative approaches or vendors
+  alternativeOptions String? @db.Text
+
+  /// Recommended vendor or specialist for excluded work
+  recommendedVendor String? @db.VarChar(200)
+
+  /// Contact information for recommended solution
+  vendorContact String? @db.VarChar(500)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Client Communication
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether this exclusion is visible to client in public link
+  isVisibleToClient Boolean @default(true)
+
+  /// Whether client has explicitly acknowledged this exclusion
+  clientAcknowledged Boolean @default(false)
+
+  /// When client acknowledged this exclusion
+  clientAcknowledgedAt DateTime? @db.Timestamptz(6)
+
+  /// Client's response or questions about this exclusion
+  clientResponse String? @db.Text
+
+  /// Whether client has requested to include this excluded work
+  clientRequestedInclusion Boolean @default(false)
+
+  /// When client requested inclusion
+  clientRequestedAt DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ Risk Management
+  // ─────────────────────────────────────────────────────────────
+
+  /// Risk level if client assumes this excluded work
+  clientAssumptionRisk EstimateRiskLevel @default(MEDIUM)
+
+  /// Warning message to display to client
+  warningMessage String? @db.Text
+
+  /// Whether this exclusion requires legal disclaimer
+  requiresLegalDisclaimer Boolean @default(false)
+
+  /// Legal disclaimer text
+  legalDisclaimer String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant   @relation("TenantToEstimateExclusion", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  // Actor relations: Pattern A (IDs only) - no cross-relations for supporting entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
+  @@index([tenantId, estimateId])
   @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@index([tenantId, exclusionReason])
+  @@index([tenantId, impactLevel])
   @@index([tenantId, deletedAt])
+  @@index([tenantId, isVisibleToClient])
+  @@index([tenantId, clientAcknowledged])
+  @@index([tenantId, clientRequestedInclusion])
+  @@index([tenantId, isSignificantExclusion])
+  @@index([tenantId, isRegulatoryExclusion])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_exclusion")
+  @@index([tenantId, sortOrder])
+  @@map("estimate_exclusions")
 }
 
 model EstimateAlternate {
+  // ─────────────────────────────────────────────────────────────
   // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateAlternateStatus @default(ACTIVE)
+  version   Int                     @default(1)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?               @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Supporting Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
+  metadata           Json?                      @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateAlternate", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Business Alternate Identity
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateAlternateCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateAlternateUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateAlternateDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Alternate option title (e.g., "Premium Materials", "Expedited Timeline")
+  title String @db.VarChar(200)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Detailed description of the alternate option
+  description String @db.Text
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Business category for classification and grouping
+  category EstimateAlternateCategory @default(UPGRADE)
+
+  /// Display order within the estimate
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Financial Structure
+  // ─────────────────────────────────────────────────────────────
+
+  /// Additional cost for this alternate (can be negative for cost reductions)
+  additionalCost Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Currency for additional cost
+  currencyCode String @default("USD") @db.Char(3)
+
+  /// Type of cost impact (addition, reduction, replacement)
+  costImpactType EstimateCostImpactType @default(ADDITION)
+
+  /// Whether cost includes tax
+  costIncludesTax Boolean @default(false)
+
+  /// Tax rate applicable to this alternate (if different from main estimate)
+  alternativeTaxRate Decimal? @db.Decimal(8, 4)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Schedule Impact
+  // ─────────────────────────────────────────────────────────────
+
+  /// Schedule impact in days (positive for delays, negative for acceleration)
+  scheduleImpactDays Int? @db.Integer
+
+  /// Type of schedule impact
+  scheduleImpactType EstimateScheduleImpactType @default(NO_IMPACT)
+
+  /// Critical path impact flag
+  affectsCriticalPath Boolean @default(false)
+
+  /// Lead time required for this alternate
+  leadTimeDays Int? @db.Integer
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏗️ Technical Specifications
+  // ─────────────────────────────────────────────────────────────
+
+  /// Technical specifications or requirements
+  technicalSpecs String? @db.Text
+
+  /// Quality level or grade upgrade/downgrade
+  qualityLevel EstimateQualityLevel @default(STANDARD)
+
+  /// Environmental or sustainability impact
+  sustainabilityImpact String? @db.Text
+
+  /// Warranty implications of this alternate
+  warrantyImpact String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Business Logic & Rules
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether this alternate is mutually exclusive with others
+  isMutuallyExclusive Boolean @default(false)
+
+  /// Group ID for mutually exclusive alternates
+  exclusivityGroupId String? @db.Uuid
+
+  /// Whether this alternate requires additional approvals
+  requiresApproval Boolean @default(false)
+
+  /// Minimum quantity or threshold for this alternate
+  minimumQuantity Decimal? @db.Decimal(10, 4)
+
+  /// Maximum quantity or threshold for this alternate
+  maximumQuantity Decimal? @db.Decimal(10, 4)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Risk & Value Assessment
+  // ─────────────────────────────────────────────────────────────
+
+  /// Risk level associated with this alternate
+  riskLevel EstimateRiskLevel @default(LOW)
+
+  /// Value proposition or benefit to client
+  valueProp String? @db.Text
+
+  /// Recommendation level (highly recommended, optional, etc.)
+  recommendationLevel EstimateRecommendationLevel @default(OPTIONAL)
+
+  /// Popularity ranking among clients (for analytics)
+  popularityRank Int? @db.Integer
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Client Interaction
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether this alternate is visible to client in public link
+  isVisibleToClient Boolean @default(true)
+
+  /// Whether client has selected this alternate
+  clientSelected Boolean @default(false)
+
+  /// When client selected this alternate
+  clientSelectedAt DateTime? @db.Timestamptz(6)
+
+  /// Client's questions or comments about this alternate
+  clientComments String? @db.Text
+
+  /// Whether client specifically requested this alternate
+  clientRequested Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Dependencies & Prerequisites
+  // ─────────────────────────────────────────────────────────────
+
+  /// Prerequisites or dependencies for this alternate
+  prerequisites String? @db.Text
+
+  /// Related line items that would be affected
+  affectedLineItems String? @db.Text
+
+  /// External vendor or supplier information
+  vendorInfo String? @db.Text
+
+  /// Special permits or approvals required
+  specialRequirements String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant   @relation("TenantToEstimateAlternate", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  // Actor relations: Pattern A (IDs only) - no cross-relations for supporting entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
+  @@index([tenantId, estimateId])
   @@index([tenantId, status])
+  @@index([tenantId, category])
+  @@index([tenantId, costImpactType])
+  @@index([tenantId, recommendationLevel])
   @@index([tenantId, deletedAt])
+  @@index([tenantId, isVisibleToClient])
+  @@index([tenantId, clientSelected])
+  @@index([tenantId, clientRequested])
+  @@index([tenantId, isMutuallyExclusive])
+  @@index([tenantId, exclusivityGroupId])
+  @@index([tenantId, requiresApproval])
+  @@index([tenantId, riskLevel])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_alternate")
+  @@index([tenantId, sortOrder])
+  @@index([tenantId, popularityRank])
+  @@map("estimate_alternates")
 }
 
 model EstimateAttachment {
-  // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Primary Key & Identity
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateAttachmentStatus @default(ACTIVE)
   version   Int       @default(1)
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Minimal Audit (UUIDs only for child entities)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 🧠 Governance
+  // ─────────────────────────────────────────────────────────────
   auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  metadata           Json?   @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relations (REQUIRED)
+  // ─────────────────────────────────────────────────────────────
+  
+  /// Parent estimate (for header-level attachments)
+  estimateId String? @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateAttachment", fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Parent line item (for line-scoped attachments - up to 5 per line)
+  lineItemId String? @db.Uuid
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateAttachmentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateAttachmentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateAttachmentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  // ─────────────────────────────────────────────────────────────
+  // 📄 File Information
+  // ─────────────────────────────────────────────────────────────
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Original filename as uploaded
+  fileName String @db.VarChar(255)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// File display name (can be renamed by user)
+  displayName String? @db.VarChar(255)
+
+  /// File description/caption
+  description String? @db.Text
+
+  /// MIME type (e.g., image/jpeg, application/pdf)
+  mimeType String @db.VarChar(100)
+
+  /// File size in bytes
+  fileSize Int @db.Integer
+
+  /// Storage path or URL where file is stored
+  storagePath String @db.Text
+
+  /// File hash for duplicate detection and integrity
+  fileHash String? @db.VarChar(64)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🖼️ Image-Specific Metadata (if applicable)
+  // ─────────────────────────────────────────────────────────────
+
+  /// Image width in pixels (for images)
+  imageWidth Int? @db.Integer
+
+  /// Image height in pixels (for images)
+  imageHeight Int? @db.Integer
+
+  /// Thumbnail path/URL (for images)
+  thumbnailPath String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Attachment Metadata
+  // ─────────────────────────────────────────────────────────────
+
+  /// Attachment category for organization
+  category EstimateAttachmentCategory?
+
+  /// Display order within parent (for sorting)
+  sortOrder Int @default(0) @db.Integer
+
+  /// Whether this attachment is public (visible to client)
+  isPublic Boolean @default(true)
+
+  /// Whether this attachment is required for approval
+  isRequired Boolean @default(false)
+
+  /// Tags for organization and search
+  tags String? @db.Text // Comma-separated or JSON array
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations to Tenant & Actors
+  // ─────────────────────────────────────────────────────────────
+
+  tenant Tenant @relation("TenantToEstimateAttachment", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relations
+  // ─────────────────────────────────────────────────────────────
+
+  /// Header-level attachment (optional)
+  estimate Estimate? @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  /// Line-item scoped attachment (critical feature - up to 5 per line)
+  lineItem EstimateLineItem? @relation("EstimateLineItemAttachments", fields: [tenantId, lineItemId], references: [tenantId, id], onDelete: Cascade)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
+  
+  // Parent relationship indexes
+  @@index([tenantId, estimateId]) // Header attachments
+  @@index([tenantId, lineItemId]) // Line item attachments
+  @@index([tenantId, estimateId, sortOrder]) // Ordered header attachments
+  @@index([tenantId, lineItemId, sortOrder]) // Ordered line attachments
+
+  // Business filtering
   @@index([tenantId, status])
+  @@index([tenantId, category])
   @@index([tenantId, deletedAt])
+  @@index([tenantId, isPublic])
+  @@index([tenantId, isRequired])
+
+  // File management
+  @@index([tenantId, mimeType]) // File type filtering
+  @@index([tenantId, fileSize]) // Size-based queries
+  @@index([tenantId, fileHash]) // Duplicate detection
+
+  // Time-based queries (BRIN for temporal clustering)
   @@index([createdAt], type: Brin)
+  @@index([updatedAt], type: Brin)
+
+  // Governance & analytics
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("estimate_attachment")
+
+  // JSON metadata search
+  @@index([metadata], type: Gin)
+
+  @@map("estimate_attachments") // Plural table name
 }
 
 model EstimateComment {
+  // ─────────────────────────────────────────────────────────────
   // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateCommentStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Supporting Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
+  metadata           Json?                      @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateComment", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 🧵 Threading & Hierarchy
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateCommentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateCommentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateCommentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Parent comment for threaded discussions (optional)
+  parentCommentId String? @db.Uuid
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Thread depth level (0 = root comment, 1 = reply, 2 = nested reply, etc.)
+  threadLevel Int @default(0)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Root comment ID for quick thread queries
+  rootCommentId String? @db.Uuid
+
+  /// Display order within thread or parent
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Comment Content & Context
+  // ─────────────────────────────────────────────────────────────
+
+  /// Comment title or subject (optional, for important comments)
+  title String? @db.VarChar(200)
+
+  /// Main comment content (supports rich text/markdown)
+  content String @db.Text
+
+  /// Comment type for categorization
+  commentType EstimateCommentType @default(GENERAL)
+
+  /// Comment category for business context
+  category EstimateCommentCategory @default(INTERNAL)
+
+  /// Priority level for urgent comments
+  priority EstimateCommentPriority @default(NORMAL)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎯 Context & Targeting
+  // ─────────────────────────────────────────────────────────────
+
+  /// Specific line item this comment relates to (optional)
+  lineItemId String? @db.Uuid
+
+  /// Specific section this comment relates to (optional)
+  sectionId String? @db.Uuid
+
+  /// Page or area reference for context
+  contextReference String? @db.VarChar(200)
+
+  /// Highlighted text or quote being commented on
+  quotedText String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 👀 Visibility & Access Control
+  // ─────────────────────────────────────────────────────────────
+
+  /// Visibility scope for this comment
+  visibility EstimateCommentVisibility @default(INTERNAL_ONLY)
+
+  /// Whether client can see this comment in public link
+  isVisibleToClient Boolean @default(false)
+
+  /// Whether this comment requires attention/response
+  requiresResponse Boolean @default(false)
+
+  /// Whether comment is pinned to top of discussion
+  isPinned Boolean @default(false)
+
+  /// Whether this comment is marked as confidential
+  isConfidential Boolean @default(true)
+
+  // ─────────────────────────────────────────────────────────────
+  // ✅ Resolution & Action Tracking
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether this comment represents an action item
+  isActionItem Boolean @default(false)
+
+  /// Action item status (if applicable)
+  actionStatus EstimateCommentActionStatus? 
+
+  /// Due date for action item (if applicable)
+  actionDueDate DateTime? @db.Timestamptz(6)
+
+  /// Who is assigned to resolve this action (if applicable)
+  assignedToMemberId String? @db.Uuid
+
+  /// Whether comment/action has been resolved
+  isResolved Boolean @default(false)
+
+  /// Who resolved this comment/action
+  resolvedByActorId String? @db.Uuid
+
+  /// When comment/action was resolved
+  resolvedAt DateTime? @db.Timestamptz(6)
+
+  /// Resolution notes
+  resolutionNotes String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔔 Notifications & Mentions
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether notifications were sent for this comment
+  notificationsSent Boolean @default(false)
+
+  /// When notifications were sent
+  notificationsSentAt DateTime? @db.Timestamptz(6)
+
+  /// Member mentions in this comment (@username)
+  mentionedMemberIds String? @db.Text // JSON array of member IDs
+
+  /// Whether this comment requires email notification
+  requiresEmailNotification Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Engagement & Analytics
+  // ─────────────────────────────────────────────────────────────
+
+  /// Number of replies to this comment
+  replyCount Int @default(0)
+
+  /// Number of likes/upvotes (if enabled)
+  likeCount Int @default(0)
+
+  /// View count for important comments
+  viewCount Int @default(0)
+
+  /// Last activity timestamp on this thread
+  lastActivityAt DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 External References
+  // ─────────────────────────────────────────────────────────────
+
+  /// Reference to related approval request (if comment affects approval)
+  approvalRequestId String? @db.Uuid
+
+  /// Reference to related change order (if comment leads to change)
+  changeOrderId String? @db.Uuid
+
+  /// Reference to external system or document
+  externalReference String? @db.VarChar(500)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant          Tenant   @relation("TenantToEstimateComment", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate        Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+  
+  // Optional line item context (tenant-to-tenant composite key)
+  lineItem        EstimateLineItem? @relation("EstimateCommentLineItem", fields: [tenantId, lineItemId], references: [tenantId, id], onDelete: SetNull)
+  
+  // Optional section context (tenant-to-tenant composite key)
+  section         EstimateSection? @relation("EstimateCommentSection", fields: [tenantId, sectionId], references: [tenantId, id], onDelete: SetNull)
+  
+  // Threading relations (tenant-to-tenant composite keys)
+  parentComment   EstimateComment? @relation("CommentThread", fields: [tenantId, parentCommentId], references: [tenantId, id], onDelete: SetNull)
+  childComments   EstimateComment[] @relation("CommentThread")
+  
+  rootComment     EstimateComment? @relation("CommentRoot", fields: [tenantId, rootCommentId], references: [tenantId, id], onDelete: SetNull)
+  threadComments  EstimateComment[] @relation("CommentRoot")
+  
+  // Member assignment (tenant-to-tenant composite key)
+  assignedToMember Member? @relation("EstimateCommentAssignee", fields: [tenantId, assignedToMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // Actor relations: Pattern A (IDs only) - no cross-relations for supporting entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_comment")
+  @@index([tenantId, estimateId]) // Parent relationship
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, commentType]) // Type filtering
+  @@index([tenantId, category]) // Category filtering
+  @@index([tenantId, priority]) // Priority sorting
+  @@index([tenantId, visibility]) // Visibility filtering
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([tenantId, lineItemId]) // Line item context
+  @@index([tenantId, sectionId]) // Section context
+  @@index([tenantId, parentCommentId]) // Threading
+  @@index([tenantId, rootCommentId]) // Thread roots
+  @@index([tenantId, threadLevel]) // Thread depth
+  @@index([tenantId, isVisibleToClient]) // Client visibility
+  @@index([tenantId, requiresResponse]) // Attention needed
+  @@index([tenantId, isPinned]) // Pinned comments
+  @@index([tenantId, isActionItem]) // Action items
+  @@index([tenantId, actionStatus]) // Action tracking
+  @@index([tenantId, actionDueDate]) // Action scheduling
+  @@index([tenantId, assignedToMemberId]) // Assignment lookup
+  @@index([tenantId, isResolved]) // Resolution tracking
+  @@index([tenantId, resolvedAt]) // Resolution timeline
+  @@index([tenantId, isConfidential]) // Confidential filtering
+  @@index([tenantId, lastActivityAt]) // Activity sorting
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, sortOrder]) // Display ordering
+  @@index([tenantId, approvalRequestId]) // Approval linkage
+  @@index([tenantId, changeOrderId]) // Change order linkage
+  @@map("estimate_comments")
 }
 
 model EstimateComparison {
+  // ─────────────────────────────────────────────────────────────
   // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateComparisonStatus @default(ACTIVE)
+  version   Int                      @default(1)
+  createdAt DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                 @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Supporting Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
+  metadata           Json?                      @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateComparison", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Comparison Identity & Context
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateComparisonCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateComparisonUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateComparisonDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Comparison title (e.g., "Q4 2025 Bid Analysis", "Contractor Comparison")
+  title String @db.VarChar(200)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Detailed description of comparison purpose
+  description String? @db.Text
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Comparison type for categorization
+  comparisonType EstimateComparisonType @default(COMPETITIVE_BID)
+
+  /// Business category for organization
+  category EstimateComparisonCategory @default(VENDOR_ANALYSIS)
+
+  /// Display order within estimate
+  sortOrder Int @default(0)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏢 Competitor Information
+  // ─────────────────────────────────────────────────────────────
+
+  /// Competitor/vendor name being compared against
+  competitorName String @db.VarChar(200)
+
+  /// Competitor company information
+  competitorCompany String? @db.VarChar(200)
+
+  /// Competitor contact information
+  competitorContact String? @db.VarChar(500)
+
+  /// Source of competitor information
+  informationSource EstimateComparisonSource @default(CLIENT_PROVIDED)
+
+  /// Reliability/confidence level of competitor data
+  dataReliability EstimateDataReliability @default(MEDIUM)
+
+  /// Date when competitor information was obtained
+  informationDate DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Financial Comparison
+  // ─────────────────────────────────────────────────────────────
+
+  /// Competitor's total price/bid amount
+  competitorTotalAmount Decimal? @db.Decimal(12, 2)
+
+  /// Currency for competitor amount
+  competitorCurrencyCode String? @db.Char(3)
+
+  /// Our estimate total for comparison
+  ourTotalAmount Decimal? @db.Decimal(12, 2)
+
+  /// Price difference (positive = we're higher, negative = we're lower)
+  priceDifference Decimal? @db.Decimal(12, 2)
+
+  /// Price difference as percentage
+  priceDifferencePercentage Decimal? @db.Decimal(6, 2)
+
+  /// Price competitiveness assessment
+  priceCompetitiveness EstimateCompetitiveness @default(COMPETITIVE)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Detailed Comparison Categories
+  // ─────────────────────────────────────────────────────────────
+
+  /// Labor cost comparison
+  laborCostComparison Decimal? @db.Decimal(12, 2)
+
+  /// Materials cost comparison
+  materialCostComparison Decimal? @db.Decimal(12, 2)
+
+  /// Equipment cost comparison
+  equipmentCostComparison Decimal? @db.Decimal(12, 2)
+
+  /// Overhead comparison
+  overheadComparison Decimal? @db.Decimal(12, 2)
+
+  /// Profit margin comparison
+  profitMarginComparison Decimal? @db.Decimal(6, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⏰ Schedule & Timeline Comparison
+  // ─────────────────────────────────────────────────────────────
+
+  /// Competitor's proposed timeline (in days)
+  competitorTimelineDays Int? @db.Integer
+
+  /// Our proposed timeline (in days)
+  ourTimelineDays Int? @db.Integer
+
+  /// Schedule difference (positive = we're faster, negative = we're slower)
+  scheduleDifference Int? @db.Integer
+
+  /// Schedule competitiveness assessment
+  scheduleCompetitiveness EstimateCompetitiveness @default(COMPETITIVE)
+
+  /// Delivery date comparison
+  deliveryDateComparison DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🏗️ Technical & Quality Comparison
+  // ─────────────────────────────────────────────────────────────
+
+  /// Technical approach comparison notes
+  technicalComparison String? @db.Text
+
+  /// Quality level comparison
+  qualityLevelComparison EstimateQualityLevel? 
+
+  /// Technology/methods comparison
+  technologyComparison String? @db.Text
+
+  /// Innovation factor assessment
+  innovationFactor EstimateInnovationLevel @default(STANDARD)
+
+  /// Sustainability/environmental comparison
+  sustainabilityComparison String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎯 Competitive Scoring & Analysis
+  // ─────────────────────────────────────────────────────────────
+
+  /// Overall competitive score (1-100)
+  competitiveScore Int? @db.Integer
+
+  /// Price score component (1-100)
+  priceScore Int? @db.Integer
+
+  /// Quality score component (1-100)
+  qualityScore Int? @db.Integer
+
+  /// Timeline score component (1-100)
+  timelineScore Int? @db.Integer
+
+  /// Experience/reputation score (1-100)
+  experienceScore Int? @db.Integer
+
+  /// Innovation score (1-100)
+  innovationScore Int? @db.Integer
+
+  /// Risk assessment score (1-100, higher = lower risk)
+  riskScore Int? @db.Integer
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ Risk & Opportunity Analysis
+  // ─────────────────────────────────────────────────────────────
+
+  /// Competitive risk level
+  competitiveRisk EstimateRiskLevel @default(MEDIUM)
+
+  /// Risk factors identified
+  riskFactors String? @db.Text
+
+  /// Opportunities identified
+  opportunities String? @db.Text
+
+  /// Threats identified
+  threats String? @db.Text
+
+  /// Mitigation strategies
+  mitigationStrategies String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 💡 Strategic Insights & Recommendations
+  // ─────────────────────────────────────────────────────────────
+
+  /// Key differentiators vs competitor
+  keyDifferentiators String? @db.Text
+
+  /// Competitive advantages we have
+  competitiveAdvantages String? @db.Text
+
+  /// Areas where competitor is stronger
+  competitorStrengths String? @db.Text
+
+  /// Recommended strategy against this competitor
+  recommendedStrategy String? @db.Text
+
+  /// Action items to improve competitiveness
+  actionItems String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📈 Market & Client Intelligence
+  // ─────────────────────────────────────────────────────────────
+
+  /// Client's preference indicators
+  clientPreference EstimateClientPreference? 
+
+  /// Market positioning assessment
+  marketPosition EstimateMarketPosition @default(COMPETITIVE)
+
+  /// Win probability against this competitor
+  winProbability Decimal? @db.Decimal(5, 2)
+
+  /// Historical win/loss rate against this competitor
+  historicalWinRate Decimal? @db.Decimal(5, 2)
+
+  /// Market share context
+  marketShareContext String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Validation & Verification
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether competitor data has been verified
+  isDataVerified Boolean @default(false)
+
+  /// Who verified the competitor data
+  verifiedBy String? @db.VarChar(200)
+
+  /// When data was verified
+  verifiedAt DateTime? @db.Timestamptz(6)
+
+  /// Verification method or source
+  verificationMethod String? @db.VarChar(200)
+
+  /// Verification notes
+  verificationNotes String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Outcome & Follow-up
+  // ─────────────────────────────────────────────────────────────
+
+  /// Final recommendation based on comparison
+  finalRecommendation EstimateRecommendationLevel? 
+
+  /// Whether to proceed with our estimate
+  recommendProceed Boolean? 
+
+  /// Suggested estimate adjustments
+  suggestedAdjustments String? @db.Text
+
+  /// Follow-up actions required
+  followupActions String? @db.Text
+
+  /// Comparison outcome (won/lost/pending)
+  outcome EstimateComparisonOutcome? 
+
+  /// Outcome date (when result was determined)
+  outcomeDate DateTime? @db.Timestamptz(6)
+
+  /// Lessons learned from this comparison
+  lessonsLearned String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant   @relation("TenantToEstimateComparison", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  // Actor relations: Pattern A (IDs only) - no cross-relations for supporting entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_comparison")
+  @@index([tenantId, estimateId]) // Parent relationship
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, comparisonType]) // Type filtering
+  @@index([tenantId, category]) // Category filtering
+  @@index([tenantId, competitorName]) // Competitor lookup
+  @@index([tenantId, informationSource]) // Source filtering
+  @@index([tenantId, dataReliability]) // Reliability filtering
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([tenantId, priceCompetitiveness]) // Price analysis
+  @@index([tenantId, scheduleCompetitiveness]) // Schedule analysis
+  @@index([tenantId, competitiveRisk]) // Risk assessment
+  @@index([tenantId, marketPosition]) // Market positioning
+  @@index([tenantId, competitiveScore]) // Scoring analysis
+  @@index([tenantId, winProbability]) // Win probability
+  @@index([tenantId, clientPreference]) // Client insights
+  @@index([tenantId, isDataVerified]) // Verification status
+  @@index([tenantId, finalRecommendation]) // Recommendations
+  @@index([tenantId, recommendProceed]) // Proceed decisions
+  @@index([tenantId, outcome]) // Outcome tracking
+  @@index([tenantId, outcomeDate]) // Outcome timeline
+  @@index([tenantId, innovationFactor]) // Innovation tracking
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, sortOrder]) // Display ordering
+  @@index([tenantId, informationDate]) // Information timeline
+  @@map("estimate_comparisons")
 }
 
 model EstimateHistoryEvent {
+  // ─────────────────────────────────────────────────────────────
   // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  status    EstimateHistoryEventStatus @default(ACTIVE)
+  version   Int                        @default(1)
+  createdAt DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                   @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                  @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🧠 Governance & Compliance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                      @db.Uuid
+  dataClassification EstimateDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                     @db.VarChar(50)
+  metadata           Json?                       @db.JsonB
+  timezone           String?                     @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Event Core Properties
+  // ─────────────────────────────────────────────────────────────
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimateHistoryEvent", fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Type of event that occurred
+  eventType EstimateHistoryEventType @default(ESTIMATE_UPDATED)
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimateHistoryEventCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimateHistoryEventUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimateHistoryEventDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Event category for filtering and analysis
+  eventCategory EstimateHistoryEventCategory @default(LIFECYCLE)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Severity level of the event
+  eventSeverity EstimateHistoryEventSeverity @default(INFO)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Human-readable event title
+  eventTitle String @db.VarChar(200)
+
+  /// Detailed description of what happened
+  eventDescription String? @db.Text
+
+  /// System-generated summary of the event
+  eventSummary String? @db.VarChar(500)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎯 Context & Source Information
+  // ─────────────────────────────────────────────────────────────
+
+  /// Source of the event (UI, API, System, Integration)
+  eventSource EstimateHistoryEventSource @default(UI)
+
+  /// IP address where event originated
+  sourceIpAddress String? @db.Inet
+
+  /// User agent of the client
+  sourceUserAgent String? @db.Text
+
+  /// Geographic location of event
+  sourceLocation String? @db.VarChar(100)
+
+  /// Device type that triggered the event
+  sourceDevice String? @db.VarChar(100)
+
+  /// Browser/application that triggered the event
+  sourceBrowser String? @db.VarChar(100)
+
+  /// Operating system of the source
+  sourceOperatingSystem String? @db.VarChar(100)
+
+  /// Session ID associated with the event
+  sessionId String? @db.Uuid
+
+  /// Request ID for API correlation
+  requestId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔄 State Change Tracking
+  // ─────────────────────────────────────────────────────────────
+
+  /// Previous state/value before the change
+  previousState Json? @db.JsonB
+
+  /// New state/value after the change
+  newState Json? @db.JsonB
+
+  /// Fields that were changed in this event
+  changedFields String[]
+
+  /// Calculated diff between states
+  stateDiff Json? @db.JsonB
+
+  /// Whether this event represents a rollback
+  isRollback Boolean @default(false)
+
+  /// ID of the event being rolled back (if applicable)
+  rollbackEventId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // 👥 Actor & Permission Context
+  // ─────────────────────────────────────────────────────────────
+
+  /// Member who initiated the event
+  initiatedByMemberId String? @db.Uuid
+
+  /// Role of the member at time of event
+  memberRole String? @db.VarChar(100)
+
+  /// Permissions the member had at time of event
+  memberPermissions String[]
+
+  /// Whether the action was performed on behalf of another user
+  onBehalfOf String? @db.Uuid
+
+  /// Impersonation context if applicable
+  impersonationContext Json? @db.JsonB
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Business Impact & Metrics
+  // ─────────────────────────────────────────────────────────────
+
+  /// Financial impact of this event (if applicable)
+  financialImpact Decimal? @db.Decimal(12, 2)
+
+  /// Currency for financial impact
+  impactCurrency String? @db.Char(3)
+
+  /// Business priority of this event
+  businessPriority EstimateHistoryEventPriority @default(MEDIUM)
+
+  /// Tags for categorization and analysis
+  tags String[]
+
+  /// Custom business metrics
+  businessMetrics Json? @db.JsonB
+
+  /// Performance impact (processing time in ms)
+  processingTimeMs Int?
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Related Entities & Cross-References
+  // ─────────────────────────────────────────────────────────────
+
+  /// Parent estimate this event relates to
+  estimateId String @db.Uuid
+
+  /// Specific revision if event is revision-related
+  estimateRevisionId String? @db.Uuid
+
+  /// Line item if event is line-item specific
+  estimateLineItemId String? @db.Uuid
+
+  /// Section if event is section-specific
+  estimateSectionId String? @db.Uuid
+
+  /// Public link if event relates to client interaction
+  estimatePublicLinkId String? @db.Uuid
+
+  /// Related project if estimate has been converted
+  relatedProjectId String? @db.Uuid
+
+  /// Related invoice if estimate has been converted
+  relatedInvoiceId String? @db.Uuid
+
+  /// Related change order if applicable
+  relatedChangeOrderId String? @db.Uuid
+
+  /// Related approval request
+  relatedApprovalRequestId String? @db.Uuid
+
+  /// Related e-signature envelope
+  relatedESignatureEnvelopeId String? @db.Uuid
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚡ Integration & Automation
+  // ─────────────────────────────────────────────────────────────
+
+  /// Integration that triggered this event
+  integrationSource String? @db.VarChar(100)
+
+  /// External system reference
+  externalSystemId String? @db.VarChar(200)
+
+  /// External event ID for correlation
+  externalEventId String? @db.VarChar(200)
+
+  /// Webhook URLs to notify about this event
+  webhookUrls String[]
+
+  /// Whether this event has been synchronized to external systems
+  syncedToExternal Boolean @default(false)
+
+  /// Sync status with external systems
+  externalSyncStatus Json? @db.JsonB
+
+  /// Sync timestamp
+  syncedAt DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📧 Communication & Notifications
+  // ─────────────────────────────────────────────────────────────
+
+  /// Whether notifications were sent for this event
+  notificationsSent Boolean @default(false)
+
+  /// Email notifications sent
+  emailNotificationsSent String[]
+
+  /// SMS notifications sent  
+  smsNotificationsSent String[]
+
+  /// In-app notifications sent
+  inAppNotificationsSent String[]
+
+  /// Notification delivery status
+  notificationStatus Json? @db.JsonB
+
+  /// Custom notification rules that applied
+  appliedNotificationRules String[]
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Search & Discovery
+  // ─────────────────────────────────────────────────────────────
+
+  /// Full-text search content
+  searchableContent String? @db.Text
+
+  /// Keywords for search and filtering
+  keywords String[]
+
+  /// Whether this event is visible in audit logs
+  visibleInAuditLog Boolean @default(true)
+
+  /// Whether this event is visible to clients
+  visibleToClient Boolean @default(false)
+
+  /// Access level required to view this event
+  requiredAccessLevel String? @db.VarChar(50)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🕐 Timeline & Scheduling
+  // ─────────────────────────────────────────────────────────────
+
+  /// Effective date/time of the event (may differ from createdAt)
+  effectiveAt DateTime? @db.Timestamptz(6)
+
+  /// When the event was processed by the system
+  processedAt DateTime? @db.Timestamptz(6)
+
+  /// Scheduled time if this was a scheduled event
+  scheduledFor DateTime? @db.Timestamptz(6)
+
+  /// Event expiration time (if applicable)
+  expiresAt DateTime? @db.Timestamptz(6)
+
+  /// Duration of the event in seconds
+  durationSeconds Int?
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔒 Security & Compliance
+  // ─────────────────────────────────────────────────────────────
+
+  /// Security classification of the event
+  securityClassification String? @db.VarChar(50)
+
+  /// Whether this event requires special retention
+  requiresRetention Boolean @default(false)
+
+  /// Compliance frameworks this event relates to
+  complianceFrameworks String[]
+
+  /// Whether this event was part of a security audit
+  securityAuditEvent Boolean @default(false)
+
+  /// Risk level associated with this event
+  riskLevel EstimateHistoryEventRiskLevel @default(LOW)
+
+  /// Approval required for this type of event
+  requiresApproval Boolean @default(false)
+
+  /// Whether this event has been approved
+  isApproved Boolean @default(true)
+
+  /// Approver information
+  approvedBy String? @db.Uuid
+
+  /// Approval timestamp
+  approvedAt DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant   @relation("TenantToEstimateHistoryEvent", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  // Optional relations (use SetNull for optional references)
+  estimateRevision EstimateRevision? @relation("HistoryEventRevision", fields: [tenantId, estimateRevisionId], references: [tenantId, id], onDelete: SetNull)
+  estimateLineItem EstimateLineItem? @relation("HistoryEventLineItem", fields: [tenantId, estimateLineItemId], references: [tenantId, id], onDelete: SetNull)
+  estimateSection  EstimateSection?  @relation("HistoryEventSection", fields: [tenantId, estimateSectionId], references: [tenantId, id], onDelete: SetNull)
+  estimatePublicLink EstimatePublicLink? @relation("HistoryEventPublicLink", fields: [tenantId, estimatePublicLinkId], references: [tenantId, id], onDelete: SetNull)
+
+  // Member relations
+  initiatedByMember Member? @relation("HistoryEventInitiator", fields: [tenantId, initiatedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // Self-referencing for rollback relationships
+  rollbackEvent EstimateHistoryEvent? @relation("EventRollback", fields: [tenantId, rollbackEventId], references: [tenantId, id], onDelete: SetNull)
+  rolledBackEvents EstimateHistoryEvent[] @relation("EventRollback")
+
+  // ─────────────────────────────────────────────────────────────
+  // 🗂️ Indexes & Constraints
+  // ─────────────────────────────────────────────────────────────
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_history_event")
+  @@index([tenantId, estimateId]) // Primary lookup
+  @@index([tenantId, eventType]) // Event type filtering
+  @@index([tenantId, eventCategory]) // Category filtering
+  @@index([tenantId, eventSeverity]) // Severity filtering
+  @@index([tenantId, eventSource]) // Source filtering
+  @@index([tenantId, businessPriority]) // Priority filtering
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, effectiveAt]) // Effective date queries
+  @@index([tenantId, processedAt]) // Processing timeline
+  @@index([tenantId, auditCorrelationId]) // Audit correlation
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, initiatedByMemberId]) // Member activity
+  @@index([tenantId, estimateRevisionId]) // Revision history
+  @@index([tenantId, estimateLineItemId]) // Line item history
+  @@index([tenantId, estimateSectionId]) // Section history
+  @@index([tenantId, estimatePublicLinkId]) // Public link activity
+  @@index([tenantId, sessionId]) // Session tracking
+  @@index([tenantId, requestId]) // Request correlation
+  @@index([tenantId, externalSystemId]) // External system integration
+  @@index([tenantId, syncedToExternal]) // Sync status
+  @@index([tenantId, notificationsSent]) // Notification tracking
+  @@index([tenantId, visibleInAuditLog]) // Audit visibility
+  @@index([tenantId, visibleToClient]) // Client visibility
+  @@index([tenantId, securityAuditEvent]) // Security events
+  @@index([tenantId, riskLevel]) // Risk analysis
+  @@index([tenantId, requiresApproval]) // Approval workflow
+  @@index([tenantId, isApproved]) // Approval status
+  @@index([tags], type: Gin) // Tag search
+  @@index([keywords], type: Gin) // Keyword search
+  @@index([metadata], type: Gin) // JSON queries
+  @@index([businessMetrics], type: Gin) // Business analytics
+  @@map("estimate_history_events")
 }
 
 model EstimatePublicLink {
+  // ─────────────────────────────────────────────────────────────
   // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // ─────────────────────────────────────────────────────────────
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  status    EstimatePublicLinkStatus @default(ACTIVE)
+  version   Int                      @default(1)
+  createdAt DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                 @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Supporting Entity - Pattern A - IDs only)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
+  auditCorrelationId String?                    @db.Uuid
+  dataClassification EstimateDataClassification @default(PUBLIC) // Public links are inherently public
+  retentionPolicy    RetentionPolicy?
+  recordSource       EstimateRecordSource?
+  metadata           Json?                      @db.JsonB
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationship (Required)
+  // ─────────────────────────────────────────────────────────────
+  estimateId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToEstimatePublicLink", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 🔐 Security & Access Control
+  // ─────────────────────────────────────────────────────────────
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("EstimatePublicLinkCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("EstimatePublicLinkUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("EstimatePublicLinkDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  /// Secure, cryptographically strong token for public access
+  /// Format: URL-safe base64, 32+ characters
+  /// Used in public URL: https://app.company.com/estimate/{token}
+  token String @unique(map: "unique_public_link_token") @db.VarChar(255)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-  estimate   Estimate? @relation(fields: [estimateId], references: [id])
-  estimateId String?   @db.Uuid
+  /// Human-readable link name for internal reference
+  linkName String? @db.VarChar(200)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  /// Link expiration date (required for security)
+  expiresAt DateTime @db.Timestamptz(6)
+
+  /// Whether link is currently active and accessible
+  isActive Boolean @default(true)
+
+  /// Whether link requires additional authentication
+  requiresAuthentication Boolean @default(false)
+
+  /// Optional password protection for sensitive estimates
+  accessPassword String? @db.VarChar(255)
+
+  /// Password hint for clients (if password protected)
+  passwordHint String? @db.VarChar(500)
+
+  /// Maximum number of views allowed (0 = unlimited)
+  maxViews Int @default(0)
+
+  /// IP address restrictions (JSON array of allowed IPs/ranges)
+  allowedIpAddresses String? @db.Text
+
+  /// Geographic restrictions (JSON array of allowed countries/regions)
+  allowedRegions String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 👥 Client Information & Contact
+  // ─────────────────────────────────────────────────────────────
+
+  /// Primary client contact name
+  clientName String? @db.VarChar(200)
+
+  /// Primary client email address
+  clientEmail String? @db.VarChar(320)
+
+  /// Client phone number
+  clientPhone String? @db.VarChar(50)
+
+  /// Client company/organization
+  clientCompany String? @db.VarChar(200)
+
+  /// Additional recipient email addresses (JSON array)
+  additionalRecipients String? @db.Text
+
+  /// Custom message to display to client
+  customMessage String? @db.Text
+
+  /// Instructions for client on how to review estimate
+  clientInstructions String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Client Interaction Tracking
+  // ─────────────────────────────────────────────────────────────
+
+  /// Total number of times link has been accessed
+  viewCount Int @default(0)
+
+  /// First time client accessed the link
+  firstViewedAt DateTime? @db.Timestamptz(6)
+
+  /// Most recent time client accessed the link
+  lastViewedAt DateTime? @db.Timestamptz(6)
+
+  /// Total time spent viewing (in seconds)
+  totalViewTimeSeconds Int @default(0)
+
+  /// Number of unique IP addresses that accessed link
+  uniqueViewerCount Int @default(0)
+
+  /// Whether client has downloaded the PDF
+  pdfDownloaded Boolean @default(false)
+
+  /// Number of times PDF was downloaded
+  pdfDownloadCount Int @default(0)
+
+  /// When PDF was first downloaded
+  pdfFirstDownloadedAt DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // ✅ Client Decision Tracking
+  // ─────────────────────────────────────────────────────────────
+
+  /// Client's decision status
+  clientDecision EstimatePublicLinkDecision @default(PENDING)
+
+  /// When client made their decision
+  clientDecisionAt DateTime? @db.Timestamptz(6)
+
+  /// Client's response/feedback comments
+  clientResponse String? @db.Text
+
+  /// Client's approval method
+  approvalMethod EstimatePublicLinkApprovalMethod? 
+
+  /// Whether client explicitly approved
+  clientApproved Boolean @default(false)
+
+  /// When client approved
+  clientApprovedAt DateTime? @db.Timestamptz(6)
+
+  /// Whether client explicitly declined
+  clientDeclined Boolean @default(false)
+
+  /// When client declined
+  clientDeclinedAt DateTime? @db.Timestamptz(6)
+
+  /// Reason for decline (if applicable)
+  declineReason String? @db.Text
+
+  /// Client's requested changes or modifications
+  requestedChanges String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Technical Tracking & Analytics
+  // ─────────────────────────────────────────────────────────────
+
+  /// Last known IP address of client
+  lastClientIpAddress String? @db.Inet
+
+  /// Client's user agent string
+  lastUserAgent String? @db.Text
+
+  /// Client's device/platform information
+  deviceInfo String? @db.Text
+
+  /// Geographic location of client (country, city)
+  clientLocation String? @db.VarChar(200)
+
+  /// Referrer URL (how client found the link)
+  referrerUrl String? @db.Text
+
+  /// UTM campaign parameters for marketing attribution
+  utmParameters String? @db.Text
+
+  /// Browser language preference
+  browserLanguage String? @db.VarChar(10)
+
+  /// Client's timezone
+  clientTimezone String? @db.VarChar(50)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🗺️ Customization & Branding
+  // ─────────────────────────────────────────────────────────────
+
+  /// Custom theme/branding for the public page
+  customTheme EstimatePublicLinkTheme @default(DEFAULT)
+
+  /// Custom logo URL for branding
+  customLogoUrl String? @db.Text
+
+  /// Custom color scheme (JSON with primary, secondary, etc.)
+  customColors String? @db.Text
+
+  /// Custom header text
+  customHeaderText String? @db.VarChar(500)
+
+  /// Custom footer text
+  customFooterText String? @db.VarChar(500)
+
+  /// Whether to show company branding
+  showCompanyBranding Boolean @default(true)
+
+  /// Whether to show estimate details
+  showEstimateDetails Boolean @default(true)
+
+  /// Whether to show line items
+  showLineItems Boolean @default(true)
+
+  /// Whether to show pricing
+  showPricing Boolean @default(true)
+
+  /// Whether to show terms and conditions
+  showTerms Boolean @default(true)
+
+  /// Which sections to hide (JSON array of section names)
+  hiddenSections String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📧 Communication & Notifications
+  // ─────────────────────────────────────────────────────────────
+
+  /// When link was sent to client
+  sentAt DateTime? @db.Timestamptz(6)
+
+  /// Email message ID when sent
+  emailMessageId String? @db.Uuid
+
+  /// Send reminder notifications to client
+  sendReminders Boolean @default(false)
+
+  /// Reminder frequency (days)
+  reminderFrequencyDays Int @default(7)
+
+  /// Number of reminders sent
+  remindersSent Int @default(0)
+
+  /// Last reminder sent date
+  lastReminderSentAt DateTime? @db.Timestamptz(6)
+
+  /// Maximum number of reminders to send
+  maxReminders Int @default(3)
+
+  /// Notify internal team on client actions
+  notifyOnClientAction Boolean @default(true)
+
+  /// Internal notification recipients (JSON array of member IDs)
+  internalNotificationRecipients String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📈 Performance & Quality Metrics
+  // ─────────────────────────────────────────────────────────────
+
+  /// Page load time in milliseconds (for performance monitoring)
+  averageLoadTimeMs Int? @db.Integer
+
+  /// Client satisfaction rating (1-5 scale)
+  clientSatisfactionRating Int? @db.Integer
+
+  /// Client feedback on the review experience
+  clientExperienceFeedback String? @db.Text
+
+  /// Number of technical issues reported
+  technicalIssuesReported Int @default(0)
+
+  /// Error messages or issues encountered
+  errorLog String? @db.Text
+
+  /// Page bounce rate (left immediately)
+  bouncedImmediately Boolean @default(false)
+
+  /// Conversion rate (viewed to decision)
+  conversionRate Decimal? @db.Decimal(5, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Integration & External References
+  // ─────────────────────────────────────────────────────────────
+
+  /// Related e-signature envelope (if e-signature required)
+  eSignatureEnvelopeId String? @db.Uuid
+
+  /// Related customer portal session
+  customerPortalSessionId String? @db.Uuid
+
+  /// Related estimate revision (specific version shared)
+  estimateRevisionId String? @db.Uuid
+
+  /// Google Analytics tracking ID for this link
+  analyticsTrackingId String? @db.VarChar(100)
+
+  /// External system reference
+  externalReference String? @db.VarChar(500)
+
+  /// Integration webhook URL for notifications
+  webhookUrl String? @db.Text
+
+  /// Webhook secret for security
+  webhookSecret String? @db.VarChar(255)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  tenant   Tenant   @relation("TenantToEstimatePublicLink", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
+  // Optional external integrations (tenant-to-tenant composite keys where applicable)
+  eSignatureEnvelope ESignatureEnvelope? @relation("PublicLinkESignature", fields: [tenantId, eSignatureEnvelopeId], references: [tenantId, id], onDelete: SetNull)
+  
+  // Optional revision linkage (tenant-to-tenant composite key)
+  estimateRevision EstimateRevision? @relation("PublicLinkRevision", fields: [tenantId, estimateRevisionId], references: [tenantId, id], onDelete: SetNull)
+
+  // Opposite relations
+  historyEvents EstimateHistoryEvent[] @relation("HistoryEventPublicLink")
+
+  // Actor relations: Pattern A (IDs only) - no cross-relations for supporting entities
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Indexes
+  // ─────────────────────────────────────────────────────────────
+
   @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("estimate_public_link")
+  @@index([tenantId, estimateId]) // Parent relationship
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, isActive]) // Active link filtering
+  @@index([tenantId, expiresAt]) // Expiration management
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([tenantId, clientDecision]) // Decision tracking
+  @@index([tenantId, clientApproved]) // Approval tracking
+  @@index([tenantId, clientDeclined]) // Decline tracking
+  @@index([tenantId, viewCount]) // Engagement analytics
+  @@index([tenantId, sentAt]) // Communication timeline
+  @@index([tenantId, firstViewedAt]) // First engagement
+  @@index([tenantId, lastViewedAt]) // Recent activity
+  @@index([tenantId, clientDecisionAt]) // Decision timeline
+  @@index([tenantId, clientEmail]) // Client lookup
+  @@index([tenantId, requiresAuthentication]) // Security filtering
+  @@index([tenantId, customTheme]) // Theme analytics
+  @@index([tenantId, sendReminders]) // Reminder management
+  @@index([tenantId, notifyOnClientAction]) // Notification settings
+  @@index([tenantId, eSignatureEnvelopeId]) // E-signature integration
+  @@index([tenantId, estimateRevisionId]) // Revision linkage
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, clientSatisfactionRating]) // Quality metrics
+  @@index([tenantId, conversionRate]) // Performance analytics
+  @@index([lastClientIpAddress]) // Security analysis
+  @@index([tenantId, clientLocation]) // Geographic analytics
+  @@map("estimate_public_links")
+}
+
+/// Template categories for reusable estimates
+enum EstimateTemplateCategory {
+  PLUMBING
+  ELECTRICAL
+  HVAC
+  FLOORING
+  ROOFING
+  PAINTING
+  CARPENTRY
+  LANDSCAPING
+  CONCRETE
+  MASONRY
+  GENERAL_CONTRACTING
+  SPECIALTY_TRADE
+  MAINTENANCE
+  RENOVATION
+  NEW_CONSTRUCTION
+  CUSTOM
+}
+
+/// Communication methods for client interaction
+enum EstimateCommunicationMethod {
+  EMAIL
+  SMS
+  PORTAL
+  PHONE
+  IN_PERSON
+  MAIL
+}
+
+/// Record source tracking for data lineage
+enum EstimateRecordSource {
+  API // Created via API
+  IMPORT // Imported from external system
+  SYSTEM // Auto-generated by system
+  MANUAL // Manually created by user
+  MIGRATION // Data migration
+  INTEGRATION // External integration
+}
+
+/// Revision status lifecycle
+enum EstimateRevisionStatus {
+  ACTIVE // Current working revision
+  PUBLISHED // Published/sent to client
+  ARCHIVED // Archived/superseded revision
+  DRAFT // Draft revision
+  DELETED // Soft deleted
+}
+
+/// Section status lifecycle
+enum EstimateSectionStatus {
+  ACTIVE // Active section
+  INACTIVE // Temporarily disabled
+  ARCHIVED // Archived section
+  DELETED // Soft deleted
+}
+
+/// Line item status lifecycle  
+enum EstimateLineItemStatus {
+  ACTIVE // Active line item
+  INACTIVE // Temporarily disabled
+  ON_HOLD // On hold pending approval/materials
+  CANCELED // Canceled line item
+  COMPLETED // Completed work
+  DELETED // Soft deleted
+}
+
+/// Line item categories for classification
+enum EstimateLineItemCategory {
+  LABOR // Labor/service work
+  MATERIAL // Materials/products
+  EQUIPMENT // Equipment rental/purchase
+  SUBCONTRACTOR // Subcontractor services
+  PERMIT // Permits and fees
+  TRAVEL // Travel expenses
+  OVERHEAD // Overhead costs
+  CONTINGENCY // Contingency allowance
+  MARKUP // Markup/profit
+  TAX // Tax items
+  DISCOUNT // Discount items
+  MISCELLANEOUS // Other items
+}
+
+/// Units of measure for quantities
+enum EstimateUnitOfMeasure {
+  // Quantity units
+  EACH // Each (individual items)
+  PIECE // Pieces
+  PAIR // Pairs
+  SET // Sets
+  KIT // Kits
+  LOT // Lots
+  
+  // Time units
+  HOUR // Hours
+  DAY // Days
+  WEEK // Weeks
+  MONTH // Months
+  
+  // Linear measurements
+  FOOT // Feet
+  METER // Meters
+  INCH // Inches
+  YARD // Yards
+  MILE // Miles
+  
+  // Area measurements
+  SQ_FT // Square feet
+  SQ_METER // Square meters
+  SQ_YARD // Square yards
+  SQ_INCH // Square inches
+  ACRE // Acres
+  
+  // Volume measurements
+  CU_FT // Cubic feet
+  CU_METER // Cubic meters
+  CU_YARD // Cubic yards
+  GALLON // Gallons
+  LITER // Liters
+  
+  // Weight measurements
+  POUND // Pounds
+  KILOGRAM // Kilograms
+  TON // Tons
+  OUNCE // Ounces
+  
+  // Length measurements (specialized)
+  LINEAR_FT // Linear feet
+  LINEAR_METER // Linear meters
+  
+  // Specialized construction units
+  BOARD_FT // Board feet (lumber)
+  SQ_ROLL // Square per roll (flooring, etc.)
+}
+
+/// Attachment categories for organization
+enum EstimateAttachmentCategory {
+  PHOTO // Photographs
+  DRAWING // Technical drawings
+  SPECIFICATION // Specifications document
+  PLAN // Architectural plans
+  BLUEPRINT // Blueprints
+  INVOICE // Invoices/receipts
+  CONTRACT // Contracts
+  PERMIT // Permit documents
+  INSURANCE // Insurance documents
+  WARRANTY // Warranty information
+  INSTRUCTION // Installation instructions
+  CERTIFICATION // Certifications
+  INSPECTION // Inspection reports
+  PROPOSAL // Proposals
+  CORRESPONDENCE // Email/letters
+  REFERENCE // Reference materials
+  OTHER // Other documents
+}
+
+/// Attachment status lifecycle
+enum EstimateAttachmentStatus {
+  ACTIVE // Active attachment
+  PENDING_REVIEW // Pending review
+  APPROVED // Approved attachment
+  REJECTED // Rejected attachment
+  ARCHIVED // Archived attachment
+  DELETED // Soft deleted
+}
+
+/// Tax-specific enums for EstimateTax model
+
+/// Tax status lifecycle
+enum EstimateTaxStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_CALCULATION
+  CALCULATED
+  OVERRIDDEN
+  EXEMPT
+}
+
+/// Tax category classification for compliance
+enum EstimateTaxCategory {
+  SALES // Sales tax
+  VAT // Value Added Tax  
+  GST // Goods and Services Tax
+  EXCISE // Excise tax
+  IMPORT_DUTY // Import duties
+  MUNICIPAL // Municipal taxes
+  STATE // State-level taxes
+  FEDERAL // Federal taxes
+  OTHER // Other tax types
+}
+
+/// Tax application scope
+enum EstimateTaxScope {
+  LINE_ITEMS // Apply to line items only
+  SUBTOTAL // Apply to subtotal
+  SHIPPING // Apply to shipping charges
+  FEES // Apply to fees
+  ENTIRE_ORDER // Apply to entire order
+}
+
+/// Discount-specific enums for EstimateDiscount model
+
+/// Discount status lifecycle
+enum EstimateDiscountStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+/// Discount calculation type
+enum EstimateDiscountType {
+  PERCENTAGE // Percentage-based discount
+  FIXED_AMOUNT // Fixed dollar amount
+  BUY_X_GET_Y // Buy X get Y free/discount
+  TIERED // Tiered discount levels
+}
+
+/// Discount business category
+enum EstimateDiscountCategory {
+  COMMERCIAL // Regular commercial discount
+  VOLUME // Volume-based discount
+  EARLY_PAYMENT // Early payment discount
+  LOYALTY // Customer loyalty discount
+  PROMOTIONAL // Promotional campaign discount
+  COMPETITIVE // Competitive pricing adjustment
+  EMPLOYEE // Employee discount
+  SEASONAL // Seasonal discount
+  CLEARANCE // Clearance discount
+  OTHER // Other discount types
+}
+
+/// Discount application scope
+enum EstimateDiscountScope {
+  LINE_ITEMS // Apply to specific line items
+  SUBTOTAL // Apply to subtotal before tax
+  CATEGORY // Apply to item categories
+  QUANTITY // Quantity-based discount
+  ORDER_TOTAL // Apply to entire order
+  SHIPPING // Apply to shipping costs
 }
 
 enum RetentionPolicy {
   NONE
   SHORT_TERM
+  STANDARD
   LONG_TERM
   PERMANENT
+}
+
+/// Fee-specific enums for EstimateFee model
+
+/// Fee status lifecycle
+enum EstimateFeeStatus {
+  DRAFT
+  ACTIVE
+  APPROVED
+  SUSPENDED
+  CANCELED
+  DELETED
+}
+
+/// Fee calculation type
+enum EstimateFeeType {
+  FIXED_AMOUNT
+  PERCENTAGE
+  TIERED
+  FLAT_RATE
+}
+
+/// Fee calculation base
+enum EstimateFeeCalculationBase {
+  SUBTOTAL
+  LABOR_ONLY
+  MATERIALS_ONLY
+  TOTAL_AMOUNT
+  CUSTOM_AMOUNT
+}
+
+/// Fee business category
+enum EstimateFeeCategory {
+  OVERHEAD
+  CONTINGENCY
+  PROFIT_MARGIN
+  PROCESSING_FEE
+  SERVICE_CHARGE
+  HANDLING_FEE
+  ADMINISTRATIVE
+  INSURANCE
+  PERMITS
+  COMPLIANCE
+  SUPERVISION
+  EQUIPMENT_RENTAL
+  OTHER
+}
+
+/// Term-specific enums for EstimateTerm model
+
+/// Term status lifecycle
+enum EstimateTermStatus {
+  DRAFT
+  ACTIVE
+  NEGOTIATING
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+  DELETED
+}
+
+/// Term type classification
+enum EstimateTermType {
+  PAYMENT
+  DELIVERY
+  WARRANTY
+  LIABILITY
+  PERFORMANCE
+  QUALITY
+  COMPLIANCE
+  CANCELLATION
+  CHANGE_ORDER
+  GENERAL
+}
+
+/// Term business category
+enum EstimateTermCategory {
+  COMMERCIAL
+  TECHNICAL
+  LEGAL
+  FINANCIAL
+  OPERATIONAL
+  REGULATORY
+  CONTRACTUAL
+}
+
+/// Payment method options (for payment terms)
+enum EstimatePaymentMethod {
+  CHECK
+  WIRE_TRANSFER
+  ACH
+  CREDIT_CARD
+  CASH
+  ESCROW
+  LETTER_OF_CREDIT
+  FINANCING
+  PAYMENT_PLAN
+  OTHER
+}
+
+/// Payment schedule types
+enum EstimatePaymentSchedule {
+  NET_15
+  NET_30
+  NET_45
+  NET_60
+  NET_90
+  IMMEDIATE
+  ON_DELIVERY
+  MILESTONE_BASED
+  PROGRESS_BASED
+  CUSTOM
+}
+
+/// Client acceptance status for terms
+enum EstimateTermAcceptance {
+  PENDING
+  ACCEPTED
+  REJECTED
+  NEGOTIATING
+  CONDITIONALLY_ACCEPTED
+  WITHDRAWN
+}
+
+// ============================================================================
+// ASSUMPTION, EXCLUSION, AND ALTERNATE ENUMS
+// ============================================================================
+
+/// Assumption status lifecycle
+enum EstimateAssumptionStatus {
+  ACTIVE
+  INACTIVE
+  VALIDATED
+  INVALIDATED
+  UNDER_REVIEW
+  EXPIRED
+}
+
+/// Assumption business categories
+enum EstimateAssumptionCategory {
+  GENERAL
+  SITE_CONDITIONS
+  WEATHER
+  MATERIALS_AVAILABILITY
+  LABOR_AVAILABILITY
+  ACCESS_CONDITIONS
+  UTILITIES
+  PERMITS_APPROVALS
+  SCHEDULE_CONSTRAINTS
+  QUALITY_STANDARDS
+  SAFETY_REQUIREMENTS
+  ENVIRONMENTAL
+  REGULATORY
+  CLIENT_REQUIREMENTS
+  TECHNICAL_SPECIFICATIONS
+}
+
+/// Exclusion status lifecycle
+enum EstimateExclusionStatus {
+  ACTIVE
+  INACTIVE
+  CLIENT_REQUESTED
+  UNDER_EVALUATION
+  CONVERTED_TO_ALTERNATE
+  SUPERSEDED
+}
+
+/// Exclusion business categories
+enum EstimateExclusionCategory {
+  GENERAL
+  PERMITS_FEES
+  UTILITIES
+  SITE_PREPARATION
+  MATERIALS
+  LABOR_SPECIALTY
+  EQUIPMENT_RENTAL
+  TESTING_INSPECTION
+  CLEANUP
+  WARRANTY_MAINTENANCE
+  REGULATORY_COMPLIANCE
+  THIRD_PARTY_SERVICES
+  CHANGE_ORDERS
+  CONTINGENCIES
+  OPTIONAL_FEATURES
+}
+
+/// Exclusion reasons for business logic
+enum EstimateExclusionReason {
+  SCOPE_LIMITATION
+  COST_CONSTRAINT
+  TIME_CONSTRAINT
+  RESOURCE_UNAVAILABILITY
+  REGULATORY_RESTRICTION
+  CLIENT_RESPONSIBILITY
+  THIRD_PARTY_RESPONSIBILITY
+  TECHNICAL_LIMITATION
+  RISK_MITIGATION
+  CONTRACT_TERMS
+  LICENSING_REQUIREMENTS
+  INSURANCE_EXCLUSION
+  SEASONAL_CONSTRAINT
+  MARKET_CONDITIONS
+}
+
+/// Alternate status lifecycle
+enum EstimateAlternateStatus {
+  ACTIVE
+  INACTIVE
+  CLIENT_SELECTED
+  CLIENT_REJECTED
+  UNDER_EVALUATION
+  PENDING_APPROVAL
+  APPROVED
+  SUPERSEDED
+}
+
+/// Alternate business categories
+enum EstimateAlternateCategory {
+  UPGRADE
+  DOWNGRADE
+  MATERIAL_SUBSTITUTION
+  DESIGN_OPTION
+  SCHEDULE_OPTION
+  COST_REDUCTION
+  VALUE_ENGINEERING
+  SUSTAINABILITY
+  PERFORMANCE_ENHANCEMENT
+  AESTHETIC_CHOICE
+  FUNCTIONALITY_ENHANCEMENT
+  MAINTENANCE_OPTION
+  WARRANTY_EXTENSION
+  TECHNOLOGY_UPGRADE
+  ACCESSIBILITY_IMPROVEMENT
+}
+
+/// Cost impact types for alternates
+enum EstimateCostImpactType {
+  ADDITION
+  REDUCTION
+  REPLACEMENT
+  NO_COST_IMPACT
+}
+
+/// Schedule impact types for alternates
+enum EstimateScheduleImpactType {
+  NO_IMPACT
+  ACCELERATION
+  DELAY
+  CRITICAL_PATH_IMPACT
+  PARALLEL_WORK
+  SEQUENTIAL_DEPENDENCY
+}
+
+/// Quality levels for specifications
+enum EstimateQualityLevel {
+  ECONOMY
+  STANDARD
+  PREMIUM
+  LUXURY
+  CUSTOM
+  COMMERCIAL_GRADE
+  RESIDENTIAL_GRADE
+  INDUSTRIAL_GRADE
+}
+
+/// Recommendation levels for alternates
+enum EstimateRecommendationLevel {
+  HIGHLY_RECOMMENDED
+  RECOMMENDED
+  OPTIONAL
+  DISCOURAGED
+  NOT_RECOMMENDED
+  CLIENT_REQUESTED_ONLY
+}
+
+/// Impact levels for various assessments
+enum EstimateImpactLevel {
+  NEGLIGIBLE
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// Risk levels for various assessments
+enum EstimateRiskLevel {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+  CRITICAL
+}
+
+// ============================================================================
+// COMMENT ENUMS
+// ============================================================================
+
+/// Comment status lifecycle
+enum EstimateCommentStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+  DELETED
+}
+
+/// Comment types for categorization
+enum EstimateCommentType {
+  GENERAL
+  QUESTION
+  CLARIFICATION
+  CHANGE_REQUEST
+  APPROVAL_REQUEST
+  TECHNICAL_NOTE
+  COST_DISCUSSION
+  SCHEDULE_CONCERN
+  QUALITY_ISSUE
+  SAFETY_CONCERN
+  REGULATORY_NOTE
+  CLIENT_FEEDBACK
+  INTERNAL_DISCUSSION
+  ACTION_ITEM
+  MILESTONE
+  DECISION
+  RISK_IDENTIFIED
+  OPPORTUNITY
+  LESSON_LEARNED
+}
+
+/// Comment categories for business context
+enum EstimateCommentCategory {
+  INTERNAL
+  CLIENT_FACING
+  TECHNICAL
+  COMMERCIAL
+  LEGAL
+  COMPLIANCE
+  QUALITY_ASSURANCE
+  PROJECT_MANAGEMENT
+  COST_ENGINEERING
+  PROCUREMENT
+  SCHEDULING
+  RISK_MANAGEMENT
+  CHANGE_MANAGEMENT
+  STAKEHOLDER
+}
+
+/// Comment priority levels
+enum EstimateCommentPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+/// Comment visibility scopes
+enum EstimateCommentVisibility {
+  INTERNAL_ONLY
+  CLIENT_VISIBLE
+  STAKEHOLDER_VISIBLE
+  PUBLIC
+  RESTRICTED
+  CONFIDENTIAL
+}
+
+/// Action item status for comments
+enum EstimateCommentActionStatus {
+  PENDING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELED
+  OVERDUE
+  ESCALATED
+}
+
+// ============================================================================
+// COMPARISON ENUMS
+// ============================================================================
+
+/// Comparison status lifecycle
+enum EstimateComparisonStatus {
+  ACTIVE
+  INACTIVE
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+  DELETED
+}
+
+/// Types of comparisons
+enum EstimateComparisonType {
+  COMPETITIVE_BID
+  VENDOR_ANALYSIS
+  COST_BENCHMARKING
+  TECHNICAL_EVALUATION
+  MARKET_COMPARISON
+  HISTORICAL_ANALYSIS
+  ALTERNATIVE_APPROACH
+  VALUE_ENGINEERING
+  RISK_ASSESSMENT
+}
+
+/// Comparison business categories
+enum EstimateComparisonCategory {
+  VENDOR_ANALYSIS
+  COST_COMPARISON
+  TECHNICAL_REVIEW
+  SCHEDULE_ANALYSIS
+  QUALITY_ASSESSMENT
+  RISK_EVALUATION
+  MARKET_INTELLIGENCE
+  COMPETITIVE_POSITIONING
+  VALUE_PROPOSITION
+}
+
+/// Sources of comparison information
+enum EstimateComparisonSource {
+  CLIENT_PROVIDED
+  PUBLIC_BID
+  INDUSTRY_BENCHMARK
+  HISTORICAL_DATA
+  MARKET_RESEARCH
+  COMPETITOR_ANALYSIS
+  THIRD_PARTY_REPORT
+  INTERNAL_ESTIMATE
+  VENDOR_QUOTE
+  RFP_RESPONSE
+}
+
+/// Data reliability levels
+enum EstimateDataReliability {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+  VERIFIED
+}
+
+/// Competitiveness assessment
+enum EstimateCompetitiveness {
+  HIGHLY_COMPETITIVE
+  COMPETITIVE
+  MODERATELY_COMPETITIVE
+  LESS_COMPETITIVE
+  NON_COMPETITIVE
+  UNKNOWN
+}
+
+/// Innovation levels
+enum EstimateInnovationLevel {
+  TRADITIONAL
+  STANDARD
+  IMPROVED
+  INNOVATIVE
+  CUTTING_EDGE
+  DISRUPTIVE
+}
+
+/// Client preference indicators
+enum EstimateClientPreference {
+  COST_FOCUSED
+  QUALITY_FOCUSED
+  SPEED_FOCUSED
+  RELATIONSHIP_FOCUSED
+  INNOVATION_FOCUSED
+  SUSTAINABILITY_FOCUSED
+  RISK_AVERSE
+  VALUE_FOCUSED
+  UNKNOWN
+}
+
+/// Market positioning
+enum EstimateMarketPosition {
+  MARKET_LEADER
+  STRONG_COMPETITOR
+  COMPETITIVE
+  CHALLENGER
+  FOLLOWER
+  NICHE_PLAYER
+}
+
+/// Comparison outcomes
+enum EstimateComparisonOutcome {
+  WON
+  LOST
+  PENDING
+  WITHDRAWN
+  NO_DECISION
+  POSTPONED
+  TIED
+}
+
+// ============================================================================
+// PUBLIC LINK ENUMS
+// ============================================================================
+
+/// Public link status lifecycle
+enum EstimatePublicLinkStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  REVOKED
+  SUSPENDED
+  ARCHIVED
+}
+
+/// Client decision on public link
+enum EstimatePublicLinkDecision {
+  PENDING
+  VIEWED
+  APPROVED
+  DECLINED
+  REQUESTED_CHANGES
+  NEEDS_MORE_INFO
+  EXPIRED
+}
+
+/// Methods of client approval
+enum EstimatePublicLinkApprovalMethod {
+  BUTTON_CLICK
+  EMAIL_RESPONSE
+  PHONE_CONFIRMATION
+  E_SIGNATURE
+  DIGITAL_SIGNATURE
+  VERBAL_CONFIRMATION
+  WRITTEN_CONFIRMATION
+}
+
+/// Public link themes for customization
+enum EstimatePublicLinkTheme {
+  DEFAULT
+  PROFESSIONAL
+  MODERN
+  CLASSIC
+  BRANDED
+  MINIMAL
+  DARK
+  LIGHT
+  CUSTOM
+}
+
+// ─────────────────────────────────────────────────────────────
+// 📋 EstimateHistoryEvent Enterprise Enums
+// ─────────────────────────────────────────────────────────────
+
+enum EstimateHistoryEventStatus {
+  ACTIVE
+  PROCESSED
+  ARCHIVED
+  INVALID
+  DELETED
+}
+
+enum EstimateHistoryEventType {
+  // Core Lifecycle Events
+  ESTIMATE_CREATED
+  ESTIMATE_UPDATED
+  ESTIMATE_DELETED
+  ESTIMATE_RESTORED
+  ESTIMATE_ARCHIVED
+  ESTIMATE_DUPLICATED
+  
+  // Status Changes
+  STATUS_CHANGED
+  REVISION_CREATED
+  REVISION_ACTIVATED
+  REVISION_SUPERSEDED
+  
+  // Approval Workflow Events
+  INTERNAL_APPROVAL_REQUESTED
+  INTERNAL_APPROVAL_GRANTED
+  INTERNAL_APPROVAL_DENIED
+  INTERNAL_APPROVAL_WITHDRAWN
+  APPROVER_ASSIGNED
+  APPROVER_REMOVED
+  APPROVAL_ESCALATED
+  APPROVAL_DELEGATED
+  
+  // Client Interaction Events
+  CLIENT_LINK_CREATED
+  CLIENT_LINK_SENT
+  CLIENT_LINK_ACCESSED
+  CLIENT_LINK_VIEWED
+  CLIENT_LINK_EXPIRED
+  CLIENT_APPROVED
+  CLIENT_DECLINED
+  CLIENT_REQUESTED_CHANGES
+  CLIENT_DOWNLOADED_PDF
+  
+  // Financial Events
+  PRICING_UPDATED
+  TAX_CALCULATED
+  DISCOUNT_APPLIED
+  FEE_ADDED
+  TOTAL_RECALCULATED
+  
+  // Content Changes
+  LINE_ITEM_ADDED
+  LINE_ITEM_UPDATED
+  LINE_ITEM_REMOVED
+  SECTION_ADDED
+  SECTION_UPDATED
+  SECTION_REMOVED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  COMMENT_ADDED
+  
+  // Terms & Conditions
+  TERMS_UPDATED
+  ASSUMPTION_ADDED
+  EXCLUSION_ADDED
+  ALTERNATE_ADDED
+  
+  // Conversion Events
+  PROJECT_AUTO_CREATED
+  INVOICE_AUTO_CREATED
+  CHANGE_ORDER_CREATED
+  
+  // Integration Events
+  EXTERNAL_SYNC_STARTED
+  EXTERNAL_SYNC_COMPLETED
+  EXTERNAL_SYNC_FAILED
+  WEBHOOK_TRIGGERED
+  API_ACCESS
+  
+  // E-Signature Events
+  ESIGNATURE_REQUESTED
+  ESIGNATURE_SENT
+  ESIGNATURE_SIGNED
+  ESIGNATURE_DECLINED
+  ESIGNATURE_EXPIRED
+  
+  // Communication Events
+  EMAIL_SENT
+  SMS_SENT
+  NOTIFICATION_SENT
+  REMINDER_SENT
+  
+  // Security Events
+  ACCESS_GRANTED
+  ACCESS_DENIED
+  SECURITY_VIOLATION
+  UNAUTHORIZED_ACCESS
+  DATA_EXPORT
+  
+  // System Events
+  SYSTEM_UPDATE
+  MIGRATION_APPLIED
+  BACKUP_CREATED
+  ERROR_OCCURRED
+  PERFORMANCE_ISSUE
+}
+
+enum EstimateHistoryEventCategory {
+  LIFECYCLE        // Create, update, delete operations
+  APPROVAL         // Internal approval workflow
+  CLIENT           // Client interactions and decisions
+  FINANCIAL        // Pricing, taxes, discounts, fees
+  CONTENT          // Line items, sections, attachments
+  CONVERSION       // Project/invoice generation
+  INTEGRATION      // External system sync
+  COMMUNICATION    // Emails, notifications, reminders
+  SECURITY         // Access control and violations
+  SYSTEM          // Technical system events
+  COMPLIANCE      // Audit and regulatory events
+  PERFORMANCE     // System performance metrics
+}
+
+enum EstimateHistoryEventSeverity {
+  CRITICAL    // System failures, security breaches
+  ERROR       // Application errors, failed operations
+  WARNING     // Potential issues, degraded performance
+  INFO        // General information, successful operations
+  DEBUG       // Detailed diagnostic information
+  TRACE       // Fine-grained execution flow
+}
+
+enum EstimateHistoryEventSource {
+  UI              // User interface actions
+  API             // REST/GraphQL API calls
+  SYSTEM          // Automated system processes
+  INTEGRATION     // External system integrations
+  WEBHOOK         // Webhook triggered events
+  SCHEDULED       // Cron jobs and scheduled tasks
+  MOBILE_APP      // Mobile application actions
+  EMAIL           // Email-triggered actions
+  SMS             // SMS-triggered actions
+  IMPORT          // Data import processes
+  EXPORT          // Data export processes
+  MIGRATION       // Database migrations
+  BACKUP          // Backup operations
+  MONITORING      // System monitoring alerts
+}
+
+enum EstimateHistoryEventPriority {
+  URGENT      // Immediate attention required
+  HIGH        // High business impact
+  MEDIUM      // Standard business operations
+  LOW         // Background processes
+  ROUTINE     // Regular maintenance operations
+}
+
+enum EstimateHistoryEventRiskLevel {
+  CRITICAL    // Severe business impact
+  HIGH        // Significant risk to operations
+  MEDIUM      // Moderate business risk
+  LOW         // Minimal risk
+  NEGLIGIBLE  // No significant risk
 }

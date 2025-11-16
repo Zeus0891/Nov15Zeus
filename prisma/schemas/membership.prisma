@@ -42,7 +42,12 @@ model Member {
   // deletedByActor Actor? @relation("MemberDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
   // 🔗 Opposite relations - Estimate module
-  ownedEstimates Estimate[] @relation("EstimateOwner")
+  // Business workflow relations (approval chains)
+  ownedEstimates    Estimate[]         @relation("EstimateOwner")
+  approvedDiscounts EstimateDiscount[] @relation("EstimateDiscountApprover")
+  approvedFees      EstimateFee[]      @relation("EstimateFeeApprover")
+  assignedComments  EstimateComment[]  @relation("EstimateCommentAssignee")
+  initiatedHistoryEvents EstimateHistoryEvent[] @relation("HistoryEventInitiator")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])

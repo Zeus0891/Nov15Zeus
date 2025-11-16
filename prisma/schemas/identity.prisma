@@ -35,6 +35,13 @@ model Actor {
   estimatesCreated Estimate[] @relation("EstimateCreatedByActor")
   estimatesUpdated Estimate[] @relation("EstimateUpdatedByActor")
   estimatesDeleted Estimate[] @relation("EstimateDeletedByActor")
+  
+  // EstimateLineItem relations (Pattern B - EstimateLineItem is a critical business entity)
+  estimateLineItemsCreated EstimateLineItem[] @relation("EstimateLineItemCreatedByActor")
+  estimateLineItemsUpdated EstimateLineItem[] @relation("EstimateLineItemUpdatedByActor")
+  estimateLineItemsDeleted EstimateLineItem[] @relation("EstimateLineItemDeletedByActor")
+  
+  // Note: EstimateTax, EstimateDiscount use Pattern A (IDs only) - no relations here
 
   // Enable ONLY if you use these fields:
   // @@index([hashToken])
