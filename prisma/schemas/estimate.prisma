@@ -337,6 +337,9 @@ model Estimate {
   /// Invoices created from this estimate (via globalId)
   invoices Invoice[] @relation("EstimateToInvoices")
 
+  /// Project budgets created from this estimate
+  projectBudgets ProjectBudget[] @relation("EstimateToProjectBudget")
+
   /// Change orders linked to this estimate
   changeOrders ChangeOrder[] @relation("EstimateToChangeOrders")
 
@@ -742,6 +745,9 @@ model EstimateSection {
   parentSection EstimateSection?  @relation("SectionHierarchy", fields: [tenantId, parentSectionId], references: [tenantId, id], onDelete: Restrict)
   childSections EstimateSection[] @relation("SectionHierarchy")
 
+  // 🔗 Opposite relations - Project module (1:1:1 traceability)
+  projectPhases ProjectPhase[] @relation("EstimateSectionToProjectPhase")
+
   // ─────────────────────────────────────────────────────────────
   // 📏 Constraints & Indexes
   // ─────────────────────────────────────────────────────────────
@@ -960,6 +966,9 @@ model EstimateLineItem {
 
   /// Project tasks created from this line item (conceptual)
   // projectTasks ProjectTask[] @relation("EstimateLineItemToProjectTasks")
+
+  /// Project budget line items created from this line item (via 1:1:1 traceability)
+  projectBudgetLineItems ProjectBudgetLineItem[] @relation("EstimateLineItemToProjectBudgetLineItem")
 
   /// Invoice line items created from this line item (actual relation)
   invoiceLineItems InvoiceLineItem[] @relation("EstimateLineItemToInvoiceLineItem")

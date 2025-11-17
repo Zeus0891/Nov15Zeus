@@ -44,6 +44,9 @@ model InventoryItem {
   // 🔗 Opposite relations - Invoice module (billing integration)
   invoiceLineItems InvoiceLineItem[] @relation("InventoryItemToInvoiceLineItem")
 
+  // 🔗 Opposite relations - Project module (budget line items)
+  projectBudgetLineItems ProjectBudgetLineItem[] @relation("InventoryItemToProjectBudgetLineItem")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

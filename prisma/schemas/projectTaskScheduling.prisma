@@ -41,14 +41,26 @@ model ProjectTask {
   // updatedByActor Actor? @relation("ProjectTaskUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("ProjectTaskDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
+  // 🔗 Parent relationships
+  projectPhaseId    String? @db.Uuid
+  projectId         String  @db.Uuid
+  projectLocationId String? @db.Uuid
+
+  // 🔗 Relations
+  projectPhase    ProjectPhase?    @relation("ProjectPhaseToTasks", fields: [tenantId, projectPhaseId], references: [tenantId, id], onDelete: Restrict)
+  project         Project          @relation("ProjectToTasks", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
+  projectLocation ProjectLocation? @relation("ProjectLocationTasks", fields: [tenantId, projectLocationId], references: [tenantId, id], onDelete: Restrict)
+
+  // 🔗 Opposite relations - ProjectsCore module (cross-module integration)
+  projectMilestones      ProjectMilestone[]      @relation("ProjectTaskToMilestone")
+  projectTeamMembers     ProjectTeamMember[]     @relation("ProjectTaskToTeamMembers")
+  projectBudgetLineItems ProjectBudgetLineItem[] @relation("ProjectTaskToBudgetLineItems")
+  projectDocuments       ProjectDocument[]       @relation("ProjectTaskToDocuments")
+  attachments            ProjectAttachment[]     @relation("ProjectTaskToAttachments")
+  historyEvents          ProjectHistoryEvent[]   @relation("ProjectTaskToHistoryEvents")
+
   // 🔗 Opposite relations - Invoice module (billing integration)
   invoiceLineItems InvoiceLineItem[] @relation("ProjectTaskToInvoiceLineItem")
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
 
   // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])

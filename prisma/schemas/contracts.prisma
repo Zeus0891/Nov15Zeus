@@ -43,6 +43,7 @@ model Contract {
 
   // 🔗 Opposite relations - Project module
   projects Project[] @relation("ProjectContract")
+  projectBudgets ProjectBudget[] @relation("ContractToProjectBudget")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])

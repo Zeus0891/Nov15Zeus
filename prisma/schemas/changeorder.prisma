@@ -47,6 +47,10 @@ model ChangeOrder {
   // 🔗 Opposite relations - Estimate module
   estimates Estimate[] @relation("EstimateToChangeOrders")
 
+  // 🔗 Opposite relations - Project module
+  projectMilestones ProjectMilestone[] @relation("ChangeOrderToMilestone")
+  projectBudgets ProjectBudget[] @relation("ChangeOrderToProjectBudget")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

@@ -68,8 +68,35 @@ model Member {
 
   // 🔗 Opposite relations - Project module
   // Business workflow relations (management & ownership)
-  managedProjects       Project[] @relation("ProjectManager")
-  superintendedProjects Project[] @relation("ProjectSuperintendent")
+  managedProjects         Project[]               @relation("ProjectManager")
+  superintendedProjects   Project[]               @relation("ProjectSuperintendent")
+  managedProjectPhases    ProjectPhase[]          @relation("ProjectPhaseManager")
+  approvedMilestones      ProjectMilestone[]      @relation("ProjectMilestoneApprover")
+  // Project relations
+  projectTeamAssignments ProjectTeamMember[] @relation("MemberToProjectTeam")
+
+  // Project Documents Relations (Pattern A - IDs only audit)
+  projectDocumentsCreated       ProjectDocument[] @relation("ProjectDocumentCreator")
+  projectDocumentsUpdated       ProjectDocument[] @relation("ProjectDocumentUpdater")
+  projectDocumentsUploaded      ProjectDocument[] @relation("ProjectDocumentUploader")
+  projectDocumentsReviewed      ProjectDocument[] @relation("ProjectDocumentReviewer")
+  projectDocumentsApproved      ProjectDocument[] @relation("ProjectDocumentApprover")
+  projectDocumentsArchived      ProjectDocument[] @relation("ProjectDocumentArchiver")
+  projectDocumentsLastViewed    ProjectDocument[] @relation("ProjectDocumentLastViewer")
+  projectDocumentsLastDownloaded ProjectDocument[] @relation("ProjectDocumentLastDownloader")
+
+  // Project Attachments Relations (Pattern A - IDs only audit)
+  projectAttachmentsReviewed       ProjectAttachment[] @relation("ProjectAttachmentReviewer")
+  projectAttachmentsApproved       ProjectAttachment[] @relation("ProjectAttachmentApprover")
+  projectAttachmentsLastViewed     ProjectAttachment[] @relation("ProjectAttachmentLastViewer")
+  projectAttachmentsLastDownloaded ProjectAttachment[] @relation("ProjectAttachmentLastDownloader")
+
+  // Project History Events Relations (Pattern A - IDs only audit)
+  projectHistoryEventsTriggered       ProjectHistoryEvent[] @relation("ProjectHistoryEventTrigger")
+  projectHistoryEventsApproved        ProjectHistoryEvent[] @relation("ProjectHistoryEventApprover")
+  projectHistoryEventsFollowUpAssigned ProjectHistoryEvent[] @relation("ProjectHistoryEventFollowUp")
+  approvedProjectBudgets  ProjectBudget[]         @relation("ProjectBudgetApprover")
+  approvedBudgetLineItems ProjectBudgetLineItem[] @relation("ProjectBudgetLineItemApprover")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])

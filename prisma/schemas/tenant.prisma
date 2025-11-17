@@ -70,7 +70,16 @@ model Tenant {
   invoiceReminders           InvoiceReminder[]           @relation("TenantToInvoiceReminder")
 
   // 🔗 Opposite relations - Project module
-  projects Project[] @relation("TenantToProject")
+  projects                 Project[]                 @relation("TenantToProject")
+  projectPhases            ProjectPhase[]            @relation("TenantToProjectPhase")
+  projectMilestones        ProjectMilestone[]        @relation("TenantToProjectMilestone")
+  projectTeamMembers       ProjectTeamMember[]       @relation("TenantToProjectTeamMember")
+  projectLocations         ProjectLocation[]         @relation("TenantToProjectLocation")
+  projectBudgets           ProjectBudget[]           @relation("TenantToProjectBudget")
+  projectBudgetLineItems   ProjectBudgetLineItem[]   @relation("TenantToProjectBudgetLineItem")
+  projectDocuments         ProjectDocument[]         @relation("TenantToProjectDocument")
+  projectAttachments       ProjectAttachment[]       @relation("TenantToProjectAttachment")
+  projectHistoryEvents     ProjectHistoryEvent[]     @relation("TenantToProjectHistoryEvent")
 
   // Enable ONLY if you use these fields:
   // @@index([hashToken])

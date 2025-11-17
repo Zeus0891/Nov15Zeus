@@ -31,8 +31,6 @@ This is a **multi-tenant ERP system** built with **Prisma ORM** and **PostgreSQL
 See complete model inventory in [`Modules_Structure.md`](../structure/Modules_Structure.md)
 See complete project flow [`PROJECT_FLOW.md`](../docs/modules/projects/PROJECT_FLOW.md)
 See complete project diagram [`PROJECT_ARCHITECTURE_DIAGRAM.md`](../docs/modules/projects/PROJECT_ARCHITECTURE_DIAGRAM.md)
-See necessary Estimate and Invoice models for alignment in [`estimate.prisma`](../prisma/schemas/estimate.prisma) and [`invoice.prisma`](../prisma/schemas/invoice.prisma)
-See existing project schemas for development in [`projectsCore.prisma`](../prisma/schemas/projectsCore.prisma), [`projectTaskScheduling.prisma`](../prisma/schemas/projectTaskScheduling.prisma), and [`projectRisk.prisma`](../prisma/schemas/projectRisk.prisma)
 
 For full AI guidance see: **`CLAUDE.md`** (root level)
 For financial Prisma models see: **`.github/instructions/prisma-financial-models.instructions.md`**

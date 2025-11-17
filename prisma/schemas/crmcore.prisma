@@ -37,8 +37,10 @@ model CRMAccount {
   // tenant Tenant @relation("TenantToCRMAccount", fields: [tenantId], references: [id], onDelete: Cascade)
 
   // 🔗 Opposite relations (cross-module)
-  estimates Estimate[] @relation("EstimateAccount")
-  invoices  Invoice[]  @relation("InvoiceAccount")
+  // 🔗 Cross-Module Relations (Business Context)
+  estimates        Estimate[]       @relation("EstimateAccount")
+  invoices         Invoice[]        @relation("InvoiceAccount")
+  projects         Project[]        @relation("ProjectAccount")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("CRMAccountCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
@@ -96,8 +98,10 @@ model CRMContact {
   // tenant Tenant @relation("TenantToCRMContact", fields: [tenantId], references: [id], onDelete: Cascade)
 
   // 🔗 Opposite relations (cross-module)
-  estimates Estimate[] @relation("EstimateContact")
-  invoices  Invoice[]  @relation("InvoiceContact")
+  // 🔗 Cross-Module Relations (Business Workflow)
+  estimateContacts     Estimate[]     @relation("EstimateContact")
+  invoiceContacts      Invoice[]      @relation("InvoiceContact")
+  projectContacts      Project[]      @relation("ProjectContact")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("CRMContactCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
@@ -155,11 +159,13 @@ model CRMAddress {
   // tenant Tenant @relation("TenantToCRMAddress", fields: [tenantId], references: [id], onDelete: Cascade)
 
   // 🔗 Opposite relations (cross-module)
-  billToEstimates Estimate[] @relation("EstimateBillToAddress")
-  shipToEstimates Estimate[] @relation("EstimateShipToAddress")
-  billToInvoices  Invoice[]  @relation("InvoiceBillToAddress")
-  shipToInvoices  Invoice[]  @relation("InvoiceShipToAddress")
-  jobsiteProjects Project[]  @relation("ProjectJobsiteAddress")
+  // 🔗 Cross-Module Relations (Address Usage)
+  estimateBillToAddresses  Estimate[] @relation("EstimateBillToAddress")
+  estimateShipToAddresses  Estimate[] @relation("EstimateShipToAddress")
+  invoiceBillToAddresses   Invoice[]  @relation("InvoiceBillToAddress")
+  invoiceShipToAddresses   Invoice[]  @relation("InvoiceShipToAddress")
+  projectBillToAddresses   Project[]  @relation("ProjectBillToAddress")
+  projectJobsiteAddresses  Project[]  @relation("ProjectJobsiteAddress")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("CRMAddressCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)

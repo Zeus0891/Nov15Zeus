@@ -151,6 +151,9 @@ model Invoice {
   invoicePublicLinks         InvoicePublicLink[]         @relation("InvoiceToPublicLinks")
   invoiceReminders           InvoiceReminder[]           @relation("InvoiceToReminders")
 
+  // 🔗 Cross-Module Relations
+  projectMilestones ProjectMilestone[] @relation("InvoiceToProjectMilestone")
+
   // 🗂️ Constraints & Strategic Indexes (35+ indexes per architecture)
   @@unique([tenantId, id]) // Primary constraint
   @@unique([tenantId, globalId]) // Hybrid pattern constraint

@@ -41,14 +41,11 @@ model ApprovalRequest {
   // updatedByActor Actor? @relation("ApprovalRequestUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("ApprovalRequestDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
-  // 🔗 Opposite relations - Estimate module
-  estimates Estimate[] @relation("EstimateApprovalRequest")
-
-  // 🔗 Opposite relations - Invoice module (approval workflows)
-  invoices Invoice[] @relation("InvoiceApproval")
-
-  // 🔗 Opposite relations - Project module (approval workflows)
-  projects Project[] @relation("ProjectApprovalRequest")
+    // 🔗 Cross-Module Relations (Approval Workflow)
+  estimates       Estimate[]      @relation("EstimateApprovalRequest")
+  invoices        Invoice[]       @relation("InvoiceApproval")
+  projects        Project[]       @relation("ProjectApprovalRequest")
+  projectBudgets  ProjectBudget[] @relation("ProjectBudgetApprovalRequest")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])

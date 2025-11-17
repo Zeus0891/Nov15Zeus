@@ -36,6 +36,9 @@ model Employee {
   // 🔗 Required relations
   // tenant Tenant @relation("TenantToEmployee", fields: [tenantId], references: [id], onDelete: Cascade)
 
+  // 🔗 Cross-Module Relations
+  projectTeamMembers ProjectTeamMember[] @relation("EmployeeToProjectTeam")
+
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("EmployeeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
   // updatedByActor Actor? @relation("EmployeeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)

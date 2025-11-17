@@ -56,13 +56,10 @@ model Actor {
 
   // Note: InvoiceTax, InvoiceDiscount, InvoiceFee, etc. use Pattern A (IDs only) - no relations here
 
-  // 🔗 Opposite relations - Project module (Pattern BH + Pattern B)
-  // Project relations (Pattern B - Project is a critical execution entity with Actor relations)
-  projectsCreated Project[] @relation("ProjectCreatedByActor")
-  projectsUpdated Project[] @relation("ProjectUpdatedByActor")
-  projectsDeleted Project[] @relation("ProjectDeletedByActor")
-
-  // Enable ONLY if you use these fields:
+  // 🔗 Project module relations (Pattern B - Critical entities)
+  createdProjects Project[] @relation("ProjectCreatedByActor")
+  updatedProjects Project[] @relation("ProjectUpdatedByActor")
+  deletedProjects Project[] @relation("ProjectDeletedByActor")  // Enable ONLY if you use these fields:
   // @@index([hashToken])
   // @@index([recordSource])
   // @@index([metadata], type: Gin)
