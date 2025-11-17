@@ -3042,7 +3042,7 @@ model EstimateHistoryEvent {
   auditCorrelationId String?                      @db.Uuid
   dataClassification EstimateDataClassification @default(CONFIDENTIAL)
   retentionPolicy    RetentionPolicy?
-  recordSource       String?                     @db.VarChar(50)
+  recordSource       EstimateRecordSource?
   metadata           Json?                       @db.JsonB
   timezone           String?                     @db.VarChar(50)
 

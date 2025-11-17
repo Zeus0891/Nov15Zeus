@@ -67,7 +67,7 @@ Models in `estimate.prisma`:
 * **Estimate**
 
   * belongs to `Tenant`
-  * references **client/account** in `Account` (and optionally `Contact`)
+  * references **client/account** in `CRMAccount` (and optionally `CRMContact`)
   * has many:
 
     * `EstimateRevision` (immutable snapshots)
@@ -228,11 +228,11 @@ Behind the scenes, filters map to `Estimate.status`, `Estimate.deletedAt`, `Esti
 
     1. Opens a modal with:
 
-       * list of `Account` (with search, filters).
-       * list of primary `Contact` per account.
+       * list of `CRMAccount` (with search, filters).
+       * list of primary `CRMContact` per account.
     2. Option **“Create new client”**:
 
-       * creates `Account` (and optionally `Contact`) via `crmcore.prisma`.
+       * creates `CRMAccount` (and optionally `CRMContact`) via `crmcore.prisma`.
     3. Once selected:
 
        * `Estimate.crmAccountId` is set.

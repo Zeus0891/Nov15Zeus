@@ -48,6 +48,9 @@ model ESignatureEnvelope {
   estimates Estimate[] @relation("EstimateESignatureEnvelope")
   publicLinks EstimatePublicLink[] @relation("PublicLinkESignature")
 
+  // 🔗 Opposite relations - Invoice module  
+  invoices Invoice[] @relation("InvoiceESignature")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

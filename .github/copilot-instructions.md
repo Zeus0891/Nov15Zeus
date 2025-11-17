@@ -1,5 +1,19 @@
 # 🚀 GitHub Copilot Instructions for Nov15Zeus ERP
 
+## 🚨 CRITICAL: READ FIRST - Enterprise Consistency Rules
+
+**BEFORE** making ANY changes to Prisma models, **MUST** follow these rules:
+
+1. **🔄 Cross-Module Alignment**: When touching core models (Estimate, Invoice, Project), ensure governance fields, CRM linkage, financial totals, and event timestamps remain aligned
+2. **🎯 Field Name Consistency**: Search existing schema before adding fields - reuse canonical names instead of creating variants 
+3. **🔗 Relation Patterns**: Use composite keys `[tenantId, foreignId] → [tenantId, id]` for tenant relations and stable relation names
+4. **⚡ Module Independence**: Don't mirror models between modules - only align shared concepts
+5. **📊 Precision Standards**: Financial fields use `@db.Decimal(12, 2)` for money, `@db.Decimal(10, 4)` for quantities
+
+**See detailed rules in "Cross-Module Consistency Rules" section below.**
+
+---
+
 ## 📋 Project Overview
 This is a **multi-tenant ERP system** built with **Prisma ORM** and **PostgreSQL**. Follow these instructions for consistent, production-ready code generation that aligns with our enterprise architecture.
 
@@ -9,8 +23,88 @@ This is a **multi-tenant ERP system** built with **Prisma ORM** and **PostgreSQL
 - **Tenant Models**: 569 tables (tenant-isolated business data)
 
 See complete model inventory in [`Tables.v2.md`](../structure/Tables.v2.md)
-See complete invoice flow [`Invoice_Flow.v7.md`](../docs/modules/invoice/Invoice_Flow.v7.md)
-See complete invoice diagram in [`Invoice_Architecture_invoice.v7.md`](../docs/modules/invoice/Invoice_Architecture_invoice.v7.md)
+See complete invoice flow [`Invoice_Flow.v8.0.md`](../docs/modules/invoice/Invoice_Flow.v8.0.md)
+See complete invoice diagram [`Invoice_Architecture_Diagram_v8.0.md`](../docs/modules/invoice/Invoice_Architecture_Diagram_v8.0.md)
+
+---
+
+## ⚡ CRITICAL: Cross-Module Consistency Rules
+
+**ALWAYS ENFORCE** these alignment rules when working with Prisma models:
+
+### 1. Governance Fields (Shared Names, Module-Specific Enums)
+```prisma
+// ✅ KEEP THESE FIELD NAMES IDENTICAL across core entities
+auditCorrelationId String? @db.Uuid
+retentionPolicy    RetentionPolicy?
+metadata           Json?   @db.JsonB  
+timezone           String? @db.VarChar(50)
+
+// ✅ MODULE-SPECIFIC enums (don't cross-pollinate)
+dataClassification EstimateDataClassification @default(CONFIDENTIAL)  // Estimate
+dataClassification InvoiceDataClassification @default(CONFIDENTIAL)   // Invoice
+recordSource       EstimateRecordSource?                              // Estimate  
+recordSource       InvoiceRecordSource?                               // Invoice
+```
+
+### 2. CRM Linkage Fields (Exact Alignment Required)
+```prisma
+// ✅ REUSE these exact field definitions when they represent same concept
+crmAccountId    String  @db.Uuid       // ALWAYS required for revenue docs
+crmContactId    String? @db.Uuid       // ALWAYS optional  
+billToAddressId String? @db.Uuid       // ALWAYS optional
+ownerMemberId   String? @db.Uuid       // ALWAYS optional
+```
+
+### 3. Event Timestamps (Business Events, Not Tech Events)
+```prisma
+// ✅ CANONICAL definitions - nullable, no @default(now())
+issueDate      DateTime? @db.Timestamptz(6)  // Document issued to client
+sentToClientAt DateTime? @db.Timestamptz(6)  // Client interaction event
+clientViewedAt DateTime? @db.Timestamptz(6)  // Client engagement tracking
+```
+
+### 4. Financial Header Totals (Precision Alignment)
+```prisma  
+// ✅ EXACT alignment for shared financial concepts
+currencyCode   String  @db.Char(3)                    // Module-specific defaults OK
+subtotalAmount Decimal @default(0) @db.Decimal(12, 2) // Money precision
+discountAmount Decimal @default(0) @db.Decimal(12, 2)
+taxAmount      Decimal @default(0) @db.Decimal(12, 2) 
+feeAmount      Decimal @default(0) @db.Decimal(12, 2)
+totalAmount    Decimal @default(0) @db.Decimal(12, 2)
+totalQuantity  Decimal @default(0) @db.Decimal(10, 4) // Quantity precision
+lineItemCount  Int     @default(0)
+```
+
+### 5. Cross-Module Relations (Stable Patterns)
+```prisma
+// ✅ CANONICAL pattern for Estimate ↔ Invoice linkage
+// Estimate side:
+invoices Invoice[] @relation("EstimateToInvoices")
+
+// Invoice side:  
+sourceEstimate Estimate? @relation(
+  "EstimateToInvoices",
+  fields:     [tenantId, sourceEstimateId], 
+  references: [tenantId, id],
+  onDelete:   SetNull
+)
+```
+
+### 🚨 NEVER DO:
+- ❌ Create near-duplicate flags: `partialPaymentAllowed` + `allowPartialPayment` 
+- ❌ Mirror entire models between modules
+- ❌ Change shared field names/types without cross-module validation
+- ❌ Add @default(now()) to business event timestamps
+- ❌ Use different composite key patterns for tenant relations
+
+### ✅ ALWAYS DO:
+- ✅ Search existing schema before adding new fields
+- ✅ Reuse canonical names for cross-cutting concerns  
+- ✅ Keep module-specific logic contained within modules
+- ✅ Validate field alignment when touching core models
+- ✅ Use composite keys `[tenantId, foreignId] → [tenantId, id]` for relations
 
 ---
 
@@ -794,3 +888,22 @@ npx prisma studio
 ```
 
 Remember: **The schema prioritizes enterprise domain semantics over editor diagnostics**. Business requirements drive technical implementation, not tooling preferences.
+
+---
+
+## 🎯 EVERY MODEL CHANGE: Mandatory Checklist
+
+**Before modifying any Prisma model, ALWAYS:**
+
+1. ✅ **Search Existing Schema**: Check for similar fields/concepts - reuse canonical names
+2. ✅ **Identify Scope**: Is this cross-cutting (governance, CRM, financial) or module-specific?
+3. ✅ **Check Core Alignment**: If touching Estimate/Invoice/Project, validate field alignment
+4. ✅ **Validate Relations**: Use composite keys `[tenantId, foreignId] → [tenantId, id]`
+5. ✅ **Test Consistency**: Ensure no duplicate flags or conflicting naming
+
+**When adding new fields:**
+- Cross-cutting → Follow canonical patterns exactly
+- Module-specific → Keep contained, use clear naming
+- Always preserve module independence
+
+**Remember**: Estimate, Invoice, Project are the cornerstone models. All changes must maintain their consistency while respecting their business-specific differences.

@@ -1,0 +1,4166 @@
+############################################################
+# RBAC Schema v7 (Production-Ready Multi-tenant ERP)
+# Synchronized with current Prisma schema - 344+ models
+# Source of truth for seeding Role/Permission tables
+#
+# PRINCIPLES:
+# - Tenant-scoped permissions only (no system-level access)
+# - Admin role = tenant owner who performed signup
+# - Granular Domain/Model.action format
+# - RLS enforcement at database level
+# - Soft delete awareness in all permissions
+############################################################
+
+version: 7
+generated_date: "2025-10-18"
+schema_sync: "prisma-schema-355-models-roomplan-added"
+
+# ===========================================================
+# ROLES DEFINITION
+# ===========================================================
+roles:
+  - code: "ADMIN"
+    name: "Tenant Administrator"
+    description: "Tenant owner with full administrative control over tenant-scoped resources"
+    scope: "TENANT"
+
+  - code: "PROJECT_MANAGER"
+    name: "Project Manager"
+    description: "Project and team management with conditional permissions via tenant settings"
+    scope: "TENANT"
+
+  - code: "WORKER"
+    name: "Worker"
+    description: "Field worker with task execution and limited project access"
+    scope: "TENANT"
+
+  - code: "VIEWER"
+    name: "Viewer"
+    description: "Read-only access for observers and stakeholders"
+    scope: "TENANT"
+
+  - code: "DRIVER"
+    name: "Driver"
+    description: "Delivery/transport worker with minimal project access"
+    scope: "TENANT"
+
+# ===========================================================
+# DOMAIN CLASSIFICATION
+# ===========================================================
+# Based on actual Prisma schema models grouped by business domain
+
+domains:
+  # Core Business Operations
+  - tenant_management # Tenant, TenantSettings, TenantMetrics
+  - identity_access # User, Member, MemberRole, MemberSettings
+  - rbac_security # Role, Permission, RolePermission, ApiKey
+  - crm_sales # Account, Lead, Opportunity, Quote, Estimate, RFQ, Bid
+  - project_management # Project, ProjectTask, ProjectMember, ChangeOrder, RFI, etc.
+  - task_execution # Task, TaskAssignment, TaskDependency, etc.
+  - financial_operations # Invoice, Payment, APBill, Expense, Payroll, Banking, etc.
+  - time_scheduling # Schedule, ClockInClockOut, TimeOffRequest, Leave, etc.
+  - inventory_assets # InventoryItem, InventoryTransaction, Asset, etc.
+  - communication # Channel, DirectChat, Message, Notification, etc.
+  - document_management # Attachment, FileObject, ESignatureEnvelope, etc.
+  - hr_employment # Employment, Position, Performance, Benefits, Training
+  - ai_automation # AI actions, jobs, insights, playbooks, embeddings
+  - vendor_contract # Vendor, Contract, Person data management
+  - roomplan_spatial # LiDAR scanning, 3D modeling, spatial data management
+
+  # Support Functions
+  - integrations_webhooks # Webhooks, IntegrationConnector, SyncJob, etc.
+  - system_config # Location, PriceList, CostCenter, UnitOfMeasure, etc.
+  - audit_compliance # AuditLog, DataRetentionPolicy, ErrorReport, etc.
+  - data_export_reporting # ExportJob, ReportDefinition, DashboardDefinition
+  - approval_workflows # ApprovalRequest, ApprovalDecision, etc.
+
+# ===========================================================
+# PERMISSION ACTIONS TAXONOMY
+# ===========================================================
+# Standardized action verbs across all models
+
+actions:
+  # Read Operations
+  - read # View/query records
+  - list # List multiple records (with filtering)
+  - export # Export data (CSV, PDF, etc.)
+
+  # Write Operations
+  - create # Create new records
+  - update # Modify existing records
+  - duplicate # Clone/copy records
+
+  # Lifecycle Management
+  - soft_delete # Mark as deleted (deletedAt)
+  - restore # Undelete soft-deleted records
+  - hard_delete # Permanent deletion (admin only)
+  - archive # Archive for historical reference
+  - activate # Activate/enable records
+  - deactivate # Deactivate/disable records
+
+  # Assignment & Relationships
+  - assign # Assign to users/members
+  - unassign # Remove assignments
+  - transfer # Transfer ownership/responsibility
+
+  # Approval & Status
+  - submit # Submit for approval
+  - approve # Approve requests/changes
+  - reject # Reject/decline requests
+  - review # Review and comment
+
+  # Specialized Actions
+  - send # Send emails/notifications
+  - publish # Make available/visible
+  - lock # Prevent modifications
+  - unlock # Allow modifications
+  - sync # Synchronize with external systems
+
+# ===========================================================
+# ADMIN ROLE PERMISSIONS
+# ===========================================================
+# Tenant Administrator: Full control over tenant-scoped resources
+# Exclusions: System-level, global catalogs, platform infrastructure
+
+permissions:
+  ADMIN:
+    # =======================================================
+    # TENANT MANAGEMENT DOMAIN
+    # =======================================================
+    tenant_management:
+      # Own tenant management (not creation - that's system level)
+      - Tenant.read # View own tenant details
+      - Tenant.update # Modify tenant settings
+      - Tenant.deactivate # Suspend own tenant
+
+      # Tenant configuration and settings
+      - TenantSettings.read
+      - TenantSettings.update
+      - TenantSettings.activate
+      - TenantSettings.deactivate
+
+      # Tenant metrics and monitoring
+      - TenantMetrics.read
+      - TenantMetrics.export
+
+      # Feature flags and configuration
+      - TenantFeatureFlag.read
+      - TenantFeatureFlag.create
+      - TenantFeatureFlag.update
+      - TenantFeatureFlag.activate
+      - TenantFeatureFlag.deactivate
+
+      # Usage tracking
+      - TenantUsageRecord.read
+      - TenantUsageRecord.export
+
+      # Price lists and overrides
+      - TenantPriceList.read
+      - TenantPriceList.create
+      - TenantPriceList.update
+      - TenantPriceList.activate
+      - TenantPriceList.deactivate
+
+      - TenantPriceOverride.read
+      - TenantPriceOverride.create
+      - TenantPriceOverride.update
+      - TenantPriceOverride.soft_delete
+      - TenantPriceOverride.restore
+
+    # =======================================================
+    # IDENTITY & ACCESS MANAGEMENT DOMAIN
+    # =======================================================
+    identity_access:
+      # User management within tenant
+      - User.read # View user profiles
+      - User.create # Invite new users
+      - User.update # Modify user details
+      - User.soft_delete # Deactivate users
+      - User.restore # Reactivate users
+      - User.activate
+      - User.deactivate
+      - User.lock # Lock user accounts
+      - User.unlock # Unlock user accounts
+
+      # Member management (tenant-user associations)
+      - Member.read
+      - Member.create # Add users as members
+      - Member.update
+      - Member.soft_delete
+      - Member.restore
+      - Member.assign # Assign to projects/roles
+      - Member.unassign
+      - Member.transfer
+      - Member.activate
+      - Member.deactivate
+
+      # Member role assignments
+      - MemberRole.read
+      - MemberRole.create
+      - MemberRole.update
+      - MemberRole.soft_delete
+      - MemberRole.restore
+      - MemberRole.assign
+      - MemberRole.unassign
+      - MemberRole.transfer
+
+      # Member settings and preferences
+      - MemberSettings.read
+      - MemberSettings.update
+      - MemberSettings.activate
+      - MemberSettings.deactivate
+
+      # Member documents and files
+      - MemberDocument.read
+      - MemberDocument.create
+      - MemberDocument.update
+      - MemberDocument.soft_delete
+      - MemberDocument.restore
+      - MemberDocument.approve
+      - MemberDocument.reject
+
+    # =======================================================
+    # RBAC & SECURITY DOMAIN
+    # =======================================================
+    rbac_security:
+      # Role management within tenant
+      - Role.read
+      - Role.create
+      - Role.update
+      - Role.soft_delete
+      - Role.restore
+      - Role.activate
+      - Role.deactivate
+
+      # Permission viewing (permissions are global, not tenant-scoped)
+      - Permission.read # View available permissions
+
+      # Role-permission assignments
+      - RolePermission.read
+      - RolePermission.create # Assign permissions to roles
+      - RolePermission.soft_delete # Remove permission assignments
+      - RolePermission.restore
+
+      # API key management for tenant
+      - ApiKey.read
+      - ApiKey.create
+      - ApiKey.update
+      - ApiKey.soft_delete
+      - ApiKey.restore
+      - ApiKey.activate
+      - ApiKey.deactivate
+
+      # Authentication factors
+      - AuthFactor.read
+      - AuthFactor.create
+      - AuthFactor.update
+      - AuthFactor.soft_delete
+      - AuthFactor.restore
+      - AuthFactor.activate
+      - AuthFactor.deactivate
+
+    # =======================================================
+    # CRM & SALES DOMAIN
+    # =======================================================
+    crm_sales:
+      # Account and contact management
+      - Account.read
+      - Account.create
+      - Account.update
+      - Account.soft_delete
+      - Account.restore
+      - Account.activate
+      - Account.deactivate
+
+      - AccountAddress.read
+      - AccountAddress.create
+      - AccountAddress.update
+      - AccountAddress.soft_delete
+      - AccountAddress.restore
+
+      - Contact.read
+      - Contact.create
+      - Contact.update
+      - Contact.soft_delete
+      - Contact.restore
+
+      # Lead management
+      - Lead.read
+      - Lead.create
+      - Lead.update
+      - Lead.soft_delete
+      - Lead.restore
+      - Lead.assign
+      - Lead.unassign
+      - Lead.transfer
+
+      - LeadActivity.read
+      - LeadActivity.create
+      - LeadActivity.update
+      - LeadActivity.soft_delete
+      - LeadActivity.restore
+
+      # Opportunity management
+      - Opportunity.read
+      - Opportunity.create
+      - Opportunity.update
+      - Opportunity.soft_delete
+      - Opportunity.restore
+      - Opportunity.assign
+      - Opportunity.unassign
+      - Opportunity.transfer
+
+      - OpportunityStage.read
+      - OpportunityStage.create
+      - OpportunityStage.update
+      - OpportunityStage.soft_delete
+      - OpportunityStage.restore
+
+      - OpportunityLineItem.read
+      - OpportunityLineItem.create
+      - OpportunityLineItem.update
+      - OpportunityLineItem.soft_delete
+      - OpportunityLineItem.restore
+
+      # Quote management
+      - Quote.read
+      - Quote.create
+      - Quote.update
+      - Quote.soft_delete
+      - Quote.restore
+      - Quote.send
+      - Quote.approve
+      - Quote.reject
+
+      - QuoteLineItem.read
+      - QuoteLineItem.create
+      - QuoteLineItem.update
+      - QuoteLineItem.soft_delete
+      - QuoteLineItem.restore
+
+      # Estimating
+      - Estimate.read
+      - Estimate.create
+      - Estimate.update
+      - Estimate.soft_delete
+      - Estimate.restore
+      - Estimate.send
+      - Estimate.approve
+      - Estimate.reject
+
+      - EstimateLineItem.read
+      - EstimateLineItem.create
+      - EstimateLineItem.update
+      - EstimateLineItem.soft_delete
+      - EstimateLineItem.restore
+
+      - EstimateAttachment.read
+      - EstimateAttachment.create
+      - EstimateAttachment.update
+      - EstimateAttachment.soft_delete
+      - EstimateAttachment.restore
+
+      - EstimateApproval.read
+      - EstimateApproval.create
+      - EstimateApproval.approve
+      - EstimateApproval.reject
+
+      # RFQ and bidding
+      - RequestForQuote.read
+      - RequestForQuote.create
+      - RequestForQuote.update
+      - RequestForQuote.soft_delete
+      - RequestForQuote.restore
+      - RequestForQuote.send
+
+      - RFQLine.read
+      - RFQLine.create
+      - RFQLine.update
+      - RFQLine.soft_delete
+      - RFQLine.restore
+
+      - RFQResponse.read
+      - RFQResponse.create
+      - RFQResponse.update
+      - RFQResponse.soft_delete
+      - RFQResponse.restore
+
+      - Bid.read
+      - Bid.create
+      - Bid.update
+      - Bid.soft_delete
+      - Bid.restore
+      - Bid.submit
+      - Bid.approve
+      - Bid.reject
+
+      # Enhanced bidding and RFQ process
+      - BidComparison.read
+      - BidComparison.create
+      - BidComparison.update
+      - BidComparison.soft_delete
+      - BidComparison.restore
+
+      - BidInvitation.read
+      - BidInvitation.create
+      - BidInvitation.update
+      - BidInvitation.send
+      - BidInvitation.soft_delete
+      - BidInvitation.restore
+
+      - BidSubmission.read
+      - BidSubmission.create
+      - BidSubmission.update
+      - BidSubmission.submit
+      - BidSubmission.approve
+      - BidSubmission.reject
+
+    # =======================================================
+    # PROJECT MANAGEMENT DOMAIN
+    # =======================================================
+    project_management:
+      # Core project operations
+      - Project.read
+      - Project.create
+      - Project.update
+      - Project.soft_delete
+      - Project.restore
+      - Project.hard_delete
+      - Project.archive
+      - Project.activate
+      - Project.deactivate
+      - Project.duplicate
+      - Project.transfer
+
+      # Project assignments
+      - ProjectTaskAssignment.read
+      - ProjectTaskAssignment.create
+      - ProjectTaskAssignment.update
+      - ProjectTaskAssignment.soft_delete
+      - ProjectTaskAssignment.restore
+      - ProjectTaskAssignment.assign
+      - ProjectTaskAssignment.unassign
+      - ProjectTaskAssignment.transfer
+
+      # Project team management
+      - ProjectMember.read
+      - ProjectMember.create
+      - ProjectMember.update
+      - ProjectMember.soft_delete
+      - ProjectMember.restore
+      - ProjectMember.assign
+      - ProjectMember.unassign
+      - ProjectMember.transfer
+
+      # Project documentation
+      - ProjectNote.read
+      - ProjectNote.create
+      - ProjectNote.update
+      - ProjectNote.soft_delete
+      - ProjectNote.restore
+
+      - ProjectReport.read
+      - ProjectReport.create
+      - ProjectReport.update
+      - ProjectReport.soft_delete
+      - ProjectReport.restore
+      - ProjectReport.export
+
+      # Project financial tracking
+      - ProjectBudgetLine.read
+      - ProjectBudgetLine.create
+      - ProjectBudgetLine.update
+      - ProjectBudgetLine.soft_delete
+      - ProjectBudgetLine.restore
+
+      - ProjectFinancialSnapshot.read
+      - ProjectFinancialSnapshot.create
+      - ProjectFinancialSnapshot.export
+
+      # Project inventory
+      - ProjectInventoryTransaction.read
+      - ProjectInventoryTransaction.create
+      - ProjectInventoryTransaction.update
+      - ProjectInventoryTransaction.soft_delete
+      - ProjectInventoryTransaction.restore
+
+      # Project phases and structure
+      - ProjectPhase.read
+      - ProjectPhase.create
+      - ProjectPhase.update
+      - ProjectPhase.soft_delete
+      - ProjectPhase.restore
+      - ProjectPhase.activate
+      - ProjectPhase.deactivate
+
+      - WBSItem.read
+      - WBSItem.create
+      - WBSItem.update
+      - WBSItem.soft_delete
+      - WBSItem.restore
+
+      # Project locations and sites
+      - ProjectLocation.read
+      - ProjectLocation.create
+      - ProjectLocation.update
+      - ProjectLocation.soft_delete
+      - ProjectLocation.restore
+
+      # Project tasks (detailed)
+      - ProjectTask.read
+      - ProjectTask.create
+      - ProjectTask.update
+      - ProjectTask.soft_delete
+      - ProjectTask.restore
+      - ProjectTask.assign
+      - ProjectTask.unassign
+      - ProjectTask.transfer
+
+      - ProjectTaskDependency.read
+      - ProjectTaskDependency.create
+      - ProjectTaskDependency.update
+      - ProjectTaskDependency.soft_delete
+      - ProjectTaskDependency.restore
+
+      - ProjectTaskAttachment.read
+      - ProjectTaskAttachment.create
+      - ProjectTaskAttachment.update
+      - ProjectTaskAttachment.soft_delete
+      - ProjectTaskAttachment.restore
+
+      - ProjectTaskComment.read
+      - ProjectTaskComment.create
+      - ProjectTaskComment.update
+      - ProjectTaskComment.soft_delete
+      - ProjectTaskComment.restore
+
+      # Change orders
+      - ChangeOrder.read
+      - ChangeOrder.create
+      - ChangeOrder.update
+      - ChangeOrder.soft_delete
+      - ChangeOrder.restore
+      - ChangeOrder.approve
+      - ChangeOrder.reject
+
+      - ChangeOrderLine.read
+      - ChangeOrderLine.create
+      - ChangeOrderLine.update
+      - ChangeOrderLine.soft_delete
+      - ChangeOrderLine.restore
+
+      - ChangeOrderApproval.read
+      - ChangeOrderApproval.create
+      - ChangeOrderApproval.approve
+      - ChangeOrderApproval.reject
+
+      - ChangeOrderDocument.read
+      - ChangeOrderDocument.create
+      - ChangeOrderDocument.update
+      - ChangeOrderDocument.soft_delete
+      - ChangeOrderDocument.restore
+
+      # RFI management
+      - RFI.read
+      - RFI.create
+      - RFI.update
+      - RFI.soft_delete
+      - RFI.restore
+      - RFI.send
+
+      - RFIReply.read
+      - RFIReply.create
+      - RFIReply.update
+      - RFIReply.soft_delete
+      - RFIReply.restore
+
+      # Submittals
+      - Submittal.read
+      - Submittal.create
+      - Submittal.update
+      - Submittal.soft_delete
+      - Submittal.restore
+
+      - SubmittalItem.read
+      - SubmittalItem.create
+      - SubmittalItem.update
+      - SubmittalItem.soft_delete
+      - SubmittalItem.restore
+
+      - SubmittalApproval.read
+      - SubmittalApproval.create
+      - SubmittalApproval.approve
+      - SubmittalApproval.reject
+
+      # Inspections
+      - Inspection.read
+      - Inspection.create
+      - Inspection.update
+      - Inspection.soft_delete
+      - Inspection.restore
+
+      - InspectionItem.read
+      - InspectionItem.create
+      - InspectionItem.update
+      - InspectionItem.soft_delete
+      - InspectionItem.restore
+
+      - InspectionApproval.read
+      - InspectionApproval.create
+      - InspectionApproval.approve
+      - InspectionApproval.reject
+
+      # Daily logs and punch lists
+      - DailyLog.read
+      - DailyLog.create
+      - DailyLog.update
+      - DailyLog.soft_delete
+      - DailyLog.restore
+
+      - PunchList.read
+      - PunchList.create
+      - PunchList.update
+      - PunchList.soft_delete
+      - PunchList.restore
+
+      - PunchListItem.read
+      - PunchListItem.create
+      - PunchListItem.update
+      - PunchListItem.soft_delete
+      - PunchListItem.restore
+
+      # Activity tracking and milestones
+      - Activity.read
+      - Activity.create
+      - Activity.update
+      - Activity.soft_delete
+      - Activity.restore
+
+      - ActivityAttachment.read
+      - ActivityAttachment.create
+      - ActivityAttachment.update
+      - ActivityAttachment.soft_delete
+      - ActivityAttachment.restore
+
+      - Milestone.read
+      - Milestone.create
+      - Milestone.update
+      - Milestone.soft_delete
+      - Milestone.restore
+
+      - MilestoneDependency.read
+      - MilestoneDependency.create
+      - MilestoneDependency.update
+      - MilestoneDependency.soft_delete
+      - MilestoneDependency.restore
+
+      - MilestoneStakeholder.read
+      - MilestoneStakeholder.create
+      - MilestoneStakeholder.update
+      - MilestoneStakeholder.soft_delete
+      - MilestoneStakeholder.restore
+
+      # Project extensions
+      - ProjectDocument.read
+      - ProjectDocument.create
+      - ProjectDocument.update
+      - ProjectDocument.soft_delete
+      - ProjectDocument.restore
+
+      - ProjectExternalAccess.read
+      - ProjectExternalAccess.create
+      - ProjectExternalAccess.update
+      - ProjectExternalAccess.soft_delete
+      - ProjectExternalAccess.restore
+      - ProjectExternalAccess.grant
+      - ProjectExternalAccess.revoke
+
+      - ProjectIssue.read
+      - ProjectIssue.create
+      - ProjectIssue.update
+      - ProjectIssue.soft_delete
+      - ProjectIssue.restore
+      - ProjectIssue.assign
+      - ProjectIssue.resolve
+
+      - ProjectLedgerEntry.read
+      - ProjectLedgerEntry.create
+      - ProjectLedgerEntry.update
+      - ProjectLedgerEntry.soft_delete
+      - ProjectLedgerEntry.restore
+
+      - ProjectRisk.read
+      - ProjectRisk.create
+      - ProjectRisk.update
+      - ProjectRisk.soft_delete
+      - ProjectRisk.restore
+      - ProjectRisk.assess
+      - ProjectRisk.mitigate
+
+      - ProjectTaskChecklistItem.read
+      - ProjectTaskChecklistItem.create
+      - ProjectTaskChecklistItem.update
+      - ProjectTaskChecklistItem.soft_delete
+      - ProjectTaskChecklistItem.restore
+      - ProjectTaskChecklistItem.complete
+
+      - ProjectType.read
+      - ProjectType.create
+      - ProjectType.update
+      - ProjectType.soft_delete
+      - ProjectType.restore
+      - ProjectType.activate
+      - ProjectType.deactivate
+
+    # =======================================================
+    # TASK EXECUTION DOMAIN
+    # =======================================================
+    task_execution:
+      # Core task operations
+      - Task.read
+      - Task.create
+      - Task.update
+      - Task.soft_delete
+      - Task.restore
+      - Task.hard_delete
+      - Task.assign
+      - Task.unassign
+      - Task.transfer
+      - Task.activate
+      - Task.deactivate
+      - Task.duplicate
+
+      # Task assignments
+      - TaskAssignment.read
+      - TaskAssignment.create
+      - TaskAssignment.update
+      - TaskAssignment.soft_delete
+      - TaskAssignment.restore
+      - TaskAssignment.assign
+      - TaskAssignment.unassign
+      - TaskAssignment.transfer
+
+      # Task dependencies
+      - TaskDependency.read
+      - TaskDependency.create
+      - TaskDependency.update
+      - TaskDependency.soft_delete
+      - TaskDependency.restore
+
+      # Task documentation
+      - TaskAttachment.read
+      - TaskAttachment.create
+      - TaskAttachment.update
+      - TaskAttachment.soft_delete
+      - TaskAttachment.restore
+
+      # Task checklist management
+      - TaskChecklistItem.read
+      - TaskChecklistItem.create
+      - TaskChecklistItem.update
+      - TaskChecklistItem.soft_delete
+      - TaskChecklistItem.restore
+
+      # Task comments and collaboration
+
+    # =======================================================
+    # FINANCIAL OPERATIONS DOMAIN
+    # =======================================================
+    financial_operations:
+      # Invoice management
+      - Invoice.read
+      - Invoice.create
+      - Invoice.update
+      - Invoice.soft_delete
+      - Invoice.restore
+      - Invoice.hard_delete
+      - Invoice.send
+      - Invoice.duplicate
+      - Invoice.export
+      - Invoice.approve
+      - Invoice.reject
+
+      - InvoiceLineItem.read
+      - InvoiceLineItem.create
+      - InvoiceLineItem.update
+      - InvoiceLineItem.soft_delete
+      - InvoiceLineItem.restore
+
+      - InvoiceAttachment.read
+      - InvoiceAttachment.create
+      - InvoiceAttachment.update
+      - InvoiceAttachment.soft_delete
+      - InvoiceAttachment.restore
+
+      - InvoiceTax.read
+      - InvoiceTax.create
+      - InvoiceTax.update
+      - InvoiceTax.soft_delete
+      - InvoiceTax.restore
+
+      # Payment processing
+      - Payment.read
+      - Payment.create
+      - Payment.update
+      - Payment.soft_delete
+      - Payment.restore
+      - Payment.export
+
+      - PaymentSchedule.read
+      - PaymentSchedule.create
+      - PaymentSchedule.update
+      - PaymentSchedule.soft_delete
+      - PaymentSchedule.restore
+
+      # Accounts payable
+      - APBill.read
+      - APBill.create
+      - APBill.update
+      - APBill.soft_delete
+      - APBill.restore
+      - APBill.approve
+      - APBill.reject
+
+      - APBillLine.read
+      - APBillLine.create
+      - APBillLine.update
+      - APBillLine.soft_delete
+      - APBillLine.restore
+
+      # Bill management
+      - BillApproval.read
+      - BillApproval.create
+      - BillApproval.approve
+      - BillApproval.reject
+
+      - BillPayment.read
+      - BillPayment.create
+      - BillPayment.update
+      - BillPayment.soft_delete
+      - BillPayment.restore
+
+      # Expense management
+      - Expense.read
+      - Expense.create
+      - Expense.update
+      - Expense.soft_delete
+      - Expense.restore
+      - Expense.approve
+      - Expense.reject
+      - Expense.export
+
+      - ExpenseLine.read
+      - ExpenseLine.create
+      - ExpenseLine.update
+      - ExpenseLine.soft_delete
+      - ExpenseLine.restore
+
+      - ExpenseApproval.read
+      - ExpenseApproval.create
+      - ExpenseApproval.approve
+      - ExpenseApproval.reject
+
+      - ExpenseReceipt.read
+      - ExpenseReceipt.create
+      - ExpenseReceipt.update
+      - ExpenseReceipt.soft_delete
+      - ExpenseReceipt.restore
+
+      # Credit memos
+      - CreditMemo.read
+      - CreditMemo.create
+      - CreditMemo.update
+      - CreditMemo.soft_delete
+      - CreditMemo.restore
+
+      - CreditMemoLine.read
+      - CreditMemoLine.create
+      - CreditMemoLine.update
+      - CreditMemoLine.soft_delete
+      - CreditMemoLine.restore
+
+      # Purchase orders
+      - PurchaseOrder.read
+      - PurchaseOrder.create
+      - PurchaseOrder.update
+      - PurchaseOrder.soft_delete
+      - PurchaseOrder.restore
+      - PurchaseOrder.send
+      - PurchaseOrder.approve
+      - PurchaseOrder.reject
+
+      - PurchaseOrderLine.read
+      - PurchaseOrderLine.create
+      - PurchaseOrderLine.update
+      - PurchaseOrderLine.soft_delete
+      - PurchaseOrderLine.restore
+
+      - PurchaseOrderApproval.read
+      - PurchaseOrderApproval.create
+      - PurchaseOrderApproval.approve
+      - PurchaseOrderApproval.reject
+
+      # General ledger
+      - GLAccount.read
+      - GLAccount.create
+      - GLAccount.update
+      - GLAccount.soft_delete
+      - GLAccount.restore
+      - GLAccount.activate
+      - GLAccount.deactivate
+
+      - JournalEntry.read
+      - JournalEntry.create
+      - JournalEntry.update
+      - JournalEntry.soft_delete
+      - JournalEntry.restore
+
+      - JournalLine.read
+      - JournalLine.create
+      - JournalLine.update
+      - JournalLine.soft_delete
+      - JournalLine.restore
+
+      # Banking and reconciliation
+      - BankAccount.read
+      - BankAccount.create
+      - BankAccount.update
+      - BankAccount.soft_delete
+      - BankAccount.restore
+      - BankAccount.activate
+      - BankAccount.deactivate
+
+      - BankStatementLine.read
+      - BankStatementLine.create
+      - BankStatementLine.update
+      - BankStatementLine.soft_delete
+      - BankStatementLine.restore
+
+      - Reconciliation.read
+      - Reconciliation.create
+      - Reconciliation.update
+      - Reconciliation.soft_delete
+      - Reconciliation.restore
+
+      # Payroll operations
+      - PayrollRun.read
+      - PayrollRun.create
+      - PayrollRun.update
+      - PayrollRun.soft_delete
+      - PayrollRun.restore
+      - PayrollRun.approve
+      - PayrollRun.reject
+
+      - PayrollItem.read
+      - PayrollItem.create
+      - PayrollItem.update
+      - PayrollItem.soft_delete
+      - PayrollItem.restore
+
+      - PayrollAdjustment.read
+      - PayrollAdjustment.create
+      - PayrollAdjustment.update
+      - PayrollAdjustment.soft_delete
+      - PayrollAdjustment.restore
+
+      - PayrollPayment.read
+      - PayrollPayment.create
+      - PayrollPayment.update
+      - PayrollPayment.soft_delete
+      - PayrollPayment.restore
+
+      - PayrollTax.read
+      - PayrollTax.create
+      - PayrollTax.update
+      - PayrollTax.soft_delete
+      - PayrollTax.restore
+
+      # Additional payment processing
+      - InvoicePayment.read
+      - InvoicePayment.create
+      - InvoicePayment.update
+      - InvoicePayment.soft_delete
+      - InvoicePayment.restore
+
+      - PaymentApplication.read
+      - PaymentApplication.create
+      - PaymentApplication.update
+      - PaymentApplication.soft_delete
+      - PaymentApplication.restore
+
+      - PaymentGateway.read
+      - PaymentGateway.create
+      - PaymentGateway.update
+      - PaymentGateway.soft_delete
+      - PaymentGateway.restore
+      - PaymentGateway.activate
+      - PaymentGateway.deactivate
+
+      - PaymentMethod.read
+      - PaymentMethod.create
+      - PaymentMethod.update
+      - PaymentMethod.soft_delete
+      - PaymentMethod.restore
+
+      - PaymentMethodToken.read
+      - PaymentMethodToken.create
+      - PaymentMethodToken.update
+      - PaymentMethodToken.soft_delete
+      - PaymentMethodToken.restore
+
+      - PaymentTerm.read
+      - PaymentTerm.create
+      - PaymentTerm.update
+      - PaymentTerm.soft_delete
+      - PaymentTerm.restore
+
+      # Fraud detection and prevention
+      - FraudPolicy.read
+      - FraudPolicy.create
+      - FraudPolicy.update
+      - FraudPolicy.soft_delete
+      - FraudPolicy.restore
+      - FraudPolicy.activate
+      - FraudPolicy.deactivate
+
+      - FraudPolicyRule.read
+      - FraudPolicyRule.create
+      - FraudPolicyRule.update
+      - FraudPolicyRule.soft_delete
+      - FraudPolicyRule.restore
+
+      - FraudPolicyScope.read
+      - FraudPolicyScope.create
+      - FraudPolicyScope.update
+      - FraudPolicyScope.soft_delete
+      - FraudPolicyScope.restore
+
+      # Currency and forecasting
+      - CurrencyRate.read
+      - CurrencyRate.create
+      - CurrencyRate.update
+
+      - ForecastLine.read
+      - ForecastLine.create
+      - ForecastLine.update
+      - ForecastLine.soft_delete
+      - ForecastLine.restore
+
+      - ForecastSnapshot.read
+      - ForecastSnapshot.create
+      - ForecastSnapshot.export
+
+      # Chargebacks and refunds
+      - Chargeback.read
+      - Chargeback.create
+      - Chargeback.update
+      - Chargeback.soft_delete
+      - Chargeback.restore
+
+      - ChargebackEvidence.read
+      - ChargebackEvidence.create
+      - ChargebackEvidence.update
+      - ChargebackEvidence.soft_delete
+      - ChargebackEvidence.restore
+
+      - Refund.read
+      - Refund.create
+      - Refund.update
+      - Refund.soft_delete
+      - Refund.restore
+
+      - Payout.read
+      - Payout.create
+      - Payout.update
+      - Payout.soft_delete
+      - Payout.restore
+
+      # Expense reporting and reimbursement
+      - ExpenseReport.read
+      - ExpenseReport.create
+      - ExpenseReport.update
+      - ExpenseReport.soft_delete
+      - ExpenseReport.restore
+      - ExpenseReport.submit
+      - ExpenseReport.approve
+      - ExpenseReport.reject
+
+      - Reimbursement.read
+      - Reimbursement.create
+      - Reimbursement.update
+      - Reimbursement.soft_delete
+      - Reimbursement.restore
+      - Reimbursement.process
+
+      # Dunning and collections
+      - DunningNotice.read
+      - DunningNotice.create
+      - DunningNotice.update
+      - DunningNotice.send
+
+      - ReturnReminder.read
+      - ReturnReminder.create
+      - ReturnReminder.update
+      - ReturnReminder.send
+
+      - ReturnReminderAttempt.read
+      - ReturnReminderAttempt.create
+
+    # =======================================================
+    # TIME & SCHEDULING DOMAIN
+    # =======================================================
+    time_scheduling:
+      # Time tracking
+      - ClockInClockOut.read
+      - ClockInClockOut.create
+      - ClockInClockOut.update
+      - ClockInClockOut.soft_delete
+      - ClockInClockOut.restore
+      - ClockInClockOut.approve
+      - ClockInClockOut.reject
+      - ClockInClockOut.export
+
+      # Schedule management
+      - Schedule.read
+      - Schedule.create
+      - Schedule.update
+      - Schedule.soft_delete
+      - Schedule.restore
+      - Schedule.publish
+      - Schedule.activate
+      - Schedule.deactivate
+
+      # Schedule exceptions
+      - ScheduleException.read
+      - ScheduleException.create
+      - ScheduleException.update
+      - Schedule
+
+      - ScheduleException.soft_delete
+      - ScheduleException.restore
+
+      # Time off requests
+      - Leave.read
+      - Leave.create
+      - Leave.update
+      - Leave.soft_delete
+      - Leave.restore
+      - Leave.approve
+      - Leave.reject
+
+      # Timesheets
+      - Timesheet.read
+      - Timesheet.create
+      - Timesheet.update
+      - Timesheet.soft_delete
+      - Timesheet.restore
+      - Timesheet.submit
+      - Timesheet.approve
+      - Timesheet.reject
+
+      - TimesheetEntry.read
+      - TimesheetEntry.create
+      - TimesheetEntry.update
+      - TimesheetEntry.soft_delete
+      - TimesheetEntry.restore
+
+      - TimesheetApproval.read
+      - TimesheetApproval.create
+      - TimesheetApproval.approve
+      - TimesheetApproval.reject
+
+      # Leave and absence management
+
+      - LeaveOfAbsence.read
+      - LeaveOfAbsence.create
+      - LeaveOfAbsence.update
+      - LeaveOfAbsence.soft_delete
+      - LeaveOfAbsence.restore
+      - LeaveOfAbsence.approve
+      - LeaveOfAbsence.reject
+
+      - AbsenceBalance.read
+      - AbsenceBalance.create
+      - AbsenceBalance.update
+      - AbsenceBalance.soft_delete
+      - AbsenceBalance.restore
+
+      # HR scheduling extensions
+      - HolidayCalendar.read
+      - HolidayCalendar.create
+      - HolidayCalendar.update
+      - HolidayCalendar.soft_delete
+      - HolidayCalendar.restore
+
+      - OvertimeRule.read
+      - OvertimeRule.create
+      - OvertimeRule.update
+      - OvertimeRule.soft_delete
+      - OvertimeRule.restore
+      - OvertimeRule.activate
+      - OvertimeRule.deactivate
+
+      - PayCalendar.read
+      - PayCalendar.create
+      - PayCalendar.update
+      - PayCalendar.soft_delete
+      - PayCalendar.restore
+
+      - PayGroup.read
+      - PayGroup.create
+      - PayGroup.update
+      - PayGroup.soft_delete
+      - PayGroup.restore
+
+      - PayGroupAssignment.read
+      - PayGroupAssignment.create
+      - PayGroupAssignment.update
+      - PayGroupAssignment.assign
+      - PayGroupAssignment.unassign
+
+    # =======================================================
+    # INVENTORY & ASSETS DOMAIN
+    # =======================================================
+    inventory_assets:
+      # Inventory management
+      - InventoryItem.read
+      - InventoryItem.create
+      - InventoryItem.update
+      - InventoryItem.soft_delete
+      - InventoryItem.restore
+      - InventoryItem.assign
+      - InventoryItem.unassign
+      - InventoryItem.transfer
+      - InventoryItem.activate
+      - InventoryItem.deactivate
+
+      - InventoryTransaction.read
+      - InventoryTransaction.create
+      - InventoryTransaction.update
+      - InventoryTransaction.soft_delete
+      - InventoryTransaction.restore
+
+      - InventoryAdjustment.read
+      - InventoryAdjustment.create
+      - InventoryAdjustment.update
+      - InventoryAdjustment.soft_delete
+      - InventoryAdjustment.restore
+      - InventoryAdjustment.approve
+      - InventoryAdjustment.reject
+
+      - InventoryCount.read
+      - InventoryCount.create
+      - InventoryCount.update
+      - InventoryCount.soft_delete
+      - InventoryCount.restore
+
+      - InventoryCountLine.read
+      - InventoryCountLine.create
+      - InventoryCountLine.update
+      - InventoryCountLine.soft_delete
+      - InventoryCountLine.restore
+
+      # Asset management
+      - Asset.read
+      - Asset.create
+      - Asset.update
+      - Asset.soft_delete
+      - Asset.restore
+      - Asset.assign
+      - Asset.unassign
+      - Asset.transfer
+      - Asset.activate
+      - Asset.deactivate
+
+      - AssetAssignment.read
+      - AssetAssignment.create
+      - AssetAssignment.update
+      - AssetAssignment.soft_delete
+      - AssetAssignment.restore
+      - AssetAssignment.assign
+      - AssetAssignment.unassign
+      - AssetAssignment.transfer
+
+      - AssetMaintenance.read
+      - AssetMaintenance.create
+      - AssetMaintenance.update
+      - AssetMaintenance.soft_delete
+      - AssetMaintenance.restore
+
+      - AssetDepreciation.read
+      - AssetDepreciation.create
+      - AssetDepreciation.update
+      - AssetDepreciation.soft_delete
+      - AssetDepreciation.restore
+
+      - AssetDocument.read
+      - AssetDocument.create
+      - AssetDocument.update
+      - AssetDocument.soft_delete
+      - AssetDocument.restore
+
+      - AssetMeterReading.read
+      - AssetMeterReading.create
+      - AssetMeterReading.update
+      - AssetMeterReading.soft_delete
+      - AssetMeterReading.restore
+
+      # Inventory locations and bins
+      - InventoryLocation.read
+      - InventoryLocation.create
+      - InventoryLocation.update
+      - InventoryLocation.soft_delete
+      - InventoryLocation.restore
+
+      - InventoryBin.read
+      - InventoryBin.create
+      - InventoryBin.update
+      - InventoryBin.soft_delete
+      - InventoryBin.restore
+
+      - InventoryReservation.read
+      - InventoryReservation.create
+      - InventoryReservation.update
+      - InventoryReservation.soft_delete
+      - InventoryReservation.restore
+
+      - InventoryAttachment.read
+      - InventoryAttachment.create
+      - InventoryAttachment.update
+      - InventoryAttachment.soft_delete
+      - InventoryAttachment.restore
+
+      # Goods receipt and operations
+      - GoodsReceipt.read
+      - GoodsReceipt.create
+      - GoodsReceipt.update
+      - GoodsReceipt.soft_delete
+      - GoodsReceipt.restore
+
+      - GoodsReceiptLine.read
+      - GoodsReceiptLine.create
+      - GoodsReceiptLine.update
+      - GoodsReceiptLine.soft_delete
+      - GoodsReceiptLine.restore
+
+      # Procurement extensions
+      - RFQResponseLine.read
+      - RFQResponseLine.create
+      - RFQResponseLine.update
+      - RFQResponseLine.soft_delete
+      - RFQResponseLine.restore
+
+      - ReasonCode.read
+      - ReasonCode.create
+      - ReasonCode.update
+      - ReasonCode.soft_delete
+      - ReasonCode.restore
+
+      - ResourceAllocation.read
+      - ResourceAllocation.create
+      - ResourceAllocation.update
+      - ResourceAllocation.soft_delete
+      - ResourceAllocation.restore
+      - ResourceAllocation.allocate
+      - ResourceAllocation.deallocate
+
+    # =======================================================
+    # COMMUNICATION DOMAIN
+    # =======================================================
+    communication:
+      # Channel management
+      - Channel.read
+      - Channel.create
+      - Channel.update
+      - Channel.soft_delete
+      - Channel.restore
+      - Channel.archive
+      - Channel.activate
+      - Channel.deactivate
+
+      - ChannelMember.read
+      - ChannelMember.create
+      - ChannelMember.update
+      - ChannelMember.soft_delete
+      - ChannelMember.restore
+      - ChannelMember.assign
+      - ChannelMember.unassign
+
+      # Direct messaging
+      - DirectChat.read
+      - DirectChat.create
+      - DirectChat.update
+      - DirectChat.soft_delete
+      - DirectChat.restore
+      - DirectChat.archive
+
+      - DirectMessage.read
+      - DirectMessage.create
+      - DirectMessage.update
+      - DirectMessage.soft_delete
+      - DirectMessage.restore
+
+      - DirectMessageRead.read
+      - DirectMessageRead.create
+      - DirectMessageRead.update
+
+      # Notifications
+      - Notification.read
+      - Notification.create
+      - Notification.update
+      - Notification.soft_delete
+      - Notification.restore
+
+      - InAppAnnouncement.read
+      - InAppAnnouncement.create
+      - InAppAnnouncement.update
+      - InAppAnnouncement.soft_delete
+      - InAppAnnouncement.restore
+      - InAppAnnouncement.publish
+
+      # Message management
+      - Message.read
+      - Message.create
+      - Message.update
+      - Message.soft_delete
+      - Message.restore
+
+      - MessageAttachment.read
+      - MessageAttachment.create
+      - MessageAttachment.update
+      - MessageAttachment.soft_delete
+      - MessageAttachment.restore
+
+      - MessageRead.read
+      - MessageRead.create
+      - MessageRead.update
+
+      # Notification preferences and templates
+      - NotificationPreference.read
+      - NotificationPreference.create
+      - NotificationPreference.update
+      - NotificationPreference.soft_delete
+      - NotificationPreference.restore
+
+      - NotificationTemplate.read
+      - NotificationTemplate.create
+      - NotificationTemplate.update
+      - NotificationTemplate.soft_delete
+      - NotificationTemplate.restore
+
+      - EmailTemplate.read
+      - EmailTemplate.create
+      - EmailTemplate.update
+      - EmailTemplate.soft_delete
+      - EmailTemplate.restore
+
+    # =======================================================
+    # DOCUMENT MANAGEMENT DOMAIN
+    # =======================================================
+    document_management:
+      # File and attachment management
+      - FileObject.read
+      - FileObject.create
+      - FileObject.update
+      - FileObject.soft_delete
+      - FileObject.restore
+
+      - Attachment.read
+      - Attachment.create
+      - Attachment.update
+      - Attachment.soft_delete
+      - Attachment.restore
+      - Attachment.approve
+      - Attachment.reject
+
+      - AttachmentLink.read
+      - AttachmentLink.create
+      - AttachmentLink.update
+      - AttachmentLink.soft_delete
+      - AttachmentLink.restore
+
+      # E-signature management
+      - ESignatureEnvelope.read
+      - ESignatureEnvelope.create
+      - ESignatureEnvelope.update
+      - ESignatureEnvelope.soft_delete
+      - ESignatureEnvelope.restore
+      - ESignatureEnvelope.send
+
+      - ESignatureRecipient.read
+      - ESignatureRecipient.create
+      - ESignatureRecipient.update
+      - ESignatureRecipient.soft_delete
+      - ESignatureRecipient.restore
+
+      # Document groups and versioning
+      - DocumentGroup.read
+      - DocumentGroup.create
+      - DocumentGroup.update
+      - DocumentGroup.soft_delete
+      - DocumentGroup.restore
+
+      # Document templates
+      - ContractTemplate.read
+      - ContractTemplate.create
+      - ContractTemplate.update
+      - ContractTemplate.soft_delete
+      - ContractTemplate.restore
+
+      - TermsTemplate.read
+      - TermsTemplate.create
+      - TermsTemplate.update
+      - TermsTemplate.soft_delete
+      - TermsTemplate.restore
+
+    # =======================================================
+    # VENDOR & CONTRACT MANAGEMENT DOMAIN
+    # =======================================================
+    vendor_contract:
+      # Vendor management
+      - Vendor.read
+      - Vendor.create
+      - Vendor.update
+      - Vendor.soft_delete
+      - Vendor.restore
+      - Vendor.activate
+      - Vendor.deactivate
+
+      - VendorContact.read
+      - VendorContact.create
+      - VendorContact.update
+      - VendorContact.soft_delete
+      - VendorContact.restore
+
+      - VendorDocument.read
+      - VendorDocument.create
+      - VendorDocument.update
+      - VendorDocument.soft_delete
+      - VendorDocument.restore
+
+      # Contract management
+      - Contract.read
+      - Contract.create
+      - Contract.update
+      - Contract.soft_delete
+      - Contract.restore
+      - Contract.send
+      - Contract.approve
+      - Contract.reject
+
+      # Person and contact data
+      - Person.read
+      - Person.create
+      - Person.update
+      - Person.soft_delete
+      - Person.restore
+
+      - PersonName.read
+      - PersonName.create
+      - PersonName.update
+      - PersonName.soft_delete
+      - PersonName.restore
+
+      - PersonAddress.read
+      - PersonAddress.create
+      - PersonAddress.update
+      - PersonAddress.soft_delete
+      - PersonAddress.restore
+
+      - PersonContactMethod.read
+      - PersonContactMethod.create
+      - PersonContactMethod.update
+      - PersonContactMethod.soft_delete
+      - PersonContactMethod.restore
+
+      - PersonDocument.read
+      - PersonDocument.create
+      - PersonDocument.update
+      - PersonDocument.soft_delete
+      - PersonDocument.restore
+
+    # =======================================================
+    # AI & AUTOMATION DOMAIN
+    # =======================================================
+    ai_automation:
+      # AI actions and workflows
+      - AIAction.read
+      - AIAction.create
+      - AIAction.update
+      - AIAction.soft_delete
+      - AIAction.restore
+      - AIAction.activate
+      - AIAction.deactivate
+
+      - AIActionRun.read
+      - AIActionRun.create
+      - AIActionRun.update
+      - AIActionRun.soft_delete
+      - AIActionRun.restore
+
+      # AI jobs and processing
+      - AIJob.read
+      - AIJob.create
+      - AIJob.update
+      - AIJob.soft_delete
+      - AIJob.restore
+
+      - AIJobArtifact.read
+      - AIJobArtifact.create
+      - AIJobArtifact.update
+      - AIJobArtifact.soft_delete
+      - AIJobArtifact.restore
+
+      # AI insights and analytics
+      - AIInsight.read
+      - AIInsight.create
+      - AIInsight.update
+      - AIInsight.soft_delete
+      - AIInsight.restore
+
+      - AIInsightFeedback.read
+      - AIInsightFeedback.create
+      - AIInsightFeedback.update
+      - AIInsightFeedback.soft_delete
+      - AIInsightFeedback.restore
+
+      # AI playbooks and templates
+      - AIPlaybook.read
+      - AIPlaybook.create
+      - AIPlaybook.update
+      - AIPlaybook.soft_delete
+      - AIPlaybook.restore
+      - AIPlaybook.activate
+      - AIPlaybook.deactivate
+
+      - AIPlaybookStep.read
+      - AIPlaybookStep.create
+      - AIPlaybookStep.update
+      - AIPlaybookStep.soft_delete
+      - AIPlaybookStep.restore
+
+      - AIPromptTemplate.read
+      - AIPromptTemplate.create
+      - AIPromptTemplate.update
+      - AIPromptTemplate.soft_delete
+      - AIPromptTemplate.restore
+
+      - AIAssistantProfile.read
+      - AIAssistantProfile.create
+      - AIAssistantProfile.update
+      - AIAssistantProfile.soft_delete
+      - AIAssistantProfile.restore
+      - AIAssistantProfile.activate
+      - AIAssistantProfile.deactivate
+
+      # AI document processing
+      - AIDocumentIndex.read
+      - AIDocumentIndex.create
+      - AIDocumentIndex.update
+      - AIDocumentIndex.soft_delete
+      - AIDocumentIndex.restore
+
+      - AIDocumentChunk.read
+      - AIDocumentChunk.create
+      - AIDocumentChunk.update
+      - AIDocumentChunk.soft_delete
+      - AIDocumentChunk.restore
+
+      - AIEmbedding.read
+      - AIEmbedding.create
+      - AIEmbedding.update
+      - AIEmbedding.soft_delete
+      - AIEmbedding.restore
+
+    # =======================================================
+    # ROOMPLAN & SPATIAL DATA DOMAIN
+    # =======================================================
+    roomplan_spatial:
+      # LiDAR scanning and session management
+      - RoomScanSession.read
+      - RoomScanSession.list
+      - RoomScanSession.create
+      - RoomScanSession.update
+      - RoomScanSession.soft_delete
+      - RoomScanSession.restore
+      - RoomScanSession.activate
+      - RoomScanSession.deactivate
+      - RoomScanSession.export
+
+      # Scan file management
+      - RoomScanFile.read
+      - RoomScanFile.list
+      - RoomScanFile.create
+      - RoomScanFile.update
+      - RoomScanFile.soft_delete
+      - RoomScanFile.restore
+      - RoomScanFile.export
+
+      # 3D model management
+      - RoomModel.read
+      - RoomModel.list
+      - RoomModel.create
+      - RoomModel.update
+      - RoomModel.soft_delete
+      - RoomModel.restore
+      - RoomModel.publish
+      - RoomModel.export
+      - RoomModel.duplicate
+
+      # Measurement and dimension tracking
+      - RoomMeasurement.read
+      - RoomMeasurement.list
+      - RoomMeasurement.create
+      - RoomMeasurement.update
+      - RoomMeasurement.soft_delete
+      - RoomMeasurement.restore
+      - RoomMeasurement.export
+
+      # Object detection and classification
+      - RoomObject.read
+      - RoomObject.list
+      - RoomObject.create
+      - RoomObject.update
+      - RoomObject.soft_delete
+      - RoomObject.restore
+      - RoomObject.export
+
+      # Surface analysis and materials
+      - RoomSurface.read
+      - RoomSurface.list
+      - RoomSurface.create
+      - RoomSurface.update
+      - RoomSurface.soft_delete
+      - RoomSurface.restore
+      - RoomSurface.export
+
+      # Annotations and markups
+      - RoomAnnotation.read
+      - RoomAnnotation.list
+      - RoomAnnotation.create
+      - RoomAnnotation.update
+      - RoomAnnotation.soft_delete
+      - RoomAnnotation.restore
+      - RoomAnnotation.publish
+      - RoomAnnotation.export
+
+      # Export and output management
+      - RoomExport.read
+      - RoomExport.list
+      - RoomExport.create
+      - RoomExport.update
+      - RoomExport.soft_delete
+      - RoomExport.restore
+      - RoomExport.export
+      - RoomExport.send
+
+      # Preset and template management
+      - RoomPlanPreset.read
+      - RoomPlanPreset.list
+      - RoomPlanPreset.create
+      - RoomPlanPreset.update
+      - RoomPlanPreset.soft_delete
+      - RoomPlanPreset.restore
+      - RoomPlanPreset.duplicate
+      - RoomPlanPreset.publish
+
+      # Processing job management
+      - RoomProcessingJob.read
+      - RoomProcessingJob.list
+      - RoomProcessingJob.create
+      - RoomProcessingJob.update
+      - RoomProcessingJob.soft_delete
+      - RoomProcessingJob.restore
+      - RoomProcessingJob.activate
+      - RoomProcessingJob.deactivate
+
+    # =======================================================
+    # HR & EMPLOYMENT DOMAIN
+    # =======================================================
+    hr_employment:
+      # Employment and positions
+      - Employment.read
+      - Employment.create
+      - Employment.update
+      - Employment.soft_delete
+      - Employment.restore
+      - Employment.activate
+      - Employment.deactivate
+
+      - Position.read
+      - Position.create
+      - Position.update
+      - Position.soft_delete
+      - Position.restore
+      - Position.activate
+      - Position.deactivate
+
+      - PositionAssignment.read
+      - PositionAssignment.create
+      - PositionAssignment.update
+      - PositionAssignment.soft_delete
+      - PositionAssignment.restore
+      - PositionAssignment.assign
+      - PositionAssignment.unassign
+
+      - PositionBudget.read
+      - PositionBudget.create
+      - PositionBudget.update
+      - PositionBudget.soft_delete
+      - PositionBudget.restore
+
+      # Compensation and benefits
+      - CompensationComponent.read
+      - CompensationComponent.create
+      - CompensationComponent.update
+      - CompensationComponent.soft_delete
+      - CompensationComponent.restore
+      - CompensationComponent.activate
+      - CompensationComponent.deactivate
+
+      - CompensationPlan.read
+      - CompensationPlan.create
+      - CompensationPlan.update
+      - CompensationPlan.soft_delete
+      - CompensationPlan.restore
+      - CompensationPlan.activate
+      - CompensationPlan.deactivate
+
+      - Allowance.read
+      - Allowance.create
+      - Allowance.update
+      - Allowance.soft_delete
+      - Allowance.restore
+      - Allowance.approve
+      - Allowance.reject
+
+      - Deduction.read
+      - Deduction.create
+      - Deduction.update
+      - Deduction.soft_delete
+      - Deduction.restore
+      - Deduction.approve
+      - Deduction.reject
+
+      # Benefits management
+      - BenefitDependent.read
+      - BenefitDependent.create
+      - BenefitDependent.update
+      - BenefitDependent.soft_delete
+      - BenefitDependent.restore
+
+      - BenefitEnrollment.read
+      - BenefitEnrollment.create
+      - BenefitEnrollment.update
+      - BenefitEnrollment.soft_delete
+      - BenefitEnrollment.restore
+      - BenefitEnrollment.approve
+      - BenefitEnrollment.reject
+
+      # Certifications and training
+      - Certification.read
+      - Certification.create
+      - Certification.update
+      - Certification.soft_delete
+      - Certification.restore
+      - Certification.approve
+      - Certification.reject
+
+      # Performance management
+      - PerformanceGoal.read
+      - PerformanceGoal.create
+      - PerformanceGoal.update
+      - PerformanceGoal.soft_delete
+      - PerformanceGoal.restore
+
+      - PerformanceReview.read
+      - PerformanceReview.create
+      - PerformanceReview.update
+      - PerformanceReview.soft_delete
+      - PerformanceReview.restore
+      - PerformanceReview.approve
+      - PerformanceReview.reject
+
+      # Grades and organizational structure
+      - Grade.read
+      - Grade.create
+      - Grade.update
+      - Grade.soft_delete
+      - Grade.restore
+
+      - Department.read
+      - Department.create
+      - Department.update
+      - Department.soft_delete
+      - Department.restore
+      - Department.activate
+      - Department.deactivate
+
+      - OrgUnit.read
+      - OrgUnit.create
+      - OrgUnit.update
+      - OrgUnit.soft_delete
+      - OrgUnit.restore
+      - OrgUnit.activate
+      - OrgUnit.deactivate
+
+      # Training management
+      - TrainingEnrollment.read
+      - TrainingEnrollment.create
+      - TrainingEnrollment.update
+      - TrainingEnrollment.soft_delete
+      - TrainingEnrollment.restore
+      - TrainingEnrollment.approve
+      - TrainingEnrollment.reject
+
+      # Worker management (critical HR table)
+      - Worker.read
+      - Worker.create
+      - Worker.update
+      - Worker.soft_delete
+      - Worker.restore
+      - Worker.activate
+      - Worker.deactivate
+
+      # Risk management
+      - LossInvestigation.read
+      - LossInvestigation.create
+      - LossInvestigation.update
+      - LossInvestigation.soft_delete
+      - LossInvestigation.restore
+
+      - LossInvestigationFinding.read
+      - LossInvestigationFinding.create
+      - LossInvestigationFinding.update
+      - LossInvestigationFinding.soft_delete
+      - LossInvestigationFinding.restore
+
+      - MitigationAction.read
+      - MitigationAction.create
+      - MitigationAction.update
+      - MitigationAction.soft_delete
+      - MitigationAction.restore
+      - MitigationAction.implement
+
+      - RiskFactor.read
+      - RiskFactor.create
+      - RiskFactor.update
+      - RiskFactor.soft_delete
+      - RiskFactor.restore
+      - RiskFactor.assess
+
+      - ScheduleRisk.read
+      - ScheduleRisk.create
+      - ScheduleRisk.update
+      - ScheduleRisk.soft_delete
+      - ScheduleRisk.restore
+
+      # Quality assurance and monitoring
+      - AnomalyCase.read
+      - AnomalyCase.create
+      - AnomalyCase.update
+      - AnomalyCase.soft_delete
+      - AnomalyCase.restore
+      - AnomalyCase.investigate
+
+      - AnomalyCaseAction.read
+      - AnomalyCaseAction.create
+      - AnomalyCaseAction.update
+      - AnomalyCaseAction.execute
+
+      - AnomalySignal.read
+      - AnomalySignal.create
+      - AnomalySignal.update
+
+      - AnomalySignalFeature.read
+      - AnomalySignalFeature.create
+      - AnomalySignalFeature.update
+
+    # =======================================================
+    # APPROVAL WORKFLOWS DOMAIN
+    # =======================================================
+    approval_workflows:
+      # Approval requests and decisions
+      - ApprovalRequest.read
+      - ApprovalRequest.create
+      - ApprovalRequest.update
+      - ApprovalRequest.soft_delete
+      - ApprovalRequest.restore
+      - ApprovalRequest.submit
+      - ApprovalRequest.approve
+      - ApprovalRequest.reject
+
+      - ApprovalDecision.read
+      - ApprovalDecision.create
+      - ApprovalDecision.update
+      - ApprovalDecision.soft_delete
+      - ApprovalDecision.restore
+
+      - ApprovalRule.read
+      - ApprovalRule.create
+      - ApprovalRule.update
+      - ApprovalRule.soft_delete
+      - ApprovalRule.restore
+      - ApprovalRule.activate
+      - ApprovalRule.deactivate
+
+    # =======================================================
+    # SYSTEM OPERATIONS DOMAIN
+    # =======================================================
+    system_operations:
+      # Job scheduling and execution
+      - JobRun.read
+      - JobRun.create
+      - JobRun.update
+      - JobRun.soft_delete
+      - JobRun.restore
+
+      - JobSchedule.read
+      - JobSchedule.create
+      - JobSchedule.update
+      - JobSchedule.activate
+      - JobSchedule.deactivate
+
+      - JobFamily.read
+      - JobFamily.create
+      - JobFamily.update
+      - JobFamily.soft_delete
+      - JobFamily.restore
+
+      - JobProfile.read
+      - JobProfile.create
+      - JobProfile.update
+      - JobProfile.soft_delete
+      - JobProfile.restore
+
+      - JobProfileAssignment.read
+      - JobProfileAssignment.create
+      - JobProfileAssignment.update
+      - JobProfileAssignment.assign
+      - JobProfileAssignment.unassign
+
+      # System utilities
+      - DistributedLock.read
+      - DistributedLock.create
+      - DistributedLock.update
+
+      - NumberSequence.read
+      - NumberSequence.create
+      - NumberSequence.update
+
+      # Weather and environmental monitoring
+      - weather_alerts.read
+      - weather_alerts.create
+      - weather_alerts.update
+      - weather_alerts.activate
+      - weather_alerts.deactivate
+
+      - weather_watches.read
+      - weather_watches.create
+      - weather_watches.update
+
+      - weather_incidents.read
+      - weather_incidents.create
+      - weather_incidents.update
+      - weather_incidents.resolve
+
+      - weather_alert_deliveries.read
+      - weather_alert_deliveries.create
+      - weather_alert_deliveries.update
+
+      - weather_forecast_cache.read
+      - weather_forecast_cache.create
+      - weather_forecast_cache.update
+
+      - weather_providers.read
+      - weather_providers.create
+      - weather_providers.update
+      - weather_providers.activate
+      - weather_providers.deactivate
+
+      - weather_risk_factors.read
+      - weather_risk_factors.create
+      - weather_risk_factors.update
+      - weather_risk_factors.activate
+      - weather_risk_factors.deactivate
+
+    # =======================================================
+    # INTEGRATIONS & WEBHOOKS DOMAIN
+    # =======================================================
+    integrations_webhooks:
+      # Webhook management
+      - Webhook.read
+      - Webhook.create
+      - Webhook.update
+      - Webhook.soft_delete
+      - Webhook.restore
+      - Webhook.activate
+      - Webhook.deactivate
+
+      - WebhookEndpoint.read
+      - WebhookEndpoint.create
+      - WebhookEndpoint.update
+      - WebhookEndpoint.soft_delete
+      - WebhookEndpoint.restore
+
+      - WebhookDelivery.read
+      - WebhookDelivery.create
+      - WebhookDelivery.update
+      - WebhookDelivery.soft_delete
+      - WebhookDelivery.restore
+
+      - WebhookEvent.read
+      - WebhookEvent.create
+      - WebhookEvent.update
+      - WebhookEvent.soft_delete
+      - WebhookEvent.restore
+
+      - WebhookLog.read
+      - WebhookLog.create
+      - WebhookLog.update
+      - WebhookLog.soft_delete
+      - WebhookLog.restore
+
+      # Integration management
+      - IntegrationConnection.read
+      - IntegrationConnection.create
+      - IntegrationConnection.update
+      - IntegrationConnection.soft_delete
+      - IntegrationConnection.restore
+      - IntegrationConnection.activate
+      - IntegrationConnection.deactivate
+
+      - IntegrationConnector.read
+      - IntegrationConnector.create
+      - IntegrationConnector.update
+      - IntegrationConnector.soft_delete
+      - IntegrationConnector.restore
+
+      - IntegrationMapping.read
+      - IntegrationMapping.create
+      - IntegrationMapping.update
+      - IntegrationMapping.soft_delete
+      - IntegrationMapping.restore
+
+      - IntegrationProvider.read
+      - IntegrationProvider.create
+      - IntegrationProvider.update
+      - IntegrationProvider.soft_delete
+      - IntegrationProvider.restore
+
+      - IntegrationSecret.read
+      - IntegrationSecret.create
+      - IntegrationSecret.update
+      - IntegrationSecret.soft_delete
+      - IntegrationSecret.restore
+
+      # Sync jobs and logging
+      - SyncJob.read
+      - SyncJob.create
+      - SyncJob.update
+      - SyncJob.soft_delete
+      - SyncJob.restore
+
+      - SyncLog.read
+      - SyncLog.create
+      - SyncLog.update
+      - SyncLog.soft_delete
+      - SyncLog.restore
+
+      - SyncState.read
+      - SyncState.create
+      - SyncState.update
+      - SyncState.soft_delete
+      - SyncState.restore
+
+    # =======================================================
+    # SYSTEM CONFIGURATION DOMAIN
+    # =======================================================
+    system_config:
+      # Location and geography
+      - Location.read
+      - Location.create
+      - Location.update
+      - Location.soft_delete
+      - Location.restore
+
+      - Country.read
+      - Country.create
+      - Country.update
+      - Country.soft_delete
+      - Country.restore
+
+      - Region.read
+      - Region.create
+      - Region.update
+      - Region.soft_delete
+      - Region.restore
+
+      - StateProvince.read
+      - StateProvince.create
+      - StateProvince.update
+      - StateProvince.soft_delete
+      - StateProvince.restore
+
+      # Pricing and catalogs
+      - PriceList.read
+      - PriceList.create
+      - PriceList.update
+      - PriceList.soft_delete
+      - PriceList.restore
+      - PriceList.activate
+      - PriceList.deactivate
+
+      - PriceListItem.read
+      - PriceListItem.create
+      - PriceListItem.update
+      - PriceListItem.soft_delete
+      - PriceListItem.restore
+
+      # Cost management
+      - CostCenter.read
+      - CostCenter.create
+      - CostCenter.update
+      - CostCenter.soft_delete
+      - CostCenter.restore
+
+      - CostCategory.read
+      - CostCategory.create
+      - CostCategory.update
+      - CostCategory.soft_delete
+      - CostCategory.restore
+
+      - CostCode.read
+      - CostCode.create
+      - CostCode.update
+      - CostCode.soft_delete
+      - CostCode.restore
+
+      # Units and measurement
+      - UnitOfMeasure.read
+      - UnitOfMeasure.create
+      - UnitOfMeasure.update
+      - UnitOfMeasure.soft_delete
+      - UnitOfMeasure.restore
+
+      # Work types and classifications
+      - WorkType.read
+      - WorkType.create
+      - WorkType.update
+      - WorkType.soft_delete
+      - WorkType.restore
+
+    # =======================================================
+    # AUDIT & COMPLIANCE DOMAIN
+    # =======================================================
+    audit_compliance:
+      # Audit logs (read-only for transparency)
+      - TenantAuditLog.read
+      - TenantAuditLog.export
+
+      # Data retention policies
+      - DataRetentionPolicy.read
+      - DataRetentionPolicy.create
+      - DataRetentionPolicy.update
+      - DataRetentionPolicy.soft_delete
+      - DataRetentionPolicy.restore
+      - DataRetentionPolicy.activate
+      - DataRetentionPolicy.deactivate
+
+      # Error reporting and system logs
+      - ErrorReport.read
+      - ErrorReport.create
+      - ErrorReport.update
+      - ErrorReport.soft_delete
+      - ErrorReport.restore
+
+      - SystemLog.read
+      - SystemLog.create
+      - SystemLog.update
+      - SystemLog.soft_delete
+      - SystemLog.restore
+
+    # =======================================================
+    # DATA EXPORT & REPORTING DOMAIN
+    # =======================================================
+    data_export_reporting:
+      # Export management
+      - ExportJob.read
+      - ExportJob.create
+      - ExportJob.update
+      - ExportJob.soft_delete
+      - ExportJob.restore
+
+      - ExportArtifact.read
+      - ExportArtifact.create
+      - ExportArtifact.update
+      - ExportArtifact.soft_delete
+      - ExportArtifact.restore
+
+      # Report definitions
+      - ReportDefinition.read
+      - ReportDefinition.create
+      - ReportDefinition.update
+      - ReportDefinition.soft_delete
+      - ReportDefinition.restore
+
+      - DashboardDefinition.read
+      - DashboardDefinition.create
+      - DashboardDefinition.update
+      - DashboardDefinition.soft_delete
+      - DashboardDefinition.restore
+  # ===========================================================
+  # PROJECT_MANAGER ROLE PERMISSIONS
+  # ===========================================================
+  # Project Manager: Team and project management with conditional permissions
+  # Scope: Own projects + supervised team members + tenant settings toggles
+  # Exclusions: System-level, full HR access, complete financial control
+
+  PROJECT_MANAGER:
+    # =======================================================
+    # TENANT MANAGEMENT DOMAIN (LIMITED)
+    # =======================================================
+    tenant_management:
+      # Read-only access to tenant settings (no modification)
+      - Tenant.read
+      - TenantSettings.read
+      - TenantMetrics.read
+      - TenantFeatureFlag.read
+      - TenantUsageRecord.read
+
+    # =======================================================
+    # IDENTITY & ACCESS MANAGEMENT DOMAIN (SCOPED)
+    # =======================================================
+    identity_access:
+      # User management (self + team members only)
+      - User.read # Self + supervised members
+      - User.update # Self profile only
+
+      # Member management (conditional via tenant toggles)
+      - Member.read # Self + project team members
+      - Member.update # Self + supervised members
+      - Member.create # allowPmApproval toggle
+      - Member.soft_delete # allowPmApproval toggle
+      - Member.restore # allowPmApproval toggle
+      - Member.assign # Project assignments
+      - Member.unassign # Project assignments
+      - Member.transfer # Project transfers
+
+      # Member role management (conditional)
+      - MemberRole.read # Team visibility
+      - MemberRole.assign # allowPmApproval toggle
+      - MemberRole.unassign # allowPmApproval toggle
+
+      # Member settings
+      - MemberSettings.read
+      - MemberSettings.update # Self + supervised members
+
+      # Member documents
+      - MemberDocument.read
+      - MemberDocument.create # Team documentation
+      - MemberDocument.update
+
+    # =======================================================
+    # RBAC & SECURITY DOMAIN (LIMITED)
+    # =======================================================
+    rbac_security:
+      # Role viewing only (no creation/modification)
+      - Role.read
+      - Permission.read # View available permissions
+      - RolePermission.read # Understand role capabilities
+
+      # Limited API key management
+      - ApiKey.read # Own keys only
+      - ApiKey.create # Own keys only
+      - ApiKey.soft_delete # Own keys only
+
+      # Auth factors (self only)
+      - AuthFactor.read
+      - AuthFactor.create
+      - AuthFactor.update
+
+    # =======================================================
+    # CRM & SALES DOMAIN (FULL ACCESS)
+    # =======================================================
+    crm_sales:
+      # Account and contact management
+      - Account.read
+      - Account.create
+      - Account.update
+      - Account.soft_delete
+      - Account.restore
+      - Account.assign
+      - Account.unassign
+
+      - AccountAddress.read
+      - AccountAddress.create
+      - AccountAddress.update
+      - AccountAddress.soft_delete
+      - AccountAddress.restore
+
+      - Contact.read
+      - Contact.create
+      - Contact.update
+      - Contact.soft_delete
+      - Contact.restore
+
+      # Lead management
+      - Lead.read
+      - Lead.create
+      - Lead.update
+      - Lead.soft_delete
+      - Lead.restore
+      - Lead.assign
+      - Lead.unassign
+      - Lead.transfer
+
+      - LeadActivity.read
+      - LeadActivity.create
+      - LeadActivity.update
+      - LeadActivity.soft_delete
+      - LeadActivity.restore
+
+      # Opportunity management
+      - Opportunity.read
+      - Opportunity.create
+      - Opportunity.update
+      - Opportunity.soft_delete
+      - Opportunity.restore
+      - Opportunity.assign
+      - Opportunity.unassign
+
+      - OpportunityStage.read
+      - OpportunityStage.create
+      - OpportunityStage.update
+
+      - OpportunityLineItem.read
+      - OpportunityLineItem.create
+      - OpportunityLineItem.update
+      - OpportunityLineItem.soft_delete
+      - OpportunityLineItem.restore
+
+      # Quote management
+      - Quote.read
+      - Quote.create
+      - Quote.update
+      - Quote.soft_delete
+      - Quote.restore
+      - Quote.send
+
+      - QuoteLineItem.read
+      - QuoteLineItem.create
+      - QuoteLineItem.update
+      - QuoteLineItem.soft_delete
+      - QuoteLineItem.restore
+
+      # Estimating (with conditional approval)
+      - Estimate.read
+      - Estimate.create
+      - Estimate.update
+      - Estimate.soft_delete
+      - Estimate.restore
+      - Estimate.send
+      - Estimate.approve # allowPmEstimateApproval toggle
+      - Estimate.reject # allowPmEstimateApproval toggle
+
+      - EstimateLineItem.read
+      - EstimateLineItem.create
+      - EstimateLineItem.update
+      - EstimateLineItem.soft_delete
+      - EstimateLineItem.restore
+
+      - EstimateAttachment.read
+      - EstimateAttachment.create
+      - EstimateAttachment.update
+      - EstimateAttachment.soft_delete
+      - EstimateAttachment.restore
+
+      - EstimateApproval.read
+      - EstimateApproval.create
+      - EstimateApproval.approve # allowPmEstimateApproval toggle
+      - EstimateApproval.reject # allowPmEstimateApproval toggle
+
+      # RFQ and bidding
+      - RequestForQuote.read
+      - RequestForQuote.create
+      - RequestForQuote.update
+      - RequestForQuote.send
+
+      - RFQLine.read
+      - RFQLine.create
+      - RFQLine.update
+
+      - Bid.read
+      - Bid.create
+      - Bid.update
+      - Bid.submit
+
+    # =======================================================
+    # PROJECT MANAGEMENT DOMAIN (FULL ACCESS)
+    # =======================================================
+    project_management:
+      # Core project operations
+      - Project.read
+      - Project.create
+      - Project.update
+      - Project.soft_delete # allowPmSoftDelete toggle
+      - Project.restore # allowPmSoftDelete toggle
+      - Project.archive
+      - Project.activate
+      - Project.deactivate
+      - Project.assign # Team assignments
+      - Project.unassign # Team assignments
+      - Project.transfer
+
+      # Project assignments
+      - ProjectTaskAssignment.read
+      - ProjectTaskAssignment.create
+      - ProjectTaskAssignment.update
+      - ProjectTaskAssignment.soft_delete
+      - ProjectTaskAssignment.restore
+      - ProjectTaskAssignment.assign
+      - ProjectTaskAssignment.unassign
+
+      # Project team management
+      - ProjectMember.read
+      - ProjectMember.create
+      - ProjectMember.update
+      - ProjectMember.soft_delete
+      - ProjectMember.restore
+      - ProjectMember.assign
+      - ProjectMember.unassign
+
+      # Project documentation
+      - ProjectNote.read
+      - ProjectNote.create
+      - ProjectNote.update
+      - ProjectNote.soft_delete
+      - ProjectNote.restore
+
+      - ProjectReport.read
+      - ProjectReport.create
+      - ProjectReport.update
+      - ProjectReport.export
+
+      # Project financial tracking (read-only)
+      - ProjectBudgetLine.read
+      - ProjectBudgetLine.create
+      - ProjectBudgetLine.update
+
+      - ProjectFinancialSnapshot.read
+      - ProjectFinancialSnapshot.export
+
+      # Project phases and structure
+      - ProjectPhase.read
+      - ProjectPhase.create
+      - ProjectPhase.update
+      - ProjectPhase.soft_delete
+      - ProjectPhase.restore
+      - ProjectPhase.activate
+      - ProjectPhase.deactivate
+
+      - WBSItem.read
+      - WBSItem.create
+      - WBSItem.update
+      - WBSItem.soft_delete
+      - WBSItem.restore
+
+      # Project locations
+      - ProjectLocation.read
+      - ProjectLocation.create
+      - ProjectLocation.update
+      - ProjectLocation.soft_delete
+      - ProjectLocation.restore
+
+      # Project tasks (detailed)
+      - ProjectTask.read
+      - ProjectTask.create
+      - ProjectTask.update
+      - ProjectTask.soft_delete # allowPmSoftDelete toggle
+      - ProjectTask.restore
+      - ProjectTask.assign
+      - ProjectTask.unassign
+
+      - ProjectTaskDependency.read
+      - ProjectTaskDependency.create
+      - ProjectTaskDependency.update
+      - ProjectTaskDependency.soft_delete
+      - ProjectTaskDependency.restore
+
+      - ProjectTaskComment.read
+      - ProjectTaskComment.create
+      - ProjectTaskComment.update
+      - ProjectTaskComment.soft_delete
+      - ProjectTaskComment.restore
+
+      # Change orders (with conditional approval)
+      - ChangeOrder.read
+      - ChangeOrder.create
+      - ChangeOrder.update
+      - ChangeOrder.soft_delete
+      - ChangeOrder.restore
+      - ChangeOrder.approve # allowPmChangeOrderApproval toggle
+      - ChangeOrder.reject # allowPmChangeOrderApproval toggle
+
+      - ChangeOrderLine.read
+      - ChangeOrderLine.create
+      - ChangeOrderLine.update
+
+      - ChangeOrderApproval.read
+      - ChangeOrderApproval.create
+      - ChangeOrderApproval.approve # allowPmChangeOrderApproval toggle
+      - ChangeOrderApproval.reject # allowPmChangeOrderApproval toggle
+
+      # RFI management
+      - RFI.read
+      - RFI.create
+      - RFI.update
+      - RFI.send
+
+      - RFIReply.read
+      - RFIReply.create
+      - RFIReply.update
+
+      # Submittals
+      - Submittal.read
+      - Submittal.create
+      - Submittal.update
+
+      - SubmittalItem.read
+      - SubmittalItem.create
+      - SubmittalItem.update
+
+      - SubmittalApproval.read
+      - SubmittalApproval.create
+      - SubmittalApproval.approve
+      - SubmittalApproval.reject
+
+      # Inspections
+      - Inspection.read
+      - Inspection.create
+      - Inspection.update
+
+      - InspectionItem.read
+      - InspectionItem.create
+      - InspectionItem.update
+
+      - InspectionApproval.read
+      - InspectionApproval.create
+      - InspectionApproval.approve
+      - InspectionApproval.reject
+
+      # Daily logs and punch lists
+      - DailyLog.read
+      - DailyLog.create
+      - DailyLog.update
+
+      - PunchList.read
+      - PunchList.create
+      - PunchList.update
+
+      - PunchListItem.read
+      - PunchListItem.create
+      - PunchListItem.update
+
+    # =======================================================
+    # TASK EXECUTION DOMAIN (FULL ACCESS)
+    # =======================================================
+    task_execution:
+      # Core task operations
+      - Task.read
+      - Task.create
+      - Task.update
+      - Task.soft_delete # allowPmSoftDelete toggle
+      - Task.restore
+      - Task.assign
+      - Task.unassign
+      - Task.transfer
+      - Task.activate
+      - Task.deactivate
+
+      # Task assignments
+      - TaskAssignment.read
+      - TaskAssignment.create
+      - TaskAssignment.update
+      - TaskAssignment.assign
+      - TaskAssignment.unassign
+      - TaskAssignment.transfer
+
+      # Task dependencies
+      - TaskDependency.read
+      - TaskDependency.create
+      - TaskDependency.update
+      - TaskDependency.soft_delete
+      - TaskDependency.restore
+
+      # Task documentation
+      - TaskAttachment.read
+      - TaskAttachment.create
+      - TaskAttachment.update
+      - TaskAttachment.soft_delete
+      - TaskAttachment.restore
+
+      # Task checklist management
+      - TaskChecklistItem.read
+      - TaskChecklistItem.create
+      - TaskChecklistItem.update
+      - TaskChecklistItem.soft_delete
+      - TaskChecklistItem.restore
+
+    # =======================================================
+    # FINANCIAL OPERATIONS DOMAIN (LIMITED ACCESS)
+    # =======================================================
+    financial_operations:
+      # Invoice management (conditional)
+      - Invoice.read
+      - Invoice.create # Project-related invoices
+      - Invoice.update
+      - Invoice.send # allowPmInvoiceSend toggle
+      - Invoice.soft_delete # allowPmInvoiceDelete toggle
+
+      - InvoiceLineItem.read
+      - InvoiceLineItem.create
+      - InvoiceLineItem.update
+
+      # Payment viewing only
+      - Payment.read # Project payments visibility
+      - PaymentSchedule.read
+
+      # Purchase orders (project-related)
+      - PurchaseOrder.read
+      - PurchaseOrder.create
+      - PurchaseOrder.update
+      - PurchaseOrder.send
+      - PurchaseOrder.approve # allowPmApproval toggle
+      - PurchaseOrder.reject # allowPmApproval toggle
+
+      - PurchaseOrderLine.read
+      - PurchaseOrderLine.create
+      - PurchaseOrderLine.update
+
+      # Expense management (team expenses)
+      - Expense.read # Supervised team expenses
+      - Expense.create
+      - Expense.update
+      - Expense.approve # allowPmApproval toggle
+      - Expense.reject # allowPmApproval toggle
+
+      - ExpenseLine.read
+      - ExpenseLine.create
+      - ExpenseLine.update
+
+      - ExpenseReceipt.read
+      - ExpenseReceipt.create
+      - ExpenseReceipt.update
+      - ExpenseReceipt.approve # allowPmApproval toggle
+      - ExpenseReceipt.reject # allowPmApproval toggle
+
+      # Limited payroll access (team only)
+      - PayrollRun.read # Supervised members only
+      - PayrollItem.read # Supervised members only
+      - PayrollRun.submit # allowPmApproval toggle
+      - PayrollRun.approve # allowPmApproval toggle
+
+    # =======================================================
+    # TIME & SCHEDULING DOMAIN (TEAM MANAGEMENT)
+    # =======================================================
+    time_scheduling:
+      # Time tracking (self + supervised team)
+      - ClockInClockOut.read # Self + supervised members
+      - ClockInClockOut.create # Self entry
+      - ClockInClockOut.update # Self entry
+      - ClockInClockOut.approve # allowPmTimeApproval toggle
+      - ClockInClockOut.reject # allowPmTimeApproval toggle
+
+      # Schedule management
+      - Schedule.read
+      - Schedule.create # Team schedules
+      - Schedule.update
+      - Schedule.soft_delete # allowPmSoftDelete toggle
+      - Schedule.restore
+      - Schedule.publish
+
+      # Schedule exceptions
+      - ScheduleException.read
+      - ScheduleException.create
+      - ScheduleException.update
+      - ScheduleException.approve # allowPmScheduleSwapApproval toggle
+      - ScheduleException.reject # allowPmScheduleSwapApproval toggle
+
+      # Time off management
+      - Leave.read # Self + supervised members
+      - Leave.create # Self entry
+      - Leave.update # Self entry
+      - Leave.approve # allowPmTimeApproval toggle
+      - Leave.reject # allowPmTimeApproval toggle
+
+      # Timesheets
+      - Timesheet.read # Self + supervised members
+      - Timesheet.create
+      - Timesheet.update
+      - Timesheet.approve # allowPmTimeApproval toggle
+      - Timesheet.reject # allowPmTimeApproval toggle
+
+      - TimesheetEntry.read
+      - TimesheetEntry.create
+      - TimesheetEntry.update
+
+      # Leave management (team)
+
+      - LeaveOfAbsence.read
+      - LeaveOfAbsence.approve # allowPmTimeApproval toggle
+      - LeaveOfAbsence.reject # allowPmTimeApproval toggle
+
+    # =======================================================
+    # INVENTORY & ASSETS DOMAIN (PROJECT-SCOPED)
+    # =======================================================
+    inventory_assets:
+      # Inventory management (project materials)
+      - InventoryItem.read
+      - InventoryItem.update # Project assignments only
+      - InventoryItem.assign # To projects/workers
+      - InventoryItem.unassign # From projects/workers
+      - InventoryItem.transfer
+
+      - InventoryTransaction.read
+      - InventoryTransaction.create # Project transactions
+      - InventoryTransaction.update
+
+      - InventoryCount.read
+      - InventoryCount.create # Project inventory counts
+      - InventoryCount.update
+
+      # Asset management (project assets)
+      - Asset.read # Project assets
+      - Asset.assign # To projects/members
+      - Asset.unassign # From projects/members
+      - Asset.transfer
+
+      - AssetAssignment.read
+      - AssetAssignment.create
+      - AssetAssignment.update
+      - AssetAssignment.assign
+      - AssetAssignment.unassign
+
+    # =======================================================
+    # COMMUNICATION DOMAIN (TEAM COMMUNICATION)
+    # =======================================================
+    communication:
+      # Channel management
+      - Channel.read
+      - Channel.create # Project/team channels
+      - Channel.update
+      - Channel.archive
+
+      - ChannelMember.read
+      - ChannelMember.create
+      - ChannelMember.assign # Add team members
+      - ChannelMember.unassign # Remove team members
+
+      # Direct messaging
+      - DirectChat.read
+      - DirectChat.create # With admin/team members
+      - DirectChat.update
+
+      - DirectMessage.read
+      - DirectMessage.create
+      - DirectMessage.update # Own messages only
+      - DirectMessage.soft_delete # Own messages only
+
+      # Notifications
+      - Notification.read
+      - NotificationPreference.read
+      - NotificationPreference.update
+
+    # =======================================================
+    # DOCUMENT MANAGEMENT DOMAIN (PROJECT DOCUMENTS)
+    # =======================================================
+    document_management:
+      # File and attachment management
+      - FileObject.read
+      - FileObject.create # Project documents
+      - FileObject.update
+      - FileObject.soft_delete
+      - FileObject.restore
+
+      - Attachment.read
+      - Attachment.create
+      - Attachment.update
+      - Attachment.soft_delete
+      - Attachment.restore
+
+      # Contract templates (read-only)
+      - ContractTemplate.read
+      - TermsTemplate.read
+
+    # =======================================================
+    # VENDOR & CONTRACT MANAGEMENT DOMAIN (PROJECT VENDORS)
+    # =======================================================
+    vendor_contract:
+      # Vendor management (project vendors)
+      - Vendor.read
+      - Vendor.create # Project vendors
+      - Vendor.update
+      - Vendor.assign # To projects
+      - Vendor.unassign # From projects
+
+      - VendorContact.read
+      - VendorContact.create
+      - VendorContact.update
+
+      # Contract management (project contracts)
+      - Contract.read
+      - Contract.create # Project contracts
+      - Contract.update
+
+    # =======================================================
+    # APPROVAL WORKFLOWS DOMAIN (PROJECT APPROVALS)
+    # =======================================================
+    approval_workflows:
+      # Approval requests and decisions
+      - ApprovalRequest.read
+      - ApprovalRequest.create # Project-related approvals
+      - ApprovalRequest.update
+      - ApprovalRequest.submit
+      - ApprovalRequest.approve # Within authority
+      - ApprovalRequest.reject # Within authority
+
+      - ApprovalDecision.read
+      - ApprovalDecision.create
+
+      - ApprovalRule.read # View approval rules
+
+    # =======================================================
+    # SYSTEM CONFIGURATION DOMAIN (READ-ONLY)
+    # =======================================================
+    system_config:
+      # Location and geography (read-only)
+      - Location.read
+      - Country.read
+      - Region.read
+      - StateProvince.read
+
+      # Pricing (read-only)
+      - PriceList.read
+      - PriceListItem.read
+
+      # Cost management (project costs)
+      - CostCenter.read
+      - CostCategory.read
+      - CostCode.read
+
+      # Work types (read-only)
+      - WorkType.read
+
+    # =======================================================
+    # AUDIT & COMPLIANCE DOMAIN (READ-ONLY)
+    # =======================================================
+    audit_compliance:
+      # Audit logs (project-related only)
+      - TenantAuditLog.read # Project audit trail
+
+    # =======================================================
+    # DATA EXPORT & REPORTING DOMAIN (LIMITED)
+    # =======================================================
+    data_export_reporting:
+      # Export management (project reports)
+      - ExportJob.read
+      - ExportJob.create # Project data exports
+
+      # Report definitions (project reports)
+      - ReportDefinition.read
+      - DashboardDefinition.read
+
+    # =======================================================
+    # ROOMPLAN & SPATIAL DATA DOMAIN (FULL ACCESS)
+    # =======================================================
+    roomplan_spatial:
+      # LiDAR scanning and session management
+      - RoomScanSession.read
+      - RoomScanSession.list
+      - RoomScanSession.create
+      - RoomScanSession.update
+      - RoomScanSession.soft_delete
+      - RoomScanSession.restore
+      - RoomScanSession.activate
+      - RoomScanSession.deactivate
+      - RoomScanSession.export
+
+      # Scan file management
+      - RoomScanFile.read
+      - RoomScanFile.list
+      - RoomScanFile.create
+      - RoomScanFile.update
+      - RoomScanFile.soft_delete
+      - RoomScanFile.restore
+      - RoomScanFile.export
+
+      # 3D model management
+      - RoomModel.read
+      - RoomModel.list
+      - RoomModel.create
+      - RoomModel.update
+      - RoomModel.soft_delete
+      - RoomModel.restore
+      - RoomModel.publish
+      - RoomModel.export
+      - RoomModel.duplicate
+
+      # Measurement and dimension tracking
+      - RoomMeasurement.read
+      - RoomMeasurement.list
+      - RoomMeasurement.create
+      - RoomMeasurement.update
+      - RoomMeasurement.soft_delete
+      - RoomMeasurement.restore
+      - RoomMeasurement.export
+
+      # Object detection and classification
+      - RoomObject.read
+      - RoomObject.list
+      - RoomObject.create
+      - RoomObject.update
+      - RoomObject.soft_delete
+      - RoomObject.restore
+      - RoomObject.export
+
+      # Surface analysis and materials
+      - RoomSurface.read
+      - RoomSurface.list
+      - RoomSurface.create
+      - RoomSurface.update
+      - RoomSurface.soft_delete
+      - RoomSurface.restore
+      - RoomSurface.export
+
+      # Annotations and markups
+      - RoomAnnotation.read
+      - RoomAnnotation.list
+      - RoomAnnotation.create
+      - RoomAnnotation.update
+      - RoomAnnotation.soft_delete
+      - RoomAnnotation.restore
+      - RoomAnnotation.publish
+      - RoomAnnotation.export
+
+      # Export and output management
+      - RoomExport.read
+      - RoomExport.list
+      - RoomExport.create
+      - RoomExport.update
+      - RoomExport.soft_delete
+      - RoomExport.restore
+      - RoomExport.export
+      - RoomExport.send
+
+      # Preset and template management
+      - RoomPlanPreset.read
+      - RoomPlanPreset.list
+      - RoomPlanPreset.create
+      - RoomPlanPreset.update
+      - RoomPlanPreset.soft_delete
+      - RoomPlanPreset.restore
+      - RoomPlanPreset.duplicate
+      - RoomPlanPreset.publish
+
+      # Processing job management
+      - RoomProcessingJob.read
+      - RoomProcessingJob.list
+      - RoomProcessingJob.create
+      - RoomProcessingJob.update
+      - RoomProcessingJob.soft_delete
+      - RoomProcessingJob.restore
+      - RoomProcessingJob.activate
+      - RoomProcessingJob.deactivate
+
+  # ===========================================================
+  # RLS POLICY ALIGNMENT NOTES
+  # ===========================================================
+  #
+  # All permissions above must be enforced by RLS policies that:
+  # 1. Filter by tenantId = app.current_tenant_id()
+  # 2. Respect soft delete (deletedAt IS NULL)
+  # 3. Apply role-based restrictions via app.is_admin() or app.is_project_manager()
+  # 4. Handle audit fields appropriately
+  # 5. Enforce tenant toggle conditions via TenantSettings
+  #
+  # Admin role gets full CRUD on tenant-scoped resources but:
+  # - NO access to User table (global, managed by system)
+  # - NO access to Permission table (global catalog)
+  # - NO access to system/platform tables
+  # - NO tenant creation (system-level operation)
+  #
+  # ===========================================================
+  # WORKER ROLE PERMISSIONS
+  # ===========================================================
+  # Worker: Field worker with task execution and limited project access
+  # Scope: Assigned projects/tasks only + own time/payroll + project expenses
+  # Exclusions: No management functions, no CRM, limited communication
+
+  WORKER:
+    # =======================================================
+    # IDENTITY & ACCESS MANAGEMENT DOMAIN (SELF ONLY)
+    # =======================================================
+    identity_access:
+      # User management (self only)
+      - User.read # Self profile only
+      - User.update # Self profile only
+
+      # Member management (self only)
+      - Member.read # Self record only
+      - Member.update # Self profile only
+
+      # Member settings (self only)
+      - MemberSettings.read
+      - MemberSettings.update # Own preferences only
+
+      # Member documents (self only)
+      - MemberDocument.read # Own documents only
+      - MemberDocument.create # Upload own documents
+      - MemberDocument.update # Own documents only
+
+    # =======================================================
+    # PROJECT MANAGEMENT DOMAIN (ASSIGNED PROJECTS ONLY)
+    # =======================================================
+    project_management:
+      # Core project operations (assigned projects only)
+      - Project.read # Assigned projects only
+
+      # Project assignments (read-only)
+      - ProjectTaskAssignment.read # Own assignments
+
+      # Project documentation
+      - ProjectNote.read # Project notes
+      - ProjectNote.create # Add project notes
+      - ProjectNote.update # Own notes only
+
+      # Project locations (assigned projects)
+      - ProjectLocation.read # Project locations
+
+      # Project tasks (assigned tasks only)
+      - ProjectTask.read # Assigned tasks only
+      - ProjectTask.update # Assigned tasks only
+
+      - ProjectTaskComment.read # Task comments
+      - ProjectTaskComment.create # Add task comments
+      - ProjectTaskComment.update # Own comments only
+
+      # Daily logs (project work)
+      - DailyLog.read # Project daily logs
+      - DailyLog.create # Add work logs
+      - DailyLog.update # Own logs only
+
+    # =======================================================
+    # TASK EXECUTION DOMAIN (ASSIGNED TASKS ONLY)
+    # =======================================================
+    task_execution:
+      # Core task operations (assigned tasks only)
+      - Task.read # Assigned tasks only
+      - Task.update # Assigned tasks only (progress/status)
+
+      # Task assignments (read-only)
+      - TaskAssignment.read # Own task assignments
+
+      # Task dependencies (read-only)
+      - TaskDependency.read # View task dependencies
+
+      # Task documentation
+      - TaskAttachment.read # Task attachments
+      - TaskAttachment.create # Upload task files
+
+      # Task checklist management
+      - TaskChecklistItem.read # Task checklists
+      - TaskChecklistItem.update # Complete checklist items
+
+    # =======================================================
+    # FINANCIAL OPERATIONS DOMAIN (PROJECT EXPENSES ONLY)
+    # =======================================================
+    financial_operations:
+      # Expense management (project expenses only)
+      # RLS CONSTRAINT: projectId must be in assigned projects
+      - Expense.read # Own expenses only
+      - Expense.create # Create project expenses
+      - Expense.update # Own expenses only (draft state)
+
+      - ExpenseLine.read # Own expense lines
+      - ExpenseLine.create # Add expense lines
+      - ExpenseLine.update # Own expense lines
+
+      - ExpenseReceipt.read # Own receipts
+      - ExpenseReceipt.create # Upload receipts
+      - ExpenseReceipt.update # Own receipts (draft state)
+
+      # Limited payroll access (own records only)
+      - PayrollRun.read # Own payroll runs
+      - PayrollItem.read # Own payroll items
+      - PayStatement.read # Own pay statements
+
+    # =======================================================
+    # TIME & SCHEDULING DOMAIN (SELF ONLY)
+    # =======================================================
+    time_scheduling:
+      # Time tracking (self only)
+      - ClockInClockOut.read # Own time entries
+      - ClockInClockOut.create # Clock in/out
+      - ClockInClockOut.update # Own time entries
+
+      # Schedule management (read-only)
+      - Schedule.read # Own schedule only
+
+      # Schedule exceptions (own requests)
+      - ScheduleException.read # Own schedule changes
+      - ScheduleException.create # Request schedule changes
+      - ScheduleException.update # Own pending requests
+
+      # Time off management (self only)
+      - Leave.read # Own time off requests
+      - Leave.create # Request time off
+      - Leave.update # Own pending requests
+
+      # Timesheets (self only)
+      - Timesheet.read # Own timesheets
+      - Timesheet.create # Create timesheets
+      - Timesheet.update # Own timesheets
+
+      - TimesheetEntry.read # Own timesheet entries
+      - TimesheetEntry.create # Add time entries
+      - TimesheetEntry.update # Own entries
+
+    # =======================================================
+    # INVENTORY & ASSETS DOMAIN (READ-ONLY, ASSIGNED ITEMS)
+    # =======================================================
+    inventory_assets:
+      # Inventory management (read-only, assigned items only)
+      - InventoryItem.read # Assigned inventory items only
+
+      - InventoryTransaction.read # View inventory movements
+
+      # Asset management (read-only, assigned assets)
+      - Asset.read # Assigned project assets only
+
+      - AssetAssignment.read # Own asset assignments
+
+    # =======================================================
+    # COMMUNICATION DOMAIN (PROJECT COMMUNICATION)
+    # =======================================================
+    communication:
+      # Channel management (project channels only)
+      - Channel.read # Project channels only
+
+      - ChannelMember.read # Channel membership
+
+      # Direct messaging (limited)
+      - DirectChat.read # Own direct chats
+      - DirectChat.create # Chat with team members
+
+      - DirectMessage.read # Own messages
+      - DirectMessage.create # Send messages
+      - DirectMessage.update # Edit own messages
+      - DirectMessage.soft_delete # Delete own messages
+
+      # Notifications (self only)
+      - Notification.read # Own notifications
+      - NotificationPreference.read # Own preferences
+      - NotificationPreference.update # Update own preferences
+
+    # =======================================================
+    # DOCUMENT MANAGEMENT DOMAIN (PROJECT DOCUMENTS)
+    # =======================================================
+    document_management:
+      # File and attachment management (project files only)
+      - FileObject.read # Project files
+      - FileObject.create # Upload project files
+
+      - Attachment.read # Project attachments
+      - Attachment.create # Add attachments
+
+  # ===========================================================
+  # DRIVER ROLE PERMISSIONS (Similar to Worker but more limited)
+  # ===========================================================
+  # Driver: Delivery/transport worker with minimal project access
+  # Scope: Task assignments + location info + PM contact + own time/expenses
+  # Exclusions: No project details, no team chat, very limited visibility
+
+  DRIVER:
+    # =======================================================
+    # IDENTITY & ACCESS MANAGEMENT DOMAIN (SELF ONLY)
+    # =======================================================
+    identity_access:
+      # User management (self only)
+      - User.read # Self profile only
+      - User.update # Self profile only
+
+      # Member management (self only)
+      - Member.read # Self record only
+      - Member.update # Self profile only
+
+      # Member settings (self only)
+      - MemberSettings.read
+      - MemberSettings.update # Own preferences only
+
+    # =======================================================
+    # PROJECT MANAGEMENT DOMAIN (MINIMAL ACCESS)
+    # =======================================================
+    project_management:
+      # Core project operations (location + PM contact only)
+      # RLS CONSTRAINT: Only location and PM contact info for assigned tasks
+      - Project.read # Location + PM contact only
+
+      # Project assignments (read-only)
+      - ProjectTaskAssignment.read # Own assignments only
+
+      # Project locations (delivery addresses)
+      - ProjectLocation.read # Delivery locations
+
+    # =======================================================
+    # TASK EXECUTION DOMAIN (ASSIGNED TASKS ONLY)
+    # =======================================================
+    task_execution:
+      # Core task operations (assigned tasks only)
+      - Task.read # Assigned delivery tasks only
+      - Task.update # Update task status/progress
+
+      # Task assignments (read-only)
+      - TaskAssignment.read # Own task assignments
+
+      # Task documentation (delivery proof)
+      - TaskAttachment.read # Task attachments
+      - TaskAttachment.create # Upload delivery proof
+
+    # =======================================================
+    # FINANCIAL OPERATIONS DOMAIN (EXPENSES ONLY)
+    # =======================================================
+    financial_operations:
+      # Expense management (delivery expenses only)
+      # RLS CONSTRAINT: projectId must be in assigned task projects
+      - Expense.read # Own expenses only
+      - Expense.create # Create delivery expenses
+      - Expense.update # Own expenses only (draft state)
+
+      - ExpenseReceipt.read # Own receipts
+      - ExpenseReceipt.create # Upload receipts
+      - ExpenseReceipt.update # Own receipts (draft state)
+
+      # Payroll access (own records only)
+      - PayrollRun.read # Own payroll runs
+      - PayrollItem.read # Own payroll items
+      - PayStatement.read # Own pay statements
+
+    # =======================================================
+    # TIME & SCHEDULING DOMAIN (SELF ONLY)
+    # =======================================================
+    time_scheduling:
+      # Time tracking (self only)
+      - ClockInClockOut.read # Own time entries
+      - ClockInClockOut.create # Clock in/out
+
+      # Schedule management (read-only)
+      - Schedule.read # Own schedule only
+
+      # Time off management (self only)
+      - Leave.read # Own time off requests
+      - Leave.create # Request time off
+      - Leave.update # Own pending requests
+
+    # =======================================================
+    # INVENTORY & ASSETS DOMAIN (READ-ONLY)
+    # =======================================================
+    inventory_assets:
+      # Inventory management (read-only, delivery items only)
+      - InventoryItem.read # Delivery inventory items only
+
+      - InventoryTransaction.read # View delivery transactions
+
+    # =======================================================
+    # COMMUNICATION DOMAIN (DIRECT CHAT ONLY)
+    # =======================================================
+    communication:
+      # Direct messaging (Admin/PM only)
+      # RLS CONSTRAINT: Can only chat with Admin or Project Manager
+      - DirectChat.read # Own direct chats
+      - DirectChat.create # Chat with Admin/PM only
+
+      - DirectMessage.read # Own messages
+      - DirectMessage.create # Send messages to Admin/PM
+      - DirectMessage.update # Edit own messages
+      - DirectMessage.soft_delete # Delete own messages
+
+      # Notifications (self only)
+      - Notification.read # Own notifications
+      - NotificationPreference.read # Own preferences
+      - NotificationPreference.update # Update own preferences
+
+  # Project Manager role gets project and team management but:
+  # - NO full financial control (limited to project expenses)
+  # - NO full HR access (limited to supervised team members)
+  # - NO system configuration changes (read-only)
+  # - NO global user management (team members only)
+  # - Conditional permissions based on TenantSettings toggles
+  #
+  # Worker role gets task execution and project participation but:
+  # - NO management functions or team supervision
+  # - NO CRM or sales access
+  # - NO system configuration access
+  # - Only assigned projects and own expenses
+  # - Limited communication (project channels only)
+  #
+  # ===========================================================
+  # VIEWER ROLE PERMISSIONS (SANDBOX MODE)
+  # ===========================================================
+  # Viewer: Demo/learning environment with Admin-like access in sandbox tenants only
+  # RLS CRITICAL CONSTRAINT: Tenant.isSandbox = true ENFORCED FOR ALL OPERATIONS
+  # Scope: Full business functionality demo + learning without real data impact
+  # Exclusions: No production tenants, no platform infrastructure, no real billing
+
+  VIEWER:
+    # =======================================================
+    # TENANT MANAGEMENT DOMAIN (SANDBOX ONLY)
+    # =======================================================
+    tenant_management:
+      # Sandbox tenant management (demo configuration)
+      # RLS CONSTRAINT: WHERE Tenant.isSandbox = true
+      - Tenant.read # View sandbox tenant details
+      - Tenant.update # Modify sandbox tenant settings
+
+      # Tenant configuration and settings (sandbox)
+      - TenantSettings.read
+      - TenantSettings.update # Configure demo settings
+      - TenantSettings.activate
+      - TenantSettings.deactivate
+
+      # Tenant metrics (sandbox data)
+      - TenantMetrics.read
+      - TenantMetrics.export
+
+      # Feature flags (demo features)
+      - TenantFeatureFlag.read
+      - TenantFeatureFlag.create
+      - TenantFeatureFlag.update
+      - TenantFeatureFlag.activate
+      - TenantFeatureFlag.deactivate
+
+      # Usage tracking (sandbox usage)
+      - TenantUsageRecord.read
+      - TenantUsageRecord.export
+
+    # =======================================================
+    # IDENTITY & ACCESS MANAGEMENT DOMAIN (SANDBOX)
+    # =======================================================
+    identity_access:
+      # User management (sandbox users only)
+      - User.read # Demo users
+      - User.update # Self profile in demo
+
+      # Member management (sandbox members)
+      - Member.read # Demo members
+      - Member.create # Create demo members
+      - Member.update # Modify demo members
+      - Member.soft_delete # Delete demo members
+      - Member.restore # Restore demo members
+      - Member.assign # Demo assignments
+      - Member.unassign # Demo unassignments
+
+      # Member settings (demo)
+      - MemberSettings.read
+      - MemberSettings.update # Demo preferences
+
+      # Member documents (demo)
+      - MemberDocument.read
+      - MemberDocument.create
+      - MemberDocument.update
+
+    # =======================================================
+    # RBAC & SECURITY DOMAIN (SANDBOX DEMO)
+    # =======================================================
+    rbac_security:
+      # Role management (sandbox roles)
+      - Role.read
+      - Role.create # Create demo roles
+      - Role.update # Modify demo roles
+      - Role.soft_delete # Delete demo roles
+      - Role.restore # Restore demo roles
+
+      # Permission viewing
+      - Permission.read # View available permissions
+
+      # Role-permission assignments (demo)
+      - RolePermission.read
+      - RolePermission.create # Demo role assignments
+      - RolePermission.soft_delete # Demo role removals
+      - RolePermission.restore
+
+    # =======================================================
+    # CRM & SALES DOMAIN (FULL DEMO ACCESS)
+    # =======================================================
+    crm_sales:
+      # Account and contact management (demo data)
+      - Account.read
+      - Account.create # Demo accounts
+      - Account.update
+      - Account.soft_delete
+      - Account.restore
+      - Account.hard_delete # Demo cleanup
+
+      - AccountAddress.read
+      - AccountAddress.create
+      - AccountAddress.update
+      - AccountAddress.soft_delete
+      - AccountAddress.restore
+      - AccountAddress.hard_delete
+
+      - Contact.read
+      - Contact.create # Demo contacts
+      - Contact.update
+      - Contact.soft_delete
+      - Contact.restore
+      - Contact.hard_delete
+
+      # Lead management (demo leads)
+      - Lead.read
+      - Lead.create
+      - Lead.update
+      - Lead.soft_delete
+      - Lead.restore
+      - Lead.hard_delete
+      - Lead.assign
+      - Lead.unassign
+
+      - LeadActivity.read
+      - LeadActivity.create
+      - LeadActivity.update
+      - LeadActivity.soft_delete
+      - LeadActivity.restore
+
+      # Opportunity management (demo opportunities)
+      - Opportunity.read
+      - Opportunity.create
+      - Opportunity.update
+      - Opportunity.soft_delete
+      - Opportunity.restore
+      - Opportunity.hard_delete
+      - Opportunity.assign
+      - Opportunity.unassign
+
+      - OpportunityStage.read
+      - OpportunityStage.create
+      - OpportunityStage.update
+
+      - OpportunityLineItem.read
+      - OpportunityLineItem.create
+      - OpportunityLineItem.update
+      - OpportunityLineItem.soft_delete
+      - OpportunityLineItem.restore
+
+      # Quote management (demo quotes)
+      - Quote.read
+      - Quote.create
+      - Quote.update
+      - Quote.soft_delete
+      - Quote.restore
+      - Quote.hard_delete
+      - Quote.send # Demo quote sending
+      - Quote.approve
+      - Quote.reject
+
+      - QuoteLineItem.read
+      - QuoteLineItem.create
+      - QuoteLineItem.update
+      - QuoteLineItem.soft_delete
+      - QuoteLineItem.restore
+
+      # Estimating (demo estimates)
+      - Estimate.read
+      - Estimate.create
+      - Estimate.update
+      - Estimate.soft_delete
+      - Estimate.restore
+      - Estimate.hard_delete
+      - Estimate.send
+      - Estimate.approve
+      - Estimate.reject
+
+      - EstimateLineItem.read
+      - EstimateLineItem.create
+      - EstimateLineItem.update
+      - EstimateLineItem.soft_delete
+      - EstimateLineItem.restore
+
+      - EstimateAttachment.read
+      - EstimateAttachment.create
+      - EstimateAttachment.update
+      - EstimateAttachment.soft_delete
+      - EstimateAttachment.restore
+
+      - EstimateApproval.read
+      - EstimateApproval.create
+      - EstimateApproval.approve
+      - EstimateApproval.reject
+
+      # Estimate extensions
+      - EstimateComment.read
+      - EstimateComment.create
+      - EstimateComment.update
+      - EstimateComment.soft_delete
+      - EstimateComment.restore
+
+      - EstimateDiscount.read
+      - EstimateDiscount.create
+      - EstimateDiscount.update
+      - EstimateDiscount.soft_delete
+      - EstimateDiscount.restore
+
+      - EstimateHistoryEvent.read
+      - EstimateHistoryEvent.create
+
+      - EstimateRevision.read
+      - EstimateRevision.create
+      - EstimateRevision.update
+      - EstimateRevision.soft_delete
+      - EstimateRevision.restore
+
+      - EstimateTax.read
+      - EstimateTax.create
+      - EstimateTax.update
+      - EstimateTax.soft_delete
+      - EstimateTax.restore
+
+      - EstimateTerm.read
+      - EstimateTerm.create
+      - EstimateTerm.update
+      - EstimateTerm.soft_delete
+      - EstimateTerm.restore
+
+      # RFQ and bidding (demo)
+      - RequestForQuote.read
+      - RequestForQuote.create
+      - RequestForQuote.update
+      - RequestForQuote.send
+
+      - RFQLine.read
+      - RFQLine.create
+      - RFQLine.update
+
+      - Bid.read
+      - Bid.create
+      - Bid.update
+      - Bid.submit
+      - Bid.approve
+      - Bid.reject
+
+    # =======================================================
+    # PROJECT MANAGEMENT DOMAIN (FULL DEMO ACCESS)
+    # =======================================================
+    project_management:
+      # Core project operations (demo projects)
+      - Project.read
+      - Project.create # Demo projects
+      - Project.update
+      - Project.soft_delete
+      - Project.restore
+      - Project.hard_delete # Demo cleanup
+      - Project.archive
+      - Project.activate
+      - Project.deactivate
+      - Project.assign
+      - Project.unassign
+
+      # Project assignments (demo)
+      - ProjectTaskAssignment.read
+      - ProjectTaskAssignment.create
+      - ProjectTaskAssignment.update
+      - ProjectTaskAssignment.soft_delete
+      - ProjectTaskAssignment.restore
+      - ProjectTaskAssignment.assign
+      - ProjectTaskAssignment.unassign
+
+      # Project team management (demo)
+      - ProjectMember.read
+      - ProjectMember.create
+      - ProjectMember.update
+      - ProjectMember.soft_delete
+      - ProjectMember.restore
+      - ProjectMember.assign
+      - ProjectMember.unassign
+
+      # Project documentation (demo)
+      - ProjectNote.read
+      - ProjectNote.create
+      - ProjectNote.update
+      - ProjectNote.soft_delete
+      - ProjectNote.restore
+
+      - ProjectReport.read
+      - ProjectReport.create
+      - ProjectReport.update
+      - ProjectReport.export
+
+      # Project financial tracking (demo)
+      - ProjectBudgetLine.read
+      - ProjectBudgetLine.create
+      - ProjectBudgetLine.update
+
+      - ProjectFinancialSnapshot.read
+      - ProjectFinancialSnapshot.create
+      - ProjectFinancialSnapshot.export
+
+      # Project tasks (demo)
+      - ProjectTask.read
+      - ProjectTask.create
+      - ProjectTask.update
+      - ProjectTask.soft_delete
+      - ProjectTask.restore
+      - ProjectTask.assign
+      - ProjectTask.unassign
+
+      - ProjectTaskComment.read
+      - ProjectTaskComment.create
+      - ProjectTaskComment.update
+
+      # Change orders (demo)
+      - ChangeOrder.read
+      - ChangeOrder.create
+      - ChangeOrder.update
+      - ChangeOrder.soft_delete
+      - ChangeOrder.restore
+      - ChangeOrder.approve
+      - ChangeOrder.reject
+
+      - ChangeOrderLine.read
+      - ChangeOrderLine.create
+      - ChangeOrderLine.update
+
+      - ChangeOrderApproval.read
+      - ChangeOrderApproval.create
+      - ChangeOrderApproval.approve
+      - ChangeOrderApproval.reject
+
+    # =======================================================
+    # TASK EXECUTION DOMAIN (DEMO TASKS)
+    # =======================================================
+    task_execution:
+      # Core task operations (demo tasks)
+      - Task.read
+      - Task.create
+      - Task.update
+      - Task.soft_delete
+      - Task.restore
+      - Task.hard_delete
+      - Task.assign
+      - Task.unassign
+      - Task.activate
+      - Task.deactivate
+
+      # Task assignments (demo)
+      - TaskAssignment.read
+      - TaskAssignment.create
+      - TaskAssignment.update
+      - TaskAssignment.assign
+      - TaskAssignment.unassign
+
+      # Task dependencies (demo)
+      - TaskDependency.read
+      - TaskDependency.create
+      - TaskDependency.update
+
+      # Task documentation (demo)
+      - TaskAttachment.read
+      - TaskAttachment.create
+      - TaskAttachment.update
+
+      # Task checklist management (demo)
+      - TaskChecklistItem.read
+      - TaskChecklistItem.create
+      - TaskChecklistItem.update
+
+    # =======================================================
+    # FINANCIAL OPERATIONS DOMAIN (DEMO FINANCIALS)
+    # =======================================================
+    financial_operations:
+      # Invoice management (demo invoices)
+      - Invoice.read
+      - Invoice.create
+      - Invoice.update
+      - Invoice.soft_delete
+      - Invoice.restore
+      - Invoice.hard_delete
+      - Invoice.send # Demo invoice sending
+      - Invoice.approve
+      - Invoice.reject
+      - Invoice.export
+
+      - InvoiceLineItem.read
+      - InvoiceLineItem.create
+      - InvoiceLineItem.update
+
+      # Payment processing (demo payments)
+      - Payment.read
+      - Payment.create
+      - Payment.update
+      - Payment.export
+
+      # Purchase orders (demo)
+      - PurchaseOrder.read
+      - PurchaseOrder.create
+      - PurchaseOrder.update
+      - PurchaseOrder.send
+      - PurchaseOrder.approve
+      - PurchaseOrder.reject
+
+      - PurchaseOrderLine.read
+      - PurchaseOrderLine.create
+      - PurchaseOrderLine.update
+
+      # Expense management (demo expenses)
+      - Expense.read
+      - Expense.create
+      - Expense.update
+      - Expense.soft_delete
+      - Expense.restore
+      - Expense.hard_delete
+      - Expense.approve
+      - Expense.reject
+
+      - ExpenseLine.read
+      - ExpenseLine.create
+      - ExpenseLine.update
+
+      - ExpenseReceipt.read
+      - ExpenseReceipt.create
+      - ExpenseReceipt.update
+
+      # Payroll operations (demo payroll)
+      - PayrollRun.read
+      - PayrollRun.create
+      - PayrollRun.update
+      - PayrollRun.soft_delete
+      - PayrollRun.restore
+      - PayrollRun.approve
+      - PayrollRun.reject
+
+      - PayrollItem.read
+      - PayrollItem.create
+      - PayrollItem.update
+
+    # =======================================================
+    # TIME & SCHEDULING DOMAIN (DEMO TIME MANAGEMENT)
+    # =======================================================
+    time_scheduling:
+      # Time tracking (demo)
+      - ClockInClockOut.read
+      - ClockInClockOut.create
+      - ClockInClockOut.update
+      - ClockInClockOut.approve
+      - ClockInClockOut.reject
+
+      # Schedule management (demo)
+      - Schedule.read
+      - Schedule.create
+      - Schedule.update
+      - Schedule.soft_delete
+      - Schedule.restore
+      - Schedule.hard_delete
+      - Schedule.publish
+
+      # Schedule exceptions (demo)
+      - ScheduleException.read
+      - ScheduleException.create
+      - ScheduleException.update
+      - ScheduleException.approve
+      - ScheduleException.reject
+
+      # Time off management (demo)
+      - Leave.read
+      - Leave.create
+      - Leave.update
+      - Leave.approve
+      - Leave.reject
+
+      # Timesheets (demo)
+      - Timesheet.read
+      - Timesheet.create
+      - Timesheet.update
+      - Timesheet.approve
+      - Timesheet.reject
+
+      - TimesheetEntry.read
+      - TimesheetEntry.create
+      - TimesheetEntry.update
+
+      # Leave management (demo)
+
+    # =======================================================
+    # INVENTORY & ASSETS DOMAIN (DEMO INVENTORY)
+    # =======================================================
+    inventory_assets:
+      # Inventory management (demo inventory)
+      - InventoryItem.read
+      - InventoryItem.create
+      - InventoryItem.update
+      - InventoryItem.soft_delete
+      - InventoryItem.restore
+      - InventoryItem.hard_delete
+      - InventoryItem.assign
+      - InventoryItem.unassign
+      - InventoryItem.transfer
+
+      - InventoryTransaction.read
+      - InventoryTransaction.create
+      - InventoryTransaction.update
+      - InventoryTransaction.soft_delete
+      - InventoryTransaction.restore
+
+      - InventoryAdjustment.read
+      - InventoryAdjustment.create
+      - InventoryAdjustment.update
+      - InventoryAdjustment.approve
+      - InventoryAdjustment.reject
+
+      # Asset management (demo assets)
+      - Asset.read
+      - Asset.create
+      - Asset.update
+      - Asset.soft_delete
+      - Asset.restore
+      - Asset.hard_delete
+      - Asset.assign
+      - Asset.unassign
+      - Asset.transfer
+
+      - AssetAssignment.read
+      - AssetAssignment.create
+      - AssetAssignment.update
+      - AssetAssignment.assign
+      - AssetAssignment.unassign
+
+    # =======================================================
+    # COMMUNICATION DOMAIN (DEMO COMMUNICATION)
+    # =======================================================
+    communication:
+      # Channel management (demo channels)
+      - Channel.read
+      - Channel.create
+      - Channel.update
+      - Channel.soft_delete
+      - Channel.restore
+      - Channel.hard_delete
+      - Channel.archive
+
+      - ChannelMember.read
+      - ChannelMember.create
+      - ChannelMember.assign
+      - ChannelMember.unassign
+
+      # Direct messaging (demo)
+      - DirectChat.read
+      - DirectChat.create
+      - DirectChat.update
+      - DirectChat.soft_delete
+      - DirectChat.restore
+      - DirectChat.hard_delete
+
+      - DirectMessage.read
+      - DirectMessage.create
+      - DirectMessage.update
+      - DirectMessage.soft_delete
+      - DirectMessage.restore
+
+      # Notifications (demo)
+      - Notification.read
+      - NotificationPreference.read
+      - NotificationPreference.update
+
+      - NotificationTemplate.read
+      - NotificationTemplate.create
+      - NotificationTemplate.update
+
+    # =======================================================
+    # DOCUMENT MANAGEMENT DOMAIN (DEMO DOCUMENTS)
+    # =======================================================
+    document_management:
+      # File and attachment management (demo)
+      - FileObject.read
+      - FileObject.create
+      - FileObject.update
+      - FileObject.soft_delete
+      - FileObject.restore
+      - FileObject.hard_delete
+
+      - Attachment.read
+      - Attachment.create
+      - Attachment.update
+      - Attachment.soft_delete
+      - Attachment.restore
+      - Attachment.hard_delete
+
+      # Document templates (demo)
+      - ContractTemplate.read
+      - ContractTemplate.create
+      - ContractTemplate.update
+      - ContractTemplate.soft_delete
+      - ContractTemplate.restore
+      - ContractTemplate.hard_delete
+
+      - TermsTemplate.read
+      - TermsTemplate.create
+      - TermsTemplate.update
+      - TermsTemplate.soft_delete
+      - TermsTemplate.restore
+      - TermsTemplate.hard_delete
+
+    # =======================================================
+    # VENDOR & CONTRACT MANAGEMENT DOMAIN (DEMO VENDORS)
+    # =======================================================
+    vendor_contract:
+      # Vendor management (demo vendors)
+      - Vendor.read
+      - Vendor.create
+      - Vendor.update
+      - Vendor.soft_delete
+      - Vendor.restore
+      - Vendor.hard_delete
+
+      - VendorContact.read
+      - VendorContact.create
+      - VendorContact.update
+
+      # Contract management (demo contracts)
+      - Contract.read
+      - Contract.create
+      - Contract.update
+      - Contract.send
+      - Contract.approve
+      - Contract.reject
+
+    # =======================================================
+    # AI & AUTOMATION DOMAIN (DEMO AI FEATURES)
+    # =======================================================
+    ai_automation:
+      # AI actions and workflows (demo)
+      - AIAction.read
+      - AIAction.create
+      - AIAction.update
+      - AIAction.activate
+      - AIAction.deactivate
+
+      - AIActionRun.read
+      - AIActionRun.create
+      - AIActionRun.update
+
+      # AI jobs and processing (demo)
+      - AIJob.read
+      - AIJob.create
+      - AIJob.update
+
+      - AIJobArtifact.read
+      - AIJobArtifact.create
+      - AIJobArtifact.update
+
+      # AI insights (demo)
+      - AIInsight.read
+      - AIInsight.create
+      - AIInsight.update
+
+      - AIInsightFeedback.read
+      - AIInsightFeedback.create
+      - AIInsightFeedback.update
+
+    # =======================================================
+    # APPROVAL WORKFLOWS DOMAIN (DEMO APPROVALS)
+    # =======================================================
+    approval_workflows:
+      # Approval requests and decisions (demo)
+      - ApprovalRequest.read
+      - ApprovalRequest.create
+      - ApprovalRequest.update
+      - ApprovalRequest.submit
+      - ApprovalRequest.approve
+      - ApprovalRequest.reject
+
+      - ApprovalDecision.read
+      - ApprovalDecision.create
+
+      - ApprovalRule.read
+      - ApprovalRule.create
+      - ApprovalRule.update
+
+    # =======================================================
+    # SYSTEM CONFIGURATION DOMAIN (DEMO CONFIG)
+    # =======================================================
+    system_config:
+      # Location and geography (demo data)
+      - Location.read
+      - Location.create
+      - Location.update
+
+      # Pricing (demo pricing)
+      - PriceList.read
+      - PriceList.create
+      - PriceList.update
+
+      - PriceListItem.read
+      - PriceListItem.create
+      - PriceListItem.update
+
+      # Cost management (demo costs)
+      - CostCenter.read
+      - CostCenter.create
+      - CostCenter.update
+
+      - CostCategory.read
+      - CostCategory.create
+      - CostCategory.update
+
+    # =======================================================
+    # AUDIT & COMPLIANCE DOMAIN (DEMO AUDIT)
+    # =======================================================
+    audit_compliance:
+      # Audit logs (sandbox audit trail)
+      - TenantAuditLog.read # View demo audit logs
+
+    # =======================================================
+    # DATA EXPORT & REPORTING DOMAIN (DEMO REPORTS)
+    # =======================================================
+    data_export_reporting:
+      # Export management (demo exports)
+      - ExportJob.read
+      - ExportJob.create # Demo data exports
+
+      # Report definitions (demo reports)
+      - ReportDefinition.read
+      - ReportDefinition.create # Demo report creation
+      - ReportDefinition.update
+
+      - DashboardDefinition.read
+      - DashboardDefinition.create # Demo dashboard creation
+      - DashboardDefinition.update
+# Project Manager role gets project and team management but:
+# - NO full financial control (limited to project expenses)
+# - NO full HR access (limited to supervised team members)
+# - NO system configuration changes (read-only)
+# - NO global user management (team members only)
+# - FULL RoomPlan access (LiDAR scanning, 3D modeling, spatial data)
+# - Conditional permissions based on TenantSettings toggles
+#
+# Worker role gets task execution and project participation but:
+# - NO management functions or team supervision
+# - NO CRM or sales access
+# - NO system configuration access
+# - NO RoomPlan access (spatial data restricted to Admin/PM only)
+# - Only assigned projects and own expenses
+# - Limited communication (project channels only)
+#
+# Driver role gets delivery task execution but:
+# - NO project details (only location and PM contact)
+# - NO team communication (only direct chat with Admin/PM)
+# - NO inventory management (read-only delivery items)
+# - NO RoomPlan access (LiDAR scanning restricted to Admin/PM only)
+# - Minimal project visibility for delivery purposes only
+#
+# Viewer role gets full demo/learning access but:
+# - ONLY in sandbox tenants (Tenant.isSandbox = true)
+# - NO access to production tenants or real business data
+# - NO platform infrastructure (billing, webhooks, migrations)
+# - All operations are for demo/learning purposes only
+# - Data created does not persist or affect real operations
+#
+# ===========================================================
