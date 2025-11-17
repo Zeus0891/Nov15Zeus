@@ -35,26 +35,32 @@ model Actor {
   estimatesCreated Estimate[] @relation("EstimateCreatedByActor")
   estimatesUpdated Estimate[] @relation("EstimateUpdatedByActor")
   estimatesDeleted Estimate[] @relation("EstimateDeletedByActor")
-  
+
   // EstimateLineItem relations (Pattern B - EstimateLineItem is a critical business entity)
   estimateLineItemsCreated EstimateLineItem[] @relation("EstimateLineItemCreatedByActor")
   estimateLineItemsUpdated EstimateLineItem[] @relation("EstimateLineItemUpdatedByActor")
   estimateLineItemsDeleted EstimateLineItem[] @relation("EstimateLineItemDeletedByActor")
-  
+
   // Note: EstimateTax, EstimateDiscount use Pattern A (IDs only) - no relations here
 
   // 🔗 Opposite relations - Invoice module (Pattern BH + Pattern B)
   // Invoice relations (Pattern BH - Invoice is a critical revenue entity with Actor relations)
   invoicesCreated Invoice[] @relation("InvoiceCreatedByActor")
-  invoicesUpdated Invoice[] @relation("InvoiceUpdatedByActor") 
+  invoicesUpdated Invoice[] @relation("InvoiceUpdatedByActor")
   invoicesDeleted Invoice[] @relation("InvoiceDeletedByActor")
-  
+
   // InvoiceLineItem relations (Pattern B - InvoiceLineItem is a critical business entity)
   invoiceLineItemsCreated InvoiceLineItem[] @relation("InvoiceLineItemCreatedByActor")
   invoiceLineItemsUpdated InvoiceLineItem[] @relation("InvoiceLineItemUpdatedByActor")
   invoiceLineItemsDeleted InvoiceLineItem[] @relation("InvoiceLineItemDeletedByActor")
-  
+
   // Note: InvoiceTax, InvoiceDiscount, InvoiceFee, etc. use Pattern A (IDs only) - no relations here
+
+  // 🔗 Opposite relations - Project module (Pattern BH + Pattern B)
+  // Project relations (Pattern B - Project is a critical execution entity with Actor relations)
+  projectsCreated Project[] @relation("ProjectCreatedByActor")
+  projectsUpdated Project[] @relation("ProjectUpdatedByActor")
+  projectsDeleted Project[] @relation("ProjectDeletedByActor")
 
   // Enable ONLY if you use these fields:
   // @@index([hashToken])

@@ -82,7 +82,12 @@ Infrastructure:
 
 ---
 
-## 🚨 CRITICAL: CRM Model Names (Never Get This Wrong)
+## 🤖 Claude 4 - Primary AI Agent Instructions
+
+**Version**: 1.0  
+**Agent**: Claude 4 (Sonnet 4.5)  
+**Last Updated**: November 17, 2025  
+**Authority**: PRIMARY - Claude's patterns are canonical
 
 **This is THE most common error**. CRM models have the "CRM" prefix:
 

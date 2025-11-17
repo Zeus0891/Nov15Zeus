@@ -158,6 +158,8 @@ model CRMAddress {
   billToEstimates Estimate[] @relation("EstimateBillToAddress")
   shipToEstimates Estimate[] @relation("EstimateShipToAddress")
   billToInvoices  Invoice[]  @relation("InvoiceBillToAddress")
+  shipToInvoices  Invoice[]  @relation("InvoiceShipToAddress")
+  jobsiteProjects Project[]  @relation("ProjectJobsiteAddress")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("CRMAddressCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)

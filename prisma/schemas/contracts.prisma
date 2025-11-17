@@ -41,6 +41,9 @@ model Contract {
   // updatedByActor Actor? @relation("ContractUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("ContractDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
+  // 🔗 Opposite relations - Project module
+  projects Project[] @relation("ProjectContract")
+
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
   // @@index([tenantId, recordSource])

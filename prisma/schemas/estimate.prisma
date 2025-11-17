@@ -61,7 +61,7 @@ model Estimate {
   auditCorrelationId String?                    @db.Uuid
   dataClassification EstimateDataClassification @default(CONFIDENTIAL)
   retentionPolicy    RetentionPolicy?
-  recordSource       EstimateRecordSource?      // API, IMPORT, SYSTEM
+  recordSource       EstimateRecordSource? // API, IMPORT, SYSTEM
   metadata           Json?                      @db.JsonB
   timezone           String?                    @db.VarChar(50) // Timezone context
 
@@ -124,7 +124,7 @@ model Estimate {
   clientStatus EstimateClientStatus @default(PENDING)
 
   /// Logical issue date of the estimate (may differ from createdAt)
-  issueDate DateTime @default(now()) @db.Timestamptz(6)
+  issueDate DateTime? @db.Timestamptz(6)
 
   /// Expiration / validity date
   validUntil DateTime? @db.Timestamptz(6)
@@ -162,7 +162,7 @@ model Estimate {
   // ─────────────────────────────────────────────────────────────
 
   /// ISO 4217 currency code (e.g., USD, EUR, CAD)
-  currencyCode String @db.Char(3)
+  currencyCode String @default("USD") @db.Char(3)
 
   /// Sum of line items before discounts/taxes/fees
   subtotalAmount Decimal @default(0) @db.Decimal(12, 2)
@@ -481,10 +481,10 @@ model EstimateRevision {
   // 📊 Lifecycle & Concurrency
   // ─────────────────────────────────────────────────────────────
   status    EstimateRevisionStatus @default(ACTIVE)
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  version   Int                    @default(1)
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?              @db.Timestamptz(6)
 
   // ─────────────────────────────────────────────────────────────
   // 👤 Actor Attribution (Disabled - not a critical parent entity)
@@ -574,9 +574,9 @@ model EstimateRevision {
 
   tenant   Tenant   @relation("TenantToEstimateRevision", fields: [tenantId], references: [id], onDelete: Cascade)
   estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
-  
+
   // Public links referencing this revision
-  publicLinks EstimatePublicLink[] @relation("PublicLinkRevision")
+  publicLinks   EstimatePublicLink[]   @relation("PublicLinkRevision")
   historyEvents EstimateHistoryEvent[] @relation("HistoryEventRevision")
 
   // ─────────────────────────────────────────────────────────────
@@ -608,10 +608,10 @@ model EstimateSection {
   // 📊 Lifecycle & Concurrency
   // ─────────────────────────────────────────────────────────────
   status    EstimateSectionStatus @default(ACTIVE)
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
 
   // ─────────────────────────────────────────────────────────────
   // 👤 Actor Attribution (Disabled - not a critical parent entity)
@@ -731,10 +731,10 @@ model EstimateSection {
 
   /// Line items belonging to this section
   lineItems EstimateLineItem[] @relation("EstimateLineItemToSection")
-  
+
   /// Comments related to this specific section
   comments EstimateComment[] @relation("EstimateCommentSection")
-  
+
   /// History events for this section
   historyEvents EstimateHistoryEvent[] @relation("HistoryEventSection")
 
@@ -775,10 +775,10 @@ model EstimateLineItem {
   // 📊 Lifecycle & Concurrency
   // ─────────────────────────────────────────────────────────────
   status    EstimateLineItemStatus @default(ACTIVE)
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  version   Int                    @default(1)
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?              @db.Timestamptz(6)
 
   // ─────────────────────────────────────────────────────────────
   // 👤 Minimal Audit (UUIDs only for child entities)
@@ -790,9 +790,9 @@ model EstimateLineItem {
   // ─────────────────────────────────────────────────────────────
   // 🧠 Governance
   // ─────────────────────────────────────────────────────────────
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String?                    @db.Uuid
   dataClassification EstimateDataClassification @default(CONFIDENTIAL)
-  metadata           Json?   @db.JsonB
+  metadata           Json?                      @db.JsonB
 
   // ─────────────────────────────────────────────────────────────
   // 🔗 Parent Relations (REQUIRED)
@@ -947,10 +947,10 @@ model EstimateLineItem {
   /// Line-item scoped attachments (up to 5 images/documents)
   /// These are inherited to ProjectTaskAttachment on project creation
   attachments EstimateAttachment[] @relation("EstimateLineItemAttachments")
-  
+
   /// Comments related to this specific line item
   comments EstimateComment[] @relation("EstimateCommentLineItem")
-  
+
   /// History events for this line item
   historyEvents EstimateHistoryEvent[] @relation("HistoryEventLineItem")
 
@@ -970,49 +970,39 @@ model EstimateLineItem {
 
   // Primary constraints
   @@unique([tenantId, id])
-
   // Parent relationship indexes
   @@index([tenantId, estimateId]) // Line items for estimate
   @@index([tenantId, sectionId]) // Line items for section
   @@index([tenantId, estimateId, sortOrder]) // Ordered line items
-
   // Business filtering
   @@index([tenantId, status])
   @@index([tenantId, category])
   @@index([tenantId, productCode])
   @@index([tenantId, deletedAt])
-
   // Financial analysis
   @@index([tenantId, lineTotal]) // Value-based filtering
   @@index([tenantId, isTaxable]) // Tax calculations
   @@index([tenantId, isMaterial]) // Material vs labor analysis
-
   // Integration lookups
   @@index([tenantId, costCodeId]) // Job costing integration
   @@index([tenantId, inventoryItemId]) // Inventory integration
   @@index([tenantId, serviceCatalogItemId]) // Service catalog integration
   @@index([tenantId, preferredVendorId]) // Vendor analysis
-
   // Time-based queries (BRIN for temporal clustering)
   @@index([createdAt], type: Brin)
   @@index([updatedAt], type: Brin)
-
   // Governance & analytics
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-
   // Business flags for filtering
   @@index([tenantId, requiresApproval])
   @@index([tenantId, isStandardItem])
   @@index([tenantId, allowModification])
-
   // Project scheduling support
   @@index([tenantId, estimatedStartDate])
   @@index([tenantId, estimatedHours])
-
   // JSON metadata search
   @@index([metadata], type: Gin)
-
   @@map("estimate_line_items") // Plural table name
 }
 
@@ -1144,9 +1134,9 @@ model EstimateTax {
   // 🔗 Relations
   // ─────────────────────────────────────────────────────────────
 
-  tenant   Tenant @relation("TenantToEstimateTax", fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant   Tenant   @relation("TenantToEstimateTax", fields: [tenantId], references: [id], onDelete: Restrict)
   estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
-  
+
   // Actor relations: Pattern A (IDs only) - no cross-relations for child financial entities
 
   // ─────────────────────────────────────────────────────────────
@@ -1330,10 +1320,10 @@ model EstimateDiscount {
   // 🔗 Relations
   // ─────────────────────────────────────────────────────────────
 
-  tenant           Tenant @relation("TenantToEstimateDiscount", fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant           Tenant   @relation("TenantToEstimateDiscount", fields: [tenantId], references: [id], onDelete: Restrict)
   estimate         Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
-  approvedByMember Member? @relation("EstimateDiscountApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
-  
+  approvedByMember Member?  @relation("EstimateDiscountApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
   // Actor relations: Pattern A (IDs only) - no cross-relations for child financial entities
 
   // ─────────────────────────────────────────────────────────────
@@ -1520,10 +1510,10 @@ model EstimateFee {
   // 🔗 Relations
   // ─────────────────────────────────────────────────────────────
 
-  tenant           Tenant @relation("TenantToEstimateFee", fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant           Tenant   @relation("TenantToEstimateFee", fields: [tenantId], references: [id], onDelete: Restrict)
   estimate         Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
-  approvedByMember Member? @relation("EstimateFeeApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
-  
+  approvedByMember Member?  @relation("EstimateFeeApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
   // Actor relations: Pattern A (IDs only) - no cross-relations for child financial entities
 
   // ─────────────────────────────────────────────────────────────
@@ -1745,7 +1735,7 @@ model EstimateTerm {
 
   tenant   Tenant   @relation("TenantToEstimateTerm", fields: [tenantId], references: [id], onDelete: Restrict)
   estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
-  
+
   // Actor relations: Pattern A (IDs only) - no cross-relations for child entities
 
   // ─────────────────────────────────────────────────────────────
@@ -2307,10 +2297,10 @@ model EstimateAttachment {
   // 📊 Lifecycle & Concurrency
   // ─────────────────────────────────────────────────────────────
   status    EstimateAttachmentStatus @default(ACTIVE)
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  version   Int                      @default(1)
+  createdAt DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                 @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                @db.Timestamptz(6)
 
   // ─────────────────────────────────────────────────────────────
   // 👤 Minimal Audit (UUIDs only for child entities)
@@ -2322,14 +2312,14 @@ model EstimateAttachment {
   // ─────────────────────────────────────────────────────────────
   // 🧠 Governance
   // ─────────────────────────────────────────────────────────────
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String?                    @db.Uuid
   dataClassification EstimateDataClassification @default(CONFIDENTIAL)
-  metadata           Json?   @db.JsonB
+  metadata           Json?                      @db.JsonB
 
   // ─────────────────────────────────────────────────────────────
   // 🔗 Parent Relations (REQUIRED)
   // ─────────────────────────────────────────────────────────────
-  
+
   /// Parent estimate (for header-level attachments)
   estimateId String? @db.Uuid
 
@@ -2414,36 +2404,29 @@ model EstimateAttachment {
   // ─────────────────────────────────────────────────────────────
 
   @@unique([tenantId, id])
-  
   // Parent relationship indexes
   @@index([tenantId, estimateId]) // Header attachments
   @@index([tenantId, lineItemId]) // Line item attachments
   @@index([tenantId, estimateId, sortOrder]) // Ordered header attachments
   @@index([tenantId, lineItemId, sortOrder]) // Ordered line attachments
-
   // Business filtering
   @@index([tenantId, status])
   @@index([tenantId, category])
   @@index([tenantId, deletedAt])
   @@index([tenantId, isPublic])
   @@index([tenantId, isRequired])
-
   // File management
   @@index([tenantId, mimeType]) // File type filtering
   @@index([tenantId, fileSize]) // Size-based queries
   @@index([tenantId, fileHash]) // Duplicate detection
-
   // Time-based queries (BRIN for temporal clustering)
   @@index([createdAt], type: Brin)
   @@index([updatedAt], type: Brin)
-
   // Governance & analytics
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-
   // JSON metadata search
   @@index([metadata], type: Gin)
-
   @@map("estimate_attachments") // Plural table name
 }
 
@@ -2562,7 +2545,7 @@ model EstimateComment {
   isActionItem Boolean @default(false)
 
   /// Action item status (if applicable)
-  actionStatus EstimateCommentActionStatus? 
+  actionStatus EstimateCommentActionStatus?
 
   /// Due date for action item (if applicable)
   actionDueDate DateTime? @db.Timestamptz(6)
@@ -2631,22 +2614,22 @@ model EstimateComment {
   // 🔗 Relations
   // ─────────────────────────────────────────────────────────────
 
-  tenant          Tenant   @relation("TenantToEstimateComment", fields: [tenantId], references: [id], onDelete: Cascade)
-  estimate        Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
-  
+  tenant   Tenant   @relation("TenantToEstimateComment", fields: [tenantId], references: [id], onDelete: Cascade)
+  estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
+
   // Optional line item context (tenant-to-tenant composite key)
-  lineItem        EstimateLineItem? @relation("EstimateCommentLineItem", fields: [tenantId, lineItemId], references: [tenantId, id], onDelete: SetNull)
-  
+  lineItem EstimateLineItem? @relation("EstimateCommentLineItem", fields: [tenantId, lineItemId], references: [tenantId, id], onDelete: SetNull)
+
   // Optional section context (tenant-to-tenant composite key)
-  section         EstimateSection? @relation("EstimateCommentSection", fields: [tenantId, sectionId], references: [tenantId, id], onDelete: SetNull)
-  
+  section EstimateSection? @relation("EstimateCommentSection", fields: [tenantId, sectionId], references: [tenantId, id], onDelete: SetNull)
+
   // Threading relations (tenant-to-tenant composite keys)
-  parentComment   EstimateComment? @relation("CommentThread", fields: [tenantId, parentCommentId], references: [tenantId, id], onDelete: SetNull)
-  childComments   EstimateComment[] @relation("CommentThread")
-  
-  rootComment     EstimateComment? @relation("CommentRoot", fields: [tenantId, rootCommentId], references: [tenantId, id], onDelete: SetNull)
-  threadComments  EstimateComment[] @relation("CommentRoot")
-  
+  parentComment EstimateComment?  @relation("CommentThread", fields: [tenantId, parentCommentId], references: [tenantId, id], onDelete: SetNull)
+  childComments EstimateComment[] @relation("CommentThread")
+
+  rootComment    EstimateComment?  @relation("CommentRoot", fields: [tenantId, rootCommentId], references: [tenantId, id], onDelete: SetNull)
+  threadComments EstimateComment[] @relation("CommentRoot")
+
   // Member assignment (tenant-to-tenant composite key)
   assignedToMember Member? @relation("EstimateCommentAssignee", fields: [tenantId, assignedToMemberId], references: [tenantId, id], onDelete: SetNull)
 
@@ -2834,7 +2817,7 @@ model EstimateComparison {
   technicalComparison String? @db.Text
 
   /// Quality level comparison
-  qualityLevelComparison EstimateQualityLevel? 
+  qualityLevelComparison EstimateQualityLevel?
 
   /// Technology/methods comparison
   technologyComparison String? @db.Text
@@ -2913,7 +2896,7 @@ model EstimateComparison {
   // ─────────────────────────────────────────────────────────────
 
   /// Client's preference indicators
-  clientPreference EstimateClientPreference? 
+  clientPreference EstimateClientPreference?
 
   /// Market positioning assessment
   marketPosition EstimateMarketPosition @default(COMPETITIVE)
@@ -2951,10 +2934,10 @@ model EstimateComparison {
   // ─────────────────────────────────────────────────────────────
 
   /// Final recommendation based on comparison
-  finalRecommendation EstimateRecommendationLevel? 
+  finalRecommendation EstimateRecommendationLevel?
 
   /// Whether to proceed with our estimate
-  recommendProceed Boolean? 
+  recommendProceed Boolean?
 
   /// Suggested estimate adjustments
   suggestedAdjustments String? @db.Text
@@ -2963,7 +2946,7 @@ model EstimateComparison {
   followupActions String? @db.Text
 
   /// Comparison outcome (won/lost/pending)
-  outcome EstimateComparisonOutcome? 
+  outcome EstimateComparisonOutcome?
 
   /// Outcome date (when result was determined)
   outcomeDate DateTime? @db.Timestamptz(6)
@@ -3039,12 +3022,12 @@ model EstimateHistoryEvent {
   // ─────────────────────────────────────────────────────────────
   // 🧠 Governance & Compliance
   // ─────────────────────────────────────────────────────────────
-  auditCorrelationId String?                      @db.Uuid
+  auditCorrelationId String?                    @db.Uuid
   dataClassification EstimateDataClassification @default(CONFIDENTIAL)
   retentionPolicy    RetentionPolicy?
   recordSource       EstimateRecordSource?
-  metadata           Json?                       @db.JsonB
-  timezone           String?                     @db.VarChar(50)
+  metadata           Json?                      @db.JsonB
+  timezone           String?                    @db.VarChar(50)
 
   // ─────────────────────────────────────────────────────────────
   // 📋 Event Core Properties
@@ -3231,7 +3214,7 @@ model EstimateHistoryEvent {
   /// Email notifications sent
   emailNotificationsSent String[]
 
-  /// SMS notifications sent  
+  /// SMS notifications sent
   smsNotificationsSent String[]
 
   /// In-app notifications sent
@@ -3320,16 +3303,16 @@ model EstimateHistoryEvent {
   estimate Estimate @relation(fields: [tenantId, estimateId], references: [tenantId, id], onDelete: Cascade)
 
   // Optional relations (use SetNull for optional references)
-  estimateRevision EstimateRevision? @relation("HistoryEventRevision", fields: [tenantId, estimateRevisionId], references: [tenantId, id], onDelete: SetNull)
-  estimateLineItem EstimateLineItem? @relation("HistoryEventLineItem", fields: [tenantId, estimateLineItemId], references: [tenantId, id], onDelete: SetNull)
-  estimateSection  EstimateSection?  @relation("HistoryEventSection", fields: [tenantId, estimateSectionId], references: [tenantId, id], onDelete: SetNull)
+  estimateRevision   EstimateRevision?   @relation("HistoryEventRevision", fields: [tenantId, estimateRevisionId], references: [tenantId, id], onDelete: SetNull)
+  estimateLineItem   EstimateLineItem?   @relation("HistoryEventLineItem", fields: [tenantId, estimateLineItemId], references: [tenantId, id], onDelete: SetNull)
+  estimateSection    EstimateSection?    @relation("HistoryEventSection", fields: [tenantId, estimateSectionId], references: [tenantId, id], onDelete: SetNull)
   estimatePublicLink EstimatePublicLink? @relation("HistoryEventPublicLink", fields: [tenantId, estimatePublicLinkId], references: [tenantId, id], onDelete: SetNull)
 
   // Member relations
   initiatedByMember Member? @relation("HistoryEventInitiator", fields: [tenantId, initiatedByMemberId], references: [tenantId, id], onDelete: SetNull)
 
   // Self-referencing for rollback relationships
-  rollbackEvent EstimateHistoryEvent? @relation("EventRollback", fields: [tenantId, rollbackEventId], references: [tenantId, id], onDelete: SetNull)
+  rollbackEvent    EstimateHistoryEvent?  @relation("EventRollback", fields: [tenantId, rollbackEventId], references: [tenantId, id], onDelete: SetNull)
   rolledBackEvents EstimateHistoryEvent[] @relation("EventRollback")
 
   // ─────────────────────────────────────────────────────────────
@@ -3512,7 +3495,7 @@ model EstimatePublicLink {
   clientResponse String? @db.Text
 
   /// Client's approval method
-  approvalMethod EstimatePublicLinkApprovalMethod? 
+  approvalMethod EstimatePublicLinkApprovalMethod?
 
   /// Whether client explicitly approved
   clientApproved Boolean @default(false)
@@ -3687,7 +3670,7 @@ model EstimatePublicLink {
 
   // Optional external integrations (tenant-to-tenant composite keys where applicable)
   eSignatureEnvelope ESignatureEnvelope? @relation("PublicLinkESignature", fields: [tenantId, eSignatureEnvelopeId], references: [tenantId, id], onDelete: SetNull)
-  
+
   // Optional revision linkage (tenant-to-tenant composite key)
   estimateRevision EstimateRevision? @relation("PublicLinkRevision", fields: [tenantId, estimateRevisionId], references: [tenantId, id], onDelete: SetNull)
 
@@ -3787,7 +3770,7 @@ enum EstimateSectionStatus {
   DELETED // Soft deleted
 }
 
-/// Line item status lifecycle  
+/// Line item status lifecycle
 enum EstimateLineItemStatus {
   ACTIVE // Active line item
   INACTIVE // Temporarily disabled
@@ -3822,44 +3805,44 @@ enum EstimateUnitOfMeasure {
   SET // Sets
   KIT // Kits
   LOT // Lots
-  
+
   // Time units
   HOUR // Hours
   DAY // Days
   WEEK // Weeks
   MONTH // Months
-  
+
   // Linear measurements
   FOOT // Feet
   METER // Meters
   INCH // Inches
   YARD // Yards
   MILE // Miles
-  
+
   // Area measurements
   SQ_FT // Square feet
   SQ_METER // Square meters
   SQ_YARD // Square yards
   SQ_INCH // Square inches
   ACRE // Acres
-  
+
   // Volume measurements
   CU_FT // Cubic feet
   CU_METER // Cubic meters
   CU_YARD // Cubic yards
   GALLON // Gallons
   LITER // Liters
-  
+
   // Weight measurements
   POUND // Pounds
   KILOGRAM // Kilograms
   TON // Tons
   OUNCE // Ounces
-  
+
   // Length measurements (specialized)
   LINEAR_FT // Linear feet
   LINEAR_METER // Linear meters
-  
+
   // Specialized construction units
   BOARD_FT // Board feet (lumber)
   SQ_ROLL // Square per roll (flooring, etc.)
@@ -3911,7 +3894,7 @@ enum EstimateTaxStatus {
 /// Tax category classification for compliance
 enum EstimateTaxCategory {
   SALES // Sales tax
-  VAT // Value Added Tax  
+  VAT // Value Added Tax
   GST // Goods and Services Tax
   EXCISE // Excise tax
   IMPORT_DUTY // Import duties
@@ -4547,13 +4530,13 @@ enum EstimateHistoryEventType {
   ESTIMATE_RESTORED
   ESTIMATE_ARCHIVED
   ESTIMATE_DUPLICATED
-  
+
   // Status Changes
   STATUS_CHANGED
   REVISION_CREATED
   REVISION_ACTIVATED
   REVISION_SUPERSEDED
-  
+
   // Approval Workflow Events
   INTERNAL_APPROVAL_REQUESTED
   INTERNAL_APPROVAL_GRANTED
@@ -4563,7 +4546,7 @@ enum EstimateHistoryEventType {
   APPROVER_REMOVED
   APPROVAL_ESCALATED
   APPROVAL_DELEGATED
-  
+
   // Client Interaction Events
   CLIENT_LINK_CREATED
   CLIENT_LINK_SENT
@@ -4574,14 +4557,14 @@ enum EstimateHistoryEventType {
   CLIENT_DECLINED
   CLIENT_REQUESTED_CHANGES
   CLIENT_DOWNLOADED_PDF
-  
+
   // Financial Events
   PRICING_UPDATED
   TAX_CALCULATED
   DISCOUNT_APPLIED
   FEE_ADDED
   TOTAL_RECALCULATED
-  
+
   // Content Changes
   LINE_ITEM_ADDED
   LINE_ITEM_UPDATED
@@ -4592,45 +4575,45 @@ enum EstimateHistoryEventType {
   ATTACHMENT_ADDED
   ATTACHMENT_REMOVED
   COMMENT_ADDED
-  
+
   // Terms & Conditions
   TERMS_UPDATED
   ASSUMPTION_ADDED
   EXCLUSION_ADDED
   ALTERNATE_ADDED
-  
+
   // Conversion Events
   PROJECT_AUTO_CREATED
   INVOICE_AUTO_CREATED
   CHANGE_ORDER_CREATED
-  
+
   // Integration Events
   EXTERNAL_SYNC_STARTED
   EXTERNAL_SYNC_COMPLETED
   EXTERNAL_SYNC_FAILED
   WEBHOOK_TRIGGERED
   API_ACCESS
-  
+
   // E-Signature Events
   ESIGNATURE_REQUESTED
   ESIGNATURE_SENT
   ESIGNATURE_SIGNED
   ESIGNATURE_DECLINED
   ESIGNATURE_EXPIRED
-  
+
   // Communication Events
   EMAIL_SENT
   SMS_SENT
   NOTIFICATION_SENT
   REMINDER_SENT
-  
+
   // Security Events
   ACCESS_GRANTED
   ACCESS_DENIED
   SECURITY_VIOLATION
   UNAUTHORIZED_ACCESS
   DATA_EXPORT
-  
+
   // System Events
   SYSTEM_UPDATE
   MIGRATION_APPLIED
@@ -4640,58 +4623,58 @@ enum EstimateHistoryEventType {
 }
 
 enum EstimateHistoryEventCategory {
-  LIFECYCLE        // Create, update, delete operations
-  APPROVAL         // Internal approval workflow
-  CLIENT           // Client interactions and decisions
-  FINANCIAL        // Pricing, taxes, discounts, fees
-  CONTENT          // Line items, sections, attachments
-  CONVERSION       // Project/invoice generation
-  INTEGRATION      // External system sync
-  COMMUNICATION    // Emails, notifications, reminders
-  SECURITY         // Access control and violations
-  SYSTEM          // Technical system events
-  COMPLIANCE      // Audit and regulatory events
-  PERFORMANCE     // System performance metrics
+  LIFECYCLE // Create, update, delete operations
+  APPROVAL // Internal approval workflow
+  CLIENT // Client interactions and decisions
+  FINANCIAL // Pricing, taxes, discounts, fees
+  CONTENT // Line items, sections, attachments
+  CONVERSION // Project/invoice generation
+  INTEGRATION // External system sync
+  COMMUNICATION // Emails, notifications, reminders
+  SECURITY // Access control and violations
+  SYSTEM // Technical system events
+  COMPLIANCE // Audit and regulatory events
+  PERFORMANCE // System performance metrics
 }
 
 enum EstimateHistoryEventSeverity {
-  CRITICAL    // System failures, security breaches
-  ERROR       // Application errors, failed operations
-  WARNING     // Potential issues, degraded performance
-  INFO        // General information, successful operations
-  DEBUG       // Detailed diagnostic information
-  TRACE       // Fine-grained execution flow
+  CRITICAL // System failures, security breaches
+  ERROR // Application errors, failed operations
+  WARNING // Potential issues, degraded performance
+  INFO // General information, successful operations
+  DEBUG // Detailed diagnostic information
+  TRACE // Fine-grained execution flow
 }
 
 enum EstimateHistoryEventSource {
-  UI              // User interface actions
-  API             // REST/GraphQL API calls
-  SYSTEM          // Automated system processes
-  INTEGRATION     // External system integrations
-  WEBHOOK         // Webhook triggered events
-  SCHEDULED       // Cron jobs and scheduled tasks
-  MOBILE_APP      // Mobile application actions
-  EMAIL           // Email-triggered actions
-  SMS             // SMS-triggered actions
-  IMPORT          // Data import processes
-  EXPORT          // Data export processes
-  MIGRATION       // Database migrations
-  BACKUP          // Backup operations
-  MONITORING      // System monitoring alerts
+  UI // User interface actions
+  API // REST/GraphQL API calls
+  SYSTEM // Automated system processes
+  INTEGRATION // External system integrations
+  WEBHOOK // Webhook triggered events
+  SCHEDULED // Cron jobs and scheduled tasks
+  MOBILE_APP // Mobile application actions
+  EMAIL // Email-triggered actions
+  SMS // SMS-triggered actions
+  IMPORT // Data import processes
+  EXPORT // Data export processes
+  MIGRATION // Database migrations
+  BACKUP // Backup operations
+  MONITORING // System monitoring alerts
 }
 
 enum EstimateHistoryEventPriority {
-  URGENT      // Immediate attention required
-  HIGH        // High business impact
-  MEDIUM      // Standard business operations
-  LOW         // Background processes
-  ROUTINE     // Regular maintenance operations
+  URGENT // Immediate attention required
+  HIGH // High business impact
+  MEDIUM // Standard business operations
+  LOW // Background processes
+  ROUTINE // Regular maintenance operations
 }
 
 enum EstimateHistoryEventRiskLevel {
-  CRITICAL    // Severe business impact
-  HIGH        // Significant risk to operations
-  MEDIUM      // Moderate business risk
-  LOW         // Minimal risk
-  NEGLIGIBLE  // No significant risk
+  CRITICAL // Severe business impact
+  HIGH // Significant risk to operations
+  MEDIUM // Moderate business risk
+  LOW // Minimal risk
+  NEGLIGIBLE // No significant risk
 }

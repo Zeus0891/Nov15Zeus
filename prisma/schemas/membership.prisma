@@ -43,23 +43,33 @@ model Member {
 
   // 🔗 Opposite relations - Estimate module
   // Business workflow relations (approval chains)
-  ownedEstimates    Estimate[]         @relation("EstimateOwner")
-  approvedDiscounts EstimateDiscount[] @relation("EstimateDiscountApprover")
-  approvedFees      EstimateFee[]      @relation("EstimateFeeApprover")
-  assignedComments  EstimateComment[]  @relation("EstimateCommentAssignee")
+  ownedEstimates         Estimate[]             @relation("EstimateOwner")
+  approvedDiscounts      EstimateDiscount[]     @relation("EstimateDiscountApprover")
+  approvedFees           EstimateFee[]          @relation("EstimateFeeApprover")
+  assignedComments       EstimateComment[]      @relation("EstimateCommentAssignee")
   initiatedHistoryEvents EstimateHistoryEvent[] @relation("HistoryEventInitiator")
 
   // 🔗 Opposite relations - Invoice module
   // Business workflow relations (ownership & approval chains)
-  ownedInvoices                Invoice[]                @relation("InvoiceOwner")
-  approvedInvoiceDiscounts     InvoiceDiscount[]        @relation("InvoiceDiscountApprover")
-  approvedInvoiceFees          InvoiceFee[]             @relation("InvoiceFeeApprover")
-  approvedInvoiceRetainages    InvoiceRetainage[]       @relation("InvoiceRetainageApprover")
-  reviewedInvoiceProgresses    InvoiceProgress[]        @relation("InvoiceProgressReviewer")
-  approvedInvoiceMilestones    InvoiceMilestone[]       @relation("InvoiceMilestoneApprover")
-  approvedInvoiceAdjustments   InvoiceAdjustment[]      @relation("InvoiceAdjustmentApprover")
-  approvedInvoiceCredits       InvoiceCredit[]          @relation("InvoiceCreditApprover")
-  approvedInvoiceDebits        InvoiceDebit[]           @relation("InvoiceDebitApprover")
+  ownedInvoices               Invoice[]           @relation("InvoiceOwner")
+  approvedInvoiceDiscounts    InvoiceDiscount[]   @relation("InvoiceDiscountApprover")
+  approvedInvoiceFees         InvoiceFee[]        @relation("InvoiceFeeApprover")
+  approvedInvoiceRetainages   InvoiceRetainage[]  @relation("InvoiceRetainageApprover")
+  reviewedInvoiceProgresses   InvoiceProgress[]   @relation("InvoiceProgressReviewer")
+  approvedInvoiceMilestones   InvoiceMilestone[]  @relation("InvoiceMilestoneApprover")
+  assignedInvoiceComments     InvoiceComment[]    @relation("InvoiceCommentAssignee")
+  requestedInvoiceRevisions   InvoiceRevision[]   @relation("InvoiceRevisionRequester")
+  reviewedInvoiceRevisions    InvoiceRevision[]   @relation("InvoiceRevisionReviewer")
+  requestedInvoiceAdjustments InvoiceAdjustment[] @relation("InvoiceAdjustmentRequester")
+  approvedInvoiceAdjustments  InvoiceAdjustment[] @relation("InvoiceAdjustmentApprover")
+  reviewedInvoiceAdjustments  InvoiceAdjustment[] @relation("InvoiceAdjustmentReviewer")
+  approvedInvoiceCredits      InvoiceCredit[]     @relation("InvoiceCreditApprover")
+  approvedInvoiceDebits       InvoiceDebit[]      @relation("InvoiceDebitApprover")
+
+  // 🔗 Opposite relations - Project module
+  // Business workflow relations (management & ownership)
+  managedProjects       Project[] @relation("ProjectManager")
+  superintendedProjects Project[] @relation("ProjectSuperintendent")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
