@@ -1,4 +1,4 @@
-# 🚀 GitHub Copilot Instructions for Nov15Zeus ERP
+# 🚀 GitHub Copilot Instructions for BeeSmart Pro ERP
 
 **Version**: 2.1
 **Last Updated**: November 17, 2025

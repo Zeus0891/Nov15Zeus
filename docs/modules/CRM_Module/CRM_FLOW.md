@@ -2,12 +2,12 @@
 
 ## 📋 Executive Summary
 
-**Module Suite**: `crmcore.prisma`, `crmcommunication.prisma`, `crmrelationships.prisma`  
-**Pattern**: Mixed (BH for communications, Tenant for most, Pattern B for critical entities)  
-**Purpose**: Customer Relationship Management across entire customer lifecycle  
-**Total Models**: 30 models (10 + 10 + 10)  
-**Integration**: Estimate, Invoice, Project, Member, Actor  
-**Version**: 1.0  
+**Module Suite**: `crmcore.prisma`, `crmcommunication.prisma`, `crmrelationships.prisma`
+**Pattern**: Mixed (BH for communications, Tenant for most, Pattern B for critical entities)
+**Purpose**: Customer Relationship Management across entire customer lifecycle
+**Total Models**: 30 models (10 + 10 + 10)
+**Integration**: Estimate, Invoice, Project, Member, Actor
+**Version**: 1.0
 **Last Updated**: November 17, 2025
 
 ---
@@ -33,58 +33,59 @@ The **CRM module suite** is the **relationship foundation layer** in the enterpr
 
 **Purpose**: Foundation layer with accounts, contacts, addresses, and basic interactions
 
-| Model | Pattern | Purpose |
-|-------|---------|---------|
-| **CRMAccount** | Tenant + Pattern B | Company/organization (full actor tracking) |
-| **CRMContact** | Tenant + Pattern B | Individual person (full actor tracking) |
-| **CRMAddress** | Tenant + Pattern A | Physical/mailing addresses |
-| **CRMInteraction** | BH + Pattern A | Touchpoint tracking with globalId |
-| **CRMInteractionAttachment** | Tenant + Pattern A | Files attached to interactions |
-| **CRMNote** | Tenant + Pattern A | Text notes on any entity |
-| **CRMTag** | Tenant + Pattern A | Categorization tags |
-| **CRMAccountTag** | Tenant + M:N | Account-to-tag associations |
-| **CRMActivity** | Tenant + Pattern A | Tasks, events, reminders |
-| **CRMHistoryEvent** | Tenant + Audit | Complete audit trail |
+| Model                        | Pattern            | Purpose                                    |
+| ---------------------------- | ------------------ | ------------------------------------------ |
+| **CRMAccount**               | Tenant + Pattern B | Company/organization (full actor tracking) |
+| **CRMContact**               | Tenant + Pattern B | Individual person (full actor tracking)    |
+| **CRMAddress**               | Tenant + Pattern A | Physical/mailing addresses                 |
+| **CRMInteraction**           | BH + Pattern A     | Touchpoint tracking with globalId          |
+| **CRMInteractionAttachment** | Tenant + Pattern A | Files attached to interactions             |
+| **CRMNote**                  | Tenant + Pattern A | Text notes on any entity                   |
+| **CRMTag**                   | Tenant + Pattern A | Categorization tags                        |
+| **CRMAccountTag**            | Tenant + M:N       | Account-to-tag associations                |
+| **CRMActivity**              | Tenant + Pattern A | Tasks, events, reminders                   |
+| **CRMHistoryEvent**          | Tenant + Audit     | Complete audit trail                       |
 
 ### crmcommunication.prisma (10 models)
 
 **Purpose**: Multi-channel communication management
 
-| Model | Pattern | Purpose |
-|-------|---------|---------|
-| **CRMEmail** | BH + Pattern A | Email tracking with open/click rates |
-| **CRMEmailAttachment** | Tenant + Pattern A | Email attachments |
-| **CRMSMS** | BH + Pattern A | SMS message tracking |
-| **CRMPhoneCall** | BH + Pattern A | Call logging with duration |
-| **CRMPhoneCallRecording** | Tenant + Pattern A | Call recordings with transcripts |
-| **CRMMessageThread** | BH + Pattern A | Conversation threads |
-| **CRMMessageParticipant** | Tenant + Pattern A | Thread participants |
-| **CRMChannel** | Tenant + Pattern A | Communication channels config |
-| **CRMNotificationSetting** | Tenant + Pattern A | Member notification preferences |
-| **CRMNotificationEvent** | Tenant + Pattern A | Notification delivery tracking |
+| Model                      | Pattern            | Purpose                              |
+| -------------------------- | ------------------ | ------------------------------------ |
+| **CRMEmail**               | BH + Pattern A     | Email tracking with open/click rates |
+| **CRMEmailAttachment**     | Tenant + Pattern A | Email attachments                    |
+| **CRMSMS**                 | BH + Pattern A     | SMS message tracking                 |
+| **CRMPhoneCall**           | BH + Pattern A     | Call logging with duration           |
+| **CRMPhoneCallRecording**  | Tenant + Pattern A | Call recordings with transcripts     |
+| **CRMMessageThread**       | BH + Pattern A     | Conversation threads                 |
+| **CRMMessageParticipant**  | Tenant + Pattern A | Thread participants                  |
+| **CRMChannel**             | Tenant + Pattern A | Communication channels config        |
+| **CRMNotificationSetting** | Tenant + Pattern A | Member notification preferences      |
+| **CRMNotificationEvent**   | Tenant + Pattern A | Notification delivery tracking       |
 
 ### crmrelationships.prisma (10 models)
 
 **Purpose**: Complex relationship modeling
 
-| Model | Pattern | Purpose |
-|-------|---------|---------|
-| **CRMAccountRelationship** | Tenant + Pattern A | Account-to-account relations |
-| **CRMContactRole** | Tenant + Pattern A | Contact roles within accounts |
-| **CRMAccountHierarchy** | Tenant + Pattern A | Multi-level org structures |
-| **CRMHousehold** | Tenant + Pattern A | Family/household groupings |
-| **CRMHouseholdMember** | Tenant + Pattern A | Household membership |
-| **CRMDecisionMaker** | Tenant + Pattern A | Decision authority tracking |
-| **CRMInfluencer** | Tenant + Pattern A | Influence mapping |
-| **CRMPartner** | Tenant + Pattern A | Partner management |
-| **CRMRelationshipAttachment** | Tenant + Pattern A | Relationship documentation |
-| **CRMRelationshipHistoryEvent** | Tenant + Audit | Relationship audit trail |
+| Model                           | Pattern            | Purpose                       |
+| ------------------------------- | ------------------ | ----------------------------- |
+| **CRMAccountRelationship**      | Tenant + Pattern A | Account-to-account relations  |
+| **CRMContactRole**              | Tenant + Pattern A | Contact roles within accounts |
+| **CRMAccountHierarchy**         | Tenant + Pattern A | Multi-level org structures    |
+| **CRMHousehold**                | Tenant + Pattern A | Family/household groupings    |
+| **CRMHouseholdMember**          | Tenant + Pattern A | Household membership          |
+| **CRMDecisionMaker**            | Tenant + Pattern A | Decision authority tracking   |
+| **CRMInfluencer**               | Tenant + Pattern A | Influence mapping             |
+| **CRMPartner**                  | Tenant + Pattern A | Partner management            |
+| **CRMRelationshipAttachment**   | Tenant + Pattern A | Relationship documentation    |
+| **CRMRelationshipHistoryEvent** | Tenant + Audit     | Relationship audit trail      |
 
 ---
 
 ## 🔄 Core Workflow 1: Lead-to-Customer Journey
 
 ### Overview
+
 Complete lifecycle from first contact to active customer with revenue generation.
 
 ### Workflow Stages
@@ -97,7 +98,7 @@ stateDiagram-v2
     CUSTOMER --> ACTIVE: Ongoing Business
     ACTIVE --> FORMER: Churn/Lost
     FORMER --> ACTIVE: Win Back
-    
+
     LEAD --> INACTIVE: Disqualify
     PROSPECT --> INACTIVE: Lost Deal
     INACTIVE --> LEAD: Re-engage
@@ -108,6 +109,7 @@ stateDiagram-v2
 ### Stage 1: Lead Capture
 
 **Trigger**: New lead enters system via:
+
 - Web form submission
 - Manual entry by sales rep
 - Import from marketing automation
@@ -115,6 +117,7 @@ stateDiagram-v2
 - Trade show/event sign-up
 
 **Actions**:
+
 1. Create **CRMAccount** (status: LEAD, rating: COLD/WARM/HOT)
 2. Create **CRMContact** (if individual provided)
 3. Create **CRMAddress** (if location provided)
@@ -125,6 +128,7 @@ stateDiagram-v2
 8. Trigger **CRMNotificationEvent** to owner (eventType: NEW_LEAD)
 
 **Data Captured**:
+
 - Account: name, industry, website, leadSource
 - Contact: name, email, phone, title
 - Address: location (helps with territory assignment)
@@ -139,6 +143,7 @@ stateDiagram-v2
 **Trigger**: Owner reviews lead and determines fit
 
 **Actions**:
+
 1. Add **CRMInteraction** (type: CALL or EMAIL, notes on conversation)
 2. Update **CRMAccount.rating** based on interest level:
    - HOT: Ready to buy soon, high priority
@@ -150,6 +155,7 @@ stateDiagram-v2
 6. Create **CRMActivity** for next follow-up
 
 **Qualification Criteria** (typical):
+
 - Budget available?
 - Authority to buy?
 - Need identified?
@@ -157,6 +163,7 @@ stateDiagram-v2
 - (BANT framework)
 
 **Status Transition**:
+
 - Qualified: `LEAD` → `PROSPECT`
 - Disqualified: `LEAD` → `INACTIVE`
 
@@ -167,6 +174,7 @@ stateDiagram-v2
 **Trigger**: Qualified lead enters sales process
 
 **Actions**:
+
 1. Create **Estimate** (linked to crmAccountId)
    ```prisma
    Estimate.crmAccountId = CRMAccount.id
@@ -184,6 +192,7 @@ stateDiagram-v2
 7. Document **CRMContactRole** for each stakeholder
 
 **Communication Tracking**:
+
 - **CRMEmail**: All correspondence tracked
   - Open/click rates monitored
   - Attachments stored
@@ -191,6 +200,7 @@ stateDiagram-v2
 - **CRMSMS**: Quick updates/reminders
 
 **Relationship Mapping**:
+
 ```prisma
 // Identify decision maker
 CRMDecisionMaker {
@@ -218,6 +228,7 @@ CRMInfluencer {
 **Trigger**: Estimate created and sent to prospect
 
 **Actions**:
+
 1. **Estimate** enters quote workflow:
    ```prisma
    Estimate.status = DRAFT → PENDING_APPROVAL → SENT
@@ -239,6 +250,7 @@ CRMInfluencer {
    - "Check-in call" (dueDate: +7 days)
 
 **Communication Flow**:
+
 ```
 Sales Rep → Sends Email (CRMEmail) → Prospect
 Prospect → Opens Email (tracked)
@@ -258,6 +270,7 @@ Sales Rep → Resends Estimate (new CRMEmail)
 **Trigger**: Estimate approved by prospect
 
 **Actions**:
+
 1. **Estimate** status transition:
    ```prisma
    Estimate.approvalStatus = APPROVED
@@ -288,6 +301,7 @@ Sales Rep → Resends Estimate (new CRMEmail)
 7. Update **CRMTag**: Add "Active Customer" tag
 
 **Financial Impact**:
+
 ```prisma
 CRMAccount.totalRevenue += 0 // Will update as invoices paid
 CRMAccount.totalProjects = 1 (first project)
@@ -303,6 +317,7 @@ CRMAccount.totalInvoices = 0 // Not billed yet
 **Trigger**: Multiple successful projects/transactions
 
 **Actions**:
+
 1. Update **CRMAccount.status = ACTIVE** (after 2nd project or consistent revenue)
 2. Track all **Project** deliveries
 3. Generate **Invoice** records
@@ -318,6 +333,7 @@ CRMAccount.totalInvoices = 0 // Not billed yet
 6. Monitor **CRMInteraction** frequency (engagement health)
 
 **Health Monitoring**:
+
 - Last interaction > 90 days → Flag for outreach
 - No projects in 6 months → Risk of churn
 - Payment issues → Finance team notified
@@ -331,6 +347,7 @@ CRMAccount.totalInvoices = 0 // Not billed yet
 **Trigger**: Warning signs detected
 
 **Churn Indicators**:
+
 - No interactions in 90+ days
 - No new projects in 6+ months
 - Negative sentiment in recent interactions
@@ -338,6 +355,7 @@ CRMAccount.totalInvoices = 0 // Not billed yet
 - Competitive intel (lost to competitor)
 
 **Actions**:
+
 1. Create **CRMActivity** (priority: HIGH, "At-risk account - outreach")
 2. Log **CRMInteraction** (check-in call)
 3. If churned:
@@ -348,6 +366,7 @@ CRMAccount.totalInvoices = 0 // Not billed yet
 5. Add **CRMTag** "Churn: [Reason]"
 
 **Win-Back Campaign**:
+
 1. Create **CRMActivity** series:
    - Month 1: "Check-in call"
    - Month 3: "Special offer email"
@@ -363,6 +382,7 @@ CRMAccount.totalInvoices = 0 // Not billed yet
 ## 🔄 Core Workflow 2: 360° Account Management
 
 ### Overview
+
 Day-to-day account management with complete interaction history.
 
 ---
@@ -380,13 +400,13 @@ const activities = await prisma.cRMActivity.findMany({
     tenantId: currentTenant,
     assignedToMemberId: currentMember,
     dueDate: { lte: today },
-    status: "OPEN"
+    status: "OPEN",
   },
   include: {
     account: true,
-    contact: true
+    contact: true,
   },
-  orderBy: { priority: 'desc' }
+  orderBy: { priority: "desc" },
 });
 
 // Fetch recent interactions to review
@@ -394,13 +414,14 @@ const recentInteractions = await prisma.cRMInteraction.findMany({
   where: {
     tenantId: currentTenant,
     accountId: { in: myAccountIds },
-    createdAt: { gte: yesterday }
+    createdAt: { gte: yesterday },
   },
-  orderBy: { createdAt: 'desc' }
+  orderBy: { createdAt: "desc" },
 });
 ```
 
 **Dashboard Shows**:
+
 - **Overdue tasks** (red)
 - **Today's calls/meetings** (yellow)
 - **Follow-ups needed** (orange)
@@ -413,6 +434,7 @@ const recentInteractions = await prisma.cRMInteraction.findMany({
 **Trigger**: Activity reminder pops up: "Call John Doe - Quarterly Check-in"
 
 **Flow**:
+
 1. Click activity → Opens **CRMContact** profile
 2. Profile shows:
    - Contact info (phone, email)
@@ -460,6 +482,7 @@ const recentInteractions = await prisma.cRMInteraction.findMany({
 **Trigger**: Need to send proposal to multiple contacts
 
 **Flow**:
+
 1. Compose email in CRM:
    ```prisma
    CRMEmail {
@@ -493,18 +516,20 @@ const recentInteractions = await prisma.cRMInteraction.findMany({
    CRMEmail.deliveredAt = timestamp
    ```
 5. Track engagement:
+
    ```prisma
    // Tracking pixel in email
    CRMEmail.status = DELIVERED → OPENED
    CRMEmail.openedAt = timestamp
    CRMEmail.openCount++
-   
+
    // Link clicked
    CRMEmail.clickedAt = timestamp
    CRMEmail.clickCount++
    ```
 
 **Auto-Created Records**:
+
 - **CRMInteraction** (type: EMAIL, linked to email)
 - **CRMMessageThread** (if first email or reply)
 - **CRMNotificationEvent** (if reply received)
@@ -516,6 +541,7 @@ const recentInteractions = await prisma.cRMInteraction.findMany({
 **Trigger**: Just finished client meeting at their office
 
 **Flow**:
+
 1. Create **CRMInteraction**:
    ```prisma
    CRMInteraction {
@@ -555,6 +581,7 @@ const recentInteractions = await prisma.cRMInteraction.findMany({
 ## 🔄 Core Workflow 3: Multi-Channel Communication
 
 ### Overview
+
 Unified inbox managing emails, SMS, calls, and messages in one place.
 
 ---
@@ -564,7 +591,9 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
 #### View: Inbox Dashboard
 
 **Shows**:
+
 1. **CRMMessageThread** list:
+
    - Unread count
    - Last message preview
    - Participants
@@ -573,6 +602,7 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
    - Status (ACTIVE, ARCHIVED)
 
 2. **Recent Communications** (all types):
+
    - CRMEmail (sent/received)
    - CRMSMS (sent/received)
    - CRMPhoneCall (inbound/outbound)
@@ -588,11 +618,13 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
 
 #### Scenario 1: Email Thread
 
-**Trigger**: Customer sends email to sales@nov15zeus.com
+**Trigger**: Customer sends email to sales@beesmartpro.com
 
 **Flow**:
+
 1. Email received via webhook (SendGrid, etc.)
 2. System processes:
+
    ```prisma
    // Find or create thread
    thread = findOrCreateThread({
@@ -600,24 +632,25 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
      subject: email.subject,
      threadType: EMAIL
    });
-   
+
    // Create email record
    CRMEmail {
      threadId: thread.id
      fromAddress: "customer@client.com"
-     toAddresses: ["sales@nov15zeus.com"]
+     toAddresses: ["sales@beesmartpro.com"]
      subject: email.subject
      bodyHtml: email.body
      status: DELIVERED
      accountId: matchedAccount.id
      contactId: matchedContact.id
    }
-   
+
    // Update thread stats
    thread.messageCount++
    thread.lastMessageAt = now()
    thread.lastMessagePreview = truncate(email.body, 255)
    ```
+
 3. Determine recipient (routing rules):
    - If account has owner → Route to owner
    - Else → Route to team queue
@@ -635,6 +668,7 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
 5. Send notification (email/SMS/push based on **CRMNotificationSetting**)
 
 **Rep Response**:
+
 1. Rep clicks notification → Opens thread
 2. Sees full history:
    - Previous emails in thread
@@ -662,18 +696,20 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
 **Trigger**: Customer texts support number
 
 **Flow**:
+
 1. SMS received via Twilio webhook
 2. System processes:
+
    ```prisma
    // Match phone number to contact
    contact = findContactByPhone(fromNumber);
-   
+
    // Find or create thread
    thread = findOrCreateThread({
      accountId: contact.accountId,
      threadType: SMS
    });
-   
+
    // Create SMS record
    CRMSMS {
      threadId: thread.id
@@ -685,6 +721,7 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
      accountId: contact.accountId
    }
    ```
+
 3. Route to owner, create notification
 4. Rep replies:
    ```prisma
@@ -698,6 +735,7 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
    ```
 
 **SMS Auto-Responses** (if configured):
+
 - Business hours: "Thanks! We'll respond within 1 hour."
 - After hours: "We're closed. We'll respond tomorrow morning."
 
@@ -708,6 +746,7 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
 **Trigger**: Inbound call via VoIP system
 
 **Flow**:
+
 1. Call received, screen pop:
    - Caller ID matched to **CRMContact**
    - Account details shown
@@ -756,6 +795,7 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
    - Auto-create follow-up **CRMActivity** (if nextSteps set)
 
 **Call Analytics**:
+
 - Average call duration by rep
 - Outcomes distribution
 - Call volume by time of day
@@ -766,6 +806,7 @@ Unified inbox managing emails, SMS, calls, and messages in one place.
 ## 🔄 Core Workflow 4: Relationship Mapping
 
 ### Overview
+
 Map complex organizational structures and influence networks.
 
 ---
@@ -775,6 +816,7 @@ Map complex organizational structures and influence networks.
 #### Scenario: Large Construction Company
 
 **Structure**:
+
 ```
 ABC Construction Inc. (Parent)
 ├── ABC Northeast Division (Subsidiary)
@@ -881,6 +923,7 @@ CRMInfluencer {
 #### Step 4: Rollup Metrics
 
 **Auto-calculated** in **CRMAccountHierarchy**:
+
 ```prisma
 // Parent account sees aggregated metrics
 parentAccount.hierarchy {
@@ -891,6 +934,7 @@ parentAccount.hierarchy {
 ```
 
 **Reports**:
+
 - Revenue by division
 - Project count by subsidiary
 - Win rate by region
@@ -902,6 +946,7 @@ parentAccount.hierarchy {
 #### Scenario: Referral Partner
 
 **Flow**:
+
 1. Create **CRMAccount** for partner company
 2. Create **CRMPartner** record:
    ```prisma
@@ -916,6 +961,7 @@ parentAccount.hierarchy {
    }
    ```
 3. When partner sends referral:
+
    ```prisma
    // Create new lead
    newLead = CRMAccount {
@@ -923,17 +969,18 @@ parentAccount.hierarchy {
      status: LEAD
      leadSource: "Partner: [Partner Name]"
    }
-   
+
    // Track referral
    CRMAccountRelationship {
      fromAccountId: partnerAccount.id
      toAccountId: newLead.id
      relationshipType: PARTNER
    }
-   
+
    // Update partner stats
    partner.totalReferrals++
    ```
+
 4. When deal closes:
    ```prisma
    partner.totalRevenue += dealValue
@@ -946,6 +993,7 @@ parentAccount.hierarchy {
    ```
 
 **Partner Portal** (optional):
+
 - Partner logs in to see their referrals
 - Track commission statements
 - Submit new referrals
@@ -957,6 +1005,7 @@ parentAccount.hierarchy {
 #### Scenario: Family Renovating Home
 
 **Flow**:
+
 1. Create **CRMHousehold**:
    ```prisma
    CRMHousehold {
@@ -966,6 +1015,7 @@ parentAccount.hierarchy {
    }
    ```
 2. Add household members:
+
    ```prisma
    // Head of household
    CRMHouseholdMember {
@@ -974,7 +1024,7 @@ parentAccount.hierarchy {
      role: HEAD
      isPrimary: true
    }
-   
+
    // Spouse
    CRMHouseholdMember {
      householdId: smithFamily.id
@@ -982,6 +1032,7 @@ parentAccount.hierarchy {
      role: SPOUSE
    }
    ```
+
 3. Track household-level metrics:
    ```prisma
    smithFamily.totalPurchases = 125000.00 // Total spent
@@ -989,6 +1040,7 @@ parentAccount.hierarchy {
    ```
 
 **Use Cases**:
+
 - Send single invoice to household
 - Track family referrals
 - Household-level loyalty rewards
@@ -999,6 +1051,7 @@ parentAccount.hierarchy {
 ## 🔄 Core Workflow 5: Revenue Document Integration
 
 ### Overview
+
 How CRM integrates with Estimate, Invoice, and Project modules.
 
 ---
@@ -1032,6 +1085,7 @@ sequenceDiagram
 **Trigger**: CRMAccount is qualified as PROSPECT
 
 **Flow**:
+
 1. Sales rep clicks "Create Estimate" on account
 2. Estimate pre-populated:
    ```prisma
@@ -1046,10 +1100,11 @@ sequenceDiagram
    ```
 3. Rep builds estimate (line items, costs, etc.)
 4. Estimate sent:
+
    ```prisma
    Estimate.status = SENT
    Estimate.sentToClientAt = now()
-   
+
    // Auto-create CRMEmail
    CRMEmail {
      accountId: estimate.crmAccountId
@@ -1067,6 +1122,7 @@ sequenceDiagram
 **Trigger**: Customer approves estimate
 
 **Flow**:
+
 ```prisma
 // Estimate updated
 Estimate.approvalStatus = APPROVED
@@ -1097,16 +1153,17 @@ CRMInteraction {
 **Trigger**: Estimate approval auto-creates Project
 
 **Flow**:
+
 ```prisma
 Project {
   sourceEstimateId: estimate.id
   globalId: estimate.globalId // 1:1:1 linkage
-  
+
   // CRM linkage (inherited from Estimate)
   crmAccountId: estimate.crmAccountId
   crmContactId: estimate.crmContactId
   jobsiteAddressId: estimate.jobsiteAddressId
-  
+
   status: PLANNING
 }
 
@@ -1130,17 +1187,18 @@ CRMInteraction {
 **Trigger**: Project milestone reached or progress billing triggered
 
 **Flow**:
+
 ```prisma
 Invoice {
   relatedProjectId: project.id
   sourceEstimateId: estimate.id (optional)
   globalId: project.globalId // 1:1:1 linkage
-  
+
   // CRM linkage (inherited from Project)
   crmAccountId: project.crmAccountId
   crmContactId: project.crmContactId
   billToAddressId: project.billToAddressId
-  
+
   status: DRAFT
 }
 
@@ -1178,6 +1236,7 @@ CRMInteraction {
 **Trigger**: Invoice payment applied (via Payment module)
 
 **Flow**:
+
 ```prisma
 // Invoice updated
 Invoice.paymentStatus = UNPAID → PARTIALLY_PAID → PAID
@@ -1216,18 +1275,21 @@ if (Invoice.paymentStatus == PAID) {
 **When viewing CRMAccount, user sees**:
 
 1. **Account Header**:
+
    - Name, status, rating
    - Owner, territory
    - Lifetime value, total revenue
    - Total projects, total invoices
 
 2. **Contact List**:
+
    - All **CRMContact** records linked to account
    - Roles (**CRMContactRole**)
    - Decision makers (**CRMDecisionMaker**)
    - Influencers (**CRMInfluencer**)
 
 3. **Activity Timeline** (reverse chronological):
+
    - All **CRMInteraction** records
    - **CRMEmail**, **CRMSMS**, **CRMPhoneCall**
    - Estimate status changes
@@ -1235,15 +1297,18 @@ if (Invoice.paymentStatus == PAID) {
    - Project milestones
 
 4. **Open Activities**:
+
    - **CRMActivity** (status: OPEN)
    - Sorted by due date
 
 5. **Revenue Documents**:
+
    - **Estimates** (with status)
    - **Projects** (with status, % complete)
    - **Invoices** (with payment status)
 
 6. **Communication Stats**:
+
    - Email open rate
    - SMS response time
    - Call frequency
@@ -1260,6 +1325,7 @@ if (Invoice.paymentStatus == PAID) {
 ### CRMAccount.status
 
 **Valid Transitions**:
+
 ```
 LEAD → PROSPECT (qualified)
 LEAD → INACTIVE (disqualified)
@@ -1277,6 +1343,7 @@ INACTIVE → LEAD (re-engage)
 ```
 
 **Business Rules**:
+
 - Cannot delete account with `status = CUSTOMER or ACTIVE` (must archive first)
 - Cannot delete account with linked revenue docs (Estimate/Invoice/Project with `deletedAt = null`)
 - Accounts with `totalRevenue > 0` can never be permanently deleted (compliance)
@@ -1286,6 +1353,7 @@ INACTIVE → LEAD (re-engage)
 ### CRMEmail.status
 
 **Lifecycle**:
+
 ```
 DRAFT → SCHEDULED → SENT → DELIVERED → OPENED → CLICKED
                   ↓
@@ -1293,6 +1361,7 @@ DRAFT → SCHEDULED → SENT → DELIVERED → OPENED → CLICKED
 ```
 
 **Tracking**:
+
 - `sentAt`: When email left server
 - `deliveredAt`: When email reached inbox (webhook from provider)
 - `openedAt`: When tracking pixel loaded
@@ -1304,6 +1373,7 @@ DRAFT → SCHEDULED → SENT → DELIVERED → OPENED → CLICKED
 ### CRMPhoneCall.status
 
 **Lifecycle**:
+
 ```
 INITIATED → RINGING → ANSWERED → ENDED
           ↓          ↓
@@ -1317,6 +1387,7 @@ INITIATED → RINGING → ANSWERED → ENDED
 ### Auto-Activity Creation
 
 **Rule 1**: New lead assigned
+
 ```
 Trigger: CRMAccount.status = LEAD AND ownerMemberId changed
 Action: Create CRMActivity {
@@ -1327,6 +1398,7 @@ Action: Create CRMActivity {
 ```
 
 **Rule 2**: Estimate sent with no response
+
 ```
 Trigger: Estimate.sentToClientAt AND (now() - sentToClientAt) > 3 days AND status = SENT
 Action: Create CRMActivity {
@@ -1336,6 +1408,7 @@ Action: Create CRMActivity {
 ```
 
 **Rule 3**: No interaction in 90 days
+
 ```
 Trigger: CRMAccount.status = ACTIVE AND lastInteractionDate < (now() - 90 days)
 Action: Create CRMActivity {
@@ -1349,6 +1422,7 @@ Action: Create CRMActivity {
 ### Auto-Email Campaigns
 
 **Welcome Email** (new customer):
+
 ```
 Trigger: CRMAccount.status changed from PROSPECT to CUSTOMER
 Action: Send CRMEmail {
@@ -1359,6 +1433,7 @@ Action: Send CRMEmail {
 ```
 
 **Birthday Email**:
+
 ```
 Trigger: CRMContact.birthdate.month == today.month AND birthdate.day == today.day
 Action: Send CRMEmail {
@@ -1368,6 +1443,7 @@ Action: Send CRMEmail {
 ```
 
 **Payment Thank You**:
+
 ```
 Trigger: Invoice.paymentStatus = PAID
 Action: Send CRMEmail {
@@ -1381,6 +1457,7 @@ Action: Send CRMEmail {
 ### Auto-Notifications
 
 **New Lead Assigned**:
+
 ```
 Trigger: CRMAccount.ownerMemberId changed AND status = LEAD
 Recipient: New owner
@@ -1389,6 +1466,7 @@ Content: "New lead assigned: [AccountName]"
 ```
 
 **Email Opened**:
+
 ```
 Trigger: CRMEmail.status = OPENED
 Recipient: Email sender (createdByActorId)
@@ -1397,6 +1475,7 @@ Content: "[ContactName] opened your email"
 ```
 
 **Task Overdue**:
+
 ```
 Trigger: CRMActivity.dueDate < today AND status = OPEN
 Recipient: Assigned member
@@ -1411,24 +1490,28 @@ Content: "Overdue task: [Subject]"
 ### Key Metrics
 
 **Sales Performance**:
+
 - Conversion rate: LEAD → PROSPECT → CUSTOMER
 - Average deal size
 - Sales cycle length (days from LEAD to CUSTOMER)
 - Win rate (PROSPECT to CUSTOMER)
 
 **Account Health**:
+
 - Days since last interaction
 - Email engagement rate (opens, clicks)
 - Response time
 - Churn risk score
 
 **Communication Volume**:
+
 - Emails sent/received by rep
 - Call volume and duration
 - SMS response time
 - Average touches per deal
 
 **Revenue**:
+
 - Lifetime value per account
 - Revenue by account type
 - Revenue by industry
@@ -1439,54 +1522,57 @@ Content: "Overdue task: [Subject]"
 ### Example Queries
 
 **Query 1**: Accounts needing attention (no interaction in 60+ days)
+
 ```typescript
 const atRiskAccounts = await prisma.cRMAccount.findMany({
   where: {
     tenantId,
-    status: { in: ['ACTIVE', 'CUSTOMER'] },
+    status: { in: ["ACTIVE", "CUSTOMER"] },
     interactions: {
       none: {
-        createdAt: { gte: sixtyDaysAgo }
-      }
-    }
+        createdAt: { gte: sixtyDaysAgo },
+      },
+    },
   },
   include: {
     interactions: {
       take: 1,
-      orderBy: { createdAt: 'desc' }
-    }
-  }
+      orderBy: { createdAt: "desc" },
+    },
+  },
 });
 ```
 
 **Query 2**: Email engagement by rep
+
 ```typescript
 const emailStats = await prisma.cRMEmail.groupBy({
-  by: ['createdByActorId'],
+  by: ["createdByActorId"],
   where: {
     tenantId,
-    createdAt: { gte: startOfMonth }
+    createdAt: { gte: startOfMonth },
   },
   _count: { id: true },
   _sum: {
     openCount: true,
-    clickCount: true
-  }
+    clickCount: true,
+  },
 });
 ```
 
 **Query 3**: Revenue pipeline by stage
+
 ```typescript
 const pipeline = await prisma.cRMAccount.groupBy({
-  by: ['status'],
+  by: ["status"],
   where: {
     tenantId,
-    status: { in: ['LEAD', 'PROSPECT', 'CUSTOMER'] }
+    status: { in: ["LEAD", "PROSPECT", "CUSTOMER"] },
   },
   _count: { id: true },
   _sum: {
-    lifetimeValue: true
-  }
+    lifetimeValue: true,
+  },
 });
 ```
 
@@ -1497,6 +1583,7 @@ const pipeline = await prisma.cRMAccount.groupBy({
 ### GDPR Compliance
 
 **Consent Tracking**:
+
 ```prisma
 CRMContact {
   gdprConsent: true
@@ -1506,6 +1593,7 @@ CRMContact {
 ```
 
 **Right to be Forgotten**:
+
 ```typescript
 // Soft delete contact + related data
 await prisma.cRMContact.update({
@@ -1517,18 +1605,19 @@ await prisma.cRMContact.update({
     lastName: "REDACTED",
     email: null,
     phone: null,
-    mobile: null
-  }
+    mobile: null,
+  },
 });
 
 // Cascade to interactions, emails, etc.
 await prisma.cRMInteraction.updateMany({
   where: { contactId },
-  data: { deletedAt: now() }
+  data: { deletedAt: now() },
 });
 ```
 
 **Data Export** (GDPR data portability):
+
 ```typescript
 // Generate JSON export of all contact data
 const contactData = await prisma.cRMContact.findUnique({
@@ -1538,8 +1627,8 @@ const contactData = await prisma.cRMContact.findUnique({
     interactions: true,
     emails: true,
     phoneCalls: true,
-    activities: true
-  }
+    activities: true,
+  },
 });
 
 // Return as downloadable JSON
@@ -1550,10 +1639,11 @@ const contactData = await prisma.cRMContact.findUnique({
 ### Do Not Contact Rules
 
 **Email Suppression**:
+
 ```typescript
 // Before sending email
 const contact = await prisma.cRMContact.findUnique({
-  where: { id: contactId }
+  where: { id: contactId },
 });
 
 if (contact.doNotEmail || !contact.marketingConsent) {
@@ -1562,6 +1652,7 @@ if (contact.doNotEmail || !contact.marketingConsent) {
 ```
 
 **Call Blocking**:
+
 ```typescript
 if (contact.doNotCall) {
   throw new Error("Contact on do-not-call list");
@@ -1575,11 +1666,13 @@ if (contact.doNotCall) {
 ### 1. Data Quality
 
 **Always capture minimum viable data**:
+
 - Account: name, industry, status
 - Contact: firstName, lastName, email (at minimum)
 - Interaction: type, date, outcome
 
 **Avoid**:
+
 - Creating duplicate accounts (search first)
 - Incomplete records (missing required fields)
 - Stale data (last updated > 12 months)
@@ -1589,12 +1682,14 @@ if (contact.doNotCall) {
 ### 2. Activity Management
 
 **Do**:
+
 - Set realistic due dates
 - Add clear next steps
 - Mark completed activities as COMPLETED (don't delete)
 - Link activities to accounts/contacts
 
 **Don't**:
+
 - Create activities without assignees
 - Set vague subjects ("Follow up")
 - Ignore overdue activities
@@ -1604,12 +1699,14 @@ if (contact.doNotCall) {
 ### 3. Communication Tracking
 
 **Do**:
+
 - Log every customer interaction (calls, emails, meetings)
 - Add detailed notes with outcomes
 - Set follow-up activities
 - Track sentiment (POSITIVE/NEUTRAL/NEGATIVE)
 
 **Don't**:
+
 - Rely on memory (log immediately)
 - Use external email (use CRM email for tracking)
 - Skip logging "quick calls" (all interactions matter)
@@ -1619,12 +1716,14 @@ if (contact.doNotCall) {
 ### 4. Relationship Mapping
 
 **Do**:
+
 - Map all decision makers and influencers
 - Document org hierarchy for enterprise accounts
 - Track decision authority and budget limits
 - Update as relationships change
 
 **Don't**:
+
 - Assume one contact is sufficient
 - Ignore administrative gatekeepers
 - Forget to update when people change roles
@@ -1634,6 +1733,7 @@ if (contact.doNotCall) {
 ## 📊 Summary
 
 **CRM Module Suite** provides:
+
 1. **Complete Customer Lifecycle**: Lead → Customer → Active → Former (with win-back)
 2. **360° View**: All interactions, communications, and revenue documents in one place
 3. **Multi-Channel**: Unified inbox for email, SMS, calls, and messages
@@ -1645,6 +1745,7 @@ if (contact.doNotCall) {
 **Total Models**: 30 (crmcore: 10, crmcommunication: 10, crmrelationships: 10)
 
 **Pattern Summary**:
+
 - **Pattern B** (Full Actor): CRMAccount, CRMContact (critical entities)
 - **BH Pattern** (globalId): CRMInteraction, CRMEmail, CRMSMS, CRMPhoneCall, CRMMessageThread
 - **Pattern A** (IDs Only): All other supporting entities
@@ -1654,6 +1755,7 @@ if (contact.doNotCall) {
 ---
 
 **Next Steps**:
+
 1. Review CRM_ARCHITECTURE_DIAGRAM.md for complete model definitions
 2. Generate Prisma migrations
 3. Build tRPC API layers
@@ -1664,6 +1766,6 @@ if (contact.doNotCall) {
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: November 17, 2025  
+**Version**: 1.0
+**Last Updated**: November 17, 2025
 **Status**: ✅ COMPLETE & READY FOR IMPLEMENTATION

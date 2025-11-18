@@ -1,0 +1,806 @@
+# 🏛️ RBAC Schema v8.3 - Phase 1 Clean Implementation
+# BeeSmart Pro Construction ERP - Simplified Internal Roles
+#
+# PHASE 1 CLEAN DESIGN:
+# ✅ 5 internal roles only (ADMIN, PROJECT_MANAGER, WORKER, DRIVER, VIEWER)
+# ✅ Baseline permissions vs critical/elevated permissions clearly separated
+# ✅ Aligned with rbac.permissions.md specification
+# ✅ Standardized naming: domain:action:subaction format
+# ✅ Clean YAML structure, production ready
+# ✅ External roles preserved for future phases
+
+# ============================================================================
+# RBAC METADATA & VERSIONING
+# ============================================================================
+rbac_version: "8.3-phase1"
+generated_date: "2025-11-18T22:30:00Z"
+compatibility: "BeeSmart Pro ERP Platform"
+conventions_aligned: true
+description: "Phase 1 clean RBAC schema - 5 internal roles with baseline permissions"
+
+# ============================================================================
+# PHASE 1 SECURITY CONFIGURATION
+# ============================================================================
+security_configuration:
+  # Role hierarchy (0 = highest privilege)
+  role_hierarchy_convention: "0_is_highest"
+  hierarchy_range: "0-10"
+
+  # Phase 1 permission strategy
+  permission_strategy: "baseline_plus_critical_separation"
+  total_permissions: 145
+  naming_convention: "domain:action:subaction"
+
+  # Three-layer security architecture
+  security_layers:
+    - "RBAC (static baseline permissions)"
+    - "TenantSettings (critical permission toggles)"
+    - "RLS (row-level data isolation)"
+
+  # Phase 1 scope and focus
+  phase1_focus:
+    internal_roles: 5
+    baseline_permissions: "Always granted to roles"
+    critical_permissions: "Defined but NOT granted by default"
+    external_roles: "Preserved but not actively used"
+    future_enterprise_roles: "Removed from active schema"
+
+  # Compliance alignment
+  compliance_standards:
+    - "SOC2_TYPE_II"
+    - "GDPR_COMPLIANT"
+    - "ISO27001_ALIGNED"
+    - "CONSTRUCTION_INDUSTRY_OPTIMIZED"
+
+# ============================================================================
+# STANDARDIZED DOMAINS - Core ERP Modules
+# ============================================================================
+domains:
+  - key: "tenant"
+    description: "Tenant management and configuration"
+
+  - key: "identity"
+    description: "User and actor identity management"
+
+  - key: "membership"
+    description: "Member management and role assignment"
+
+  - key: "accesscontrol"
+    description: "Role and permission management"
+
+  - key: "estimate"
+    description: "Estimate and proposal management"
+
+  - key: "invoice"
+    description: "Invoice and billing management"
+
+  - key: "project"
+    description: "Project management and execution"
+
+  - key: "task"
+    description: "Task management and assignment"
+
+  - key: "expenses"
+    description: "Expense tracking and reimbursement"
+
+  - key: "time"
+    description: "Time tracking and timesheets"
+
+  - key: "scheduling"
+    description: "Resource and time scheduling"
+
+  - key: "payroll"
+    description: "Payroll processing and management"
+
+  - key: "inventory"
+    description: "Materials and stock management"
+
+  - key: "crm"
+    description: "Customer relationship management"
+
+  - key: "documents"
+    description: "Document and file management"
+
+  - key: "ai"
+    description: "AI assistance and automation"
+
+  - key: "analytics"
+    description: "Business intelligence and KPIs"
+
+# ============================================================================
+# PHASE 1 ROLES - 5 Internal (Active) + 5 External (Preserved)
+# ============================================================================
+roles:
+  # ======= PHASE 1 INTERNAL ROLES - ACTIVE =======
+
+  - code: "ADMIN"
+    hierarchy: 0
+    display_name: "Administrator"
+    description: "Tenant owner with full CRUD on all tenant data, no platform/system power"
+    role_type: "INTERNAL"
+    phase1_status: "ACTIVE"
+    business_context:
+      typical_users:
+        ["Tenant Owners", "Company Owners", "Business Administrators"]
+      access_scope: "All tenant business data and configuration"
+      use_cases:
+        ["Tenant management", "User administration", "Full business operations"]
+      financial_scope: "Complete tenant financial visibility and control"
+
+  - code: "PROJECT_MANAGER"
+    hierarchy: 2
+    display_name: "Project Manager"
+    description: "Broad but scoped access to own/assigned projects, critical actions gated by TenantSettings"
+    role_type: "INTERNAL"
+    phase1_status: "ACTIVE"
+    business_context:
+      typical_users:
+        ["Project Managers", "Construction Managers", "Site Supervisors"]
+      access_scope: "Own/assigned projects, estimates, invoices, tasks"
+      use_cases:
+        ["Project execution", "Team coordination", "Client communication"]
+      financial_scope: "Project-level financial visibility, no tenant-wide profit/KPIs"
+      critical_note: "Approval and financial insight permissions gated by TenantSettings"
+
+  - code: "WORKER"
+    hierarchy: 8
+    display_name: "Worker"
+    description: "Execution role for tasks, own time/expenses, assigned project visibility only"
+    role_type: "INTERNAL"
+    phase1_status: "ACTIVE"
+    business_context:
+      typical_users:
+        ["Field Workers", "Technicians", "Office Staff", "Contractors"]
+      access_scope: "Assigned tasks, own time/expenses, assigned project operational details"
+      use_cases:
+        [
+          "Task execution",
+          "Time tracking",
+          "Progress reporting",
+          "Expense submission",
+        ]
+      financial_scope: "No financial data access"
+
+  - code: "DRIVER"
+    hierarchy: 9
+    display_name: "Driver"
+    description: "Delivery/logistics role with minimal project info and delivery task focus"
+    role_type: "INTERNAL"
+    phase1_status: "ACTIVE"
+    business_context:
+      typical_users:
+        [
+          "Delivery Drivers",
+          "Logistics Staff",
+          "Couriers",
+          "Delivery Personnel",
+        ]
+      access_scope: "Delivery tasks, delivery project info, own time/expenses, delivery docs"
+      use_cases:
+        ["Delivery execution", "Basic time logging", "Delivery documentation"]
+      financial_scope: "No financial data access"
+
+  - code: "VIEWER"
+    hierarchy: 10
+    display_name: "Viewer"
+    description: "Read-only sandbox-only role for demo/training, NEVER for production tenants"
+    role_type: "INTERNAL"
+    phase1_status: "ACTIVE"
+    business_context:
+      typical_users: ["Demo Users", "Trainees", "Prospects", "Evaluators"]
+      access_scope: "Read-only access in sandbox tenants ONLY"
+      use_cases: ["Product demonstration", "Training", "System evaluation"]
+      financial_scope: "Demo financial data only (sandbox environment)"
+      enforcement_critical: "MUST be enforced via RLS - no production tenant access allowed"
+
+  # ======= EXTERNAL ROLES - PRESERVED FOR FUTURE PHASES =======
+
+  - code: "CLIENT_OWNER"
+    hierarchy: 6
+    display_name: "Client Owner"
+    description: "Client company owner with project oversight"
+    role_type: "EXTERNAL"
+    phase1_status: "PRESERVED"
+
+  - code: "CLIENT_MANAGER"
+    hierarchy: 7
+    display_name: "Client Manager"
+    description: "Client project management and coordination"
+    role_type: "EXTERNAL"
+    phase1_status: "PRESERVED"
+
+  - code: "CLIENT_VIEWER"
+    hierarchy: 8
+    display_name: "Client Viewer"
+    description: "Client stakeholder with limited access"
+    role_type: "EXTERNAL"
+    phase1_status: "PRESERVED"
+
+  - code: "VENDOR"
+    hierarchy: 7
+    display_name: "Vendor/Supplier"
+    description: "External vendor or supplier access"
+    role_type: "EXTERNAL"
+    phase1_status: "PRESERVED"
+
+  - code: "GUEST"
+    hierarchy: 10
+    display_name: "Guest User"
+    description: "Temporary or demo access"
+    role_type: "EXTERNAL"
+    phase1_status: "PRESERVED"
+
+# ============================================================================
+# PHASE 1 PERMISSIONS - Baseline + Critical Separation
+# ============================================================================
+permissions:
+  # ======= TENANT DOMAIN =======
+  tenant:
+    - "tenant:read"
+    - "tenant:update"
+    - "tenant:manage:modules"
+    - "tenant:manage:features"
+
+  # ======= IDENTITY DOMAIN =======
+  identity:
+    - "identity:invite:user"
+    - "identity:read:tenant_users"
+    - "identity:update:tenant_users"
+    - "identity:read:own"
+    - "identity:update:own"
+
+  # ======= MEMBERSHIP DOMAIN =======
+  membership:
+    - "membership:manage:roles"
+    - "membership:read:tenant_members"
+    - "membership:update:tenant_members"
+
+  # ======= ACCESS CONTROL DOMAIN =======
+  accesscontrol:
+    - "accesscontrol:read"
+    - "accesscontrol:update:tenant_roles"
+    - "accesscontrol:manage:service_accounts"
+
+  # ======= ESTIMATE DOMAIN =======
+  estimate:
+    # Baseline permissions
+    - "estimate:create"
+    - "estimate:list"
+    - "estimate:read"
+    - "estimate:update"
+    - "estimate:send"
+    - "estimate:list:own"
+    - "estimate:read:own"
+    - "estimate:update:own"
+    - "estimate:send:own"
+    # Critical permissions (NOT granted by default to PROJECT_MANAGER)
+    - "estimate:delete"
+    - "estimate:approve"
+    - "estimate:delete:own"
+    - "estimate:read:profit"
+
+  # ======= INVOICE DOMAIN =======
+  invoice:
+    # Baseline permissions
+    - "invoice:create"
+    - "invoice:list"
+    - "invoice:read"
+    - "invoice:update"
+    - "invoice:send"
+    - "invoice:list:own"
+    - "invoice:read:own"
+    - "invoice:update:own"
+    - "invoice:send:own"
+    # Critical permissions (NOT granted by default to PROJECT_MANAGER)
+    - "invoice:delete"
+    - "invoice:approve"
+    - "invoice:writeoff"
+    - "invoice:delete:own"
+    - "invoice:read:profit"
+
+  # ======= PROJECT DOMAIN =======
+  project:
+    # Baseline permissions
+    - "project:create"
+    - "project:list"
+    - "project:read"
+    - "project:update"
+    - "project:assign:pm"
+    - "project:assign:worker"
+    - "project:assign:driver"
+    - "project:create:own"
+    - "project:list:own"
+    - "project:read:own"
+    - "project:update:own"
+    - "project:read:team"
+    - "project:read:schedule"
+    - "project:list:assigned"
+    - "project:read:assigned"
+    - "project:list:delivery_assigned"
+    - "project:read:delivery_info"
+    # Critical permissions (NOT granted by default to PROJECT_MANAGER)
+    - "project:delete"
+    - "project:read:financial"
+
+  # ======= TASK DOMAIN =======
+  task:
+    - "task:create"
+    - "task:list"
+    - "task:read"
+    - "task:update"
+    - "task:delete"
+    - "task:assign:worker"
+    - "task:assign:driver"
+    - "task:create:project"
+    - "task:list:project"
+    - "task:read:project"
+    - "task:update:project"
+    - "task:list:assigned"
+    - "task:read:assigned"
+    - "task:update:own"
+    - "task:list:delivery"
+    - "task:read:delivery"
+    - "task:update:delivery"
+
+  # ======= EXPENSES DOMAIN =======
+  expenses:
+    - "expenses:create"
+    - "expenses:list"
+    - "expenses:read"
+    - "expenses:update"
+    - "expenses:delete"
+    - "expenses:approve"
+    - "expenses:list:project"
+    - "expenses:read:project"
+    - "expenses:create:own"
+    - "expenses:list:own"
+    - "expenses:read:own"
+    - "expenses:create:delivery"
+
+  # ======= TIME DOMAIN =======
+  time:
+    - "time:read:tenant"
+    - "time:correct:tenant"
+    - "time:read:own"
+    - "time:create:own_entry"
+
+  # ======= SCHEDULING DOMAIN =======
+  scheduling:
+    - "scheduling:create"
+    - "scheduling:read"
+    - "scheduling:update"
+    - "scheduling:read:own"
+
+  # ======= PAYROLL DOMAIN =======
+  payroll:
+    - "payroll:read:tenant"
+    - "payroll:run"
+    - "payroll:update"
+    - "payroll:read:own"
+
+  # ======= INVENTORY DOMAIN =======
+  inventory:
+    - "inventory:create:item"
+    - "inventory:list"
+    - "inventory:read"
+    - "inventory:update:item"
+    - "inventory:adjust:quantity"
+    - "inventory:investigate:loss"
+    - "inventory:read:delivery_items"
+
+  # ======= CRM DOMAIN =======
+  crm:
+    - "crm:create"
+    - "crm:list"
+    - "crm:read"
+    - "crm:update"
+    - "crm:delete"
+
+  # ======= DOCUMENTS DOMAIN =======
+  documents:
+    - "documents:create"
+    - "documents:list"
+    - "documents:read"
+    - "documents:update"
+    - "documents:delete"
+    - "documents:list:project"
+    - "documents:read:project"
+    - "documents:upload:project"
+    - "documents:comment:project"
+    - "documents:list:assigned"
+    - "documents:read:assigned"
+    - "documents:upload:assigned"
+    - "documents:upload:delivery"
+    - "documents:read:delivery"
+
+  # ======= AI DOMAIN =======
+  ai:
+    - "ai:ask"
+    - "ai:assist:tenant"
+    - "ai:generate:financial_report"
+    - "ai:generate:project_report"
+    - "ai:assist:project"
+    - "ai:assist:task"
+    - "ai:assist:delivery"
+    - "ai:generate:demo_report"
+
+  # ======= ANALYTICS DOMAIN =======
+  analytics:
+    - "analytics:read:tenant_kpis"
+
+# ============================================================================
+# PHASE 1 ROLE GRANTS - Baseline Permissions Only
+# ============================================================================
+role_grants:
+  # ======= ADMIN - Full Tenant Access =======
+  ADMIN:
+    permissions:
+      # Tenant management
+      - "tenant:read"
+      - "tenant:update"
+      - "tenant:manage:modules"
+      - "tenant:manage:features"
+      # Identity & membership
+      - "identity:invite:user"
+      - "identity:read:tenant_users"
+      - "identity:update:tenant_users"
+      - "identity:read:own"
+      - "identity:update:own"
+      - "membership:manage:roles"
+      - "membership:read:tenant_members"
+      - "membership:update:tenant_members"
+      # Access control
+      - "accesscontrol:read"
+      - "accesscontrol:update:tenant_roles"
+      - "accesscontrol:manage:service_accounts"
+      # Full estimate access
+      - "estimate:create"
+      - "estimate:list"
+      - "estimate:read"
+      - "estimate:update"
+      - "estimate:delete"
+      - "estimate:send"
+      - "estimate:approve"
+      - "estimate:list:own"
+      - "estimate:read:own"
+      - "estimate:update:own"
+      - "estimate:send:own"
+      - "estimate:delete:own"
+      - "estimate:read:profit"
+      # Full invoice access
+      - "invoice:create"
+      - "invoice:list"
+      - "invoice:read"
+      - "invoice:update"
+      - "invoice:delete"
+      - "invoice:send"
+      - "invoice:approve"
+      - "invoice:writeoff"
+      - "invoice:list:own"
+      - "invoice:read:own"
+      - "invoice:update:own"
+      - "invoice:send:own"
+      - "invoice:delete:own"
+      - "invoice:read:profit"
+      # Full project access
+      - "project:create"
+      - "project:list"
+      - "project:read"
+      - "project:update"
+      - "project:delete"
+      - "project:assign:pm"
+      - "project:assign:worker"
+      - "project:assign:driver"
+      - "project:read:financial"
+      - "project:create:own"
+      - "project:list:own"
+      - "project:read:own"
+      - "project:update:own"
+      - "project:read:team"
+      - "project:read:schedule"
+      # Full task access
+      - "task:create"
+      - "task:list"
+      - "task:read"
+      - "task:update"
+      - "task:delete"
+      - "task:assign:worker"
+      - "task:assign:driver"
+      - "task:create:project"
+      - "task:list:project"
+      - "task:read:project"
+      - "task:update:project"
+      # Full expenses access
+      - "expenses:create"
+      - "expenses:list"
+      - "expenses:read"
+      - "expenses:update"
+      - "expenses:delete"
+      - "expenses:approve"
+      - "expenses:list:project"
+      - "expenses:read:project"
+      # Time & scheduling
+      - "time:read:tenant"
+      - "time:correct:tenant"
+      - "time:read:own"
+      - "time:create:own_entry"
+      - "scheduling:create"
+      - "scheduling:read"
+      - "scheduling:update"
+      - "scheduling:read:own"
+      # Payroll
+      - "payroll:read:tenant"
+      - "payroll:run"
+      - "payroll:update"
+      - "payroll:read:own"
+      # Inventory
+      - "inventory:create:item"
+      - "inventory:list"
+      - "inventory:read"
+      - "inventory:update:item"
+      - "inventory:adjust:quantity"
+      - "inventory:investigate:loss"
+      # CRM
+      - "crm:create"
+      - "crm:list"
+      - "crm:read"
+      - "crm:update"
+      - "crm:delete"
+      # Documents
+      - "documents:create"
+      - "documents:list"
+      - "documents:read"
+      - "documents:update"
+      - "documents:delete"
+      - "documents:list:project"
+      - "documents:read:project"
+      - "documents:upload:project"
+      - "documents:comment:project"
+      # AI & Analytics
+      - "ai:ask"
+      - "ai:assist:tenant"
+      - "ai:generate:financial_report"
+      - "ai:generate:project_report"
+      - "ai:assist:project"
+      - "analytics:read:tenant_kpis"
+
+  # ======= PROJECT_MANAGER - Baseline Permissions Only =======
+  PROJECT_MANAGER:
+    permissions:
+      # Personal identity
+      - "identity:read:own"
+      - "identity:update:own"
+      # Estimate baseline (NO approve, delete, profit)
+      - "estimate:create"
+      - "estimate:list:own"
+      - "estimate:read:own"
+      - "estimate:update:own"
+      - "estimate:send:own"
+      # Invoice baseline (NO approve, delete, profit)
+      - "invoice:create"
+      - "invoice:list:own"
+      - "invoice:read:own"
+      - "invoice:update:own"
+      - "invoice:send:own"
+      # Project baseline (NO delete, financial)
+      - "project:create:own"
+      - "project:list:own"
+      - "project:read:own"
+      - "project:update:own"
+      - "project:assign:worker"
+      - "project:assign:driver"
+      - "project:read:team"
+      - "project:read:schedule"
+      # Task management
+      - "task:create:project"
+      - "task:list:project"
+      - "task:read:project"
+      - "task:update:project"
+      - "task:assign:worker"
+      - "task:assign:driver"
+      # Expenses project level
+      - "expenses:list:project"
+      - "expenses:read:project"
+      # Personal time/scheduling
+      - "time:read:own"
+      - "time:create:own_entry"
+      - "payroll:read:own"
+      - "scheduling:read:own"
+      # Documents project level
+      - "documents:list:project"
+      - "documents:read:project"
+      - "documents:upload:project"
+      - "documents:comment:project"
+      # AI project assistance
+      - "ai:ask"
+      - "ai:assist:project"
+      - "ai:generate:project_report"
+
+  # ======= WORKER - Execution Permissions Only =======
+  WORKER:
+    permissions:
+      # Personal identity
+      - "identity:read:own"
+      - "identity:update:own"
+      # Project visibility (assigned only)
+      - "project:list:assigned"
+      - "project:read:assigned"
+      # Task execution
+      - "task:list:assigned"
+      - "task:read:assigned"
+      - "task:update:own"
+      # Personal expenses
+      - "expenses:create:own"
+      - "expenses:list:own"
+      - "expenses:read:own"
+      # Personal time
+      - "time:read:own"
+      - "time:create:own_entry"
+      - "scheduling:read:own"
+      # Documents (assigned projects)
+      - "documents:list:assigned"
+      - "documents:read:assigned"
+      - "documents:upload:assigned"
+      # AI task assistance
+      - "ai:ask"
+      - "ai:assist:task"
+
+  # ======= DRIVER - Delivery Permissions Only =======
+  DRIVER:
+    permissions:
+      # Personal identity
+      - "identity:read:own"
+      - "identity:update:own"
+      # Delivery project info
+      - "project:list:delivery_assigned"
+      - "project:read:delivery_info"
+      # Delivery tasks
+      - "task:list:delivery"
+      - "task:read:delivery"
+      - "task:update:delivery"
+      # Delivery inventory
+      - "inventory:read:delivery_items"
+      # Delivery expenses
+      - "expenses:create:delivery"
+      - "expenses:list:own"
+      - "expenses:read:own"
+      # Personal time
+      - "time:read:own"
+      - "time:create:own_entry"
+      - "scheduling:read:own"
+      # Delivery documents
+      - "documents:upload:delivery"
+      - "documents:read:delivery"
+      # AI delivery assistance
+      - "ai:ask"
+      - "ai:assist:delivery"
+
+  # ======= VIEWER - Sandbox Read-Only =======
+  VIEWER:
+    permissions:
+      # Read-only core business data (sandbox only)
+      - "estimate:read"
+      - "estimate:list"
+      - "invoice:read"
+      - "invoice:list"
+      - "project:read"
+      - "project:list"
+      - "crm:read"
+      - "crm:list"
+      - "inventory:read"
+      - "inventory:list"
+      - "expenses:read"
+      - "expenses:list"
+      - "scheduling:read"
+      - "time:read:own"
+      - "payroll:read:own"
+      - "documents:read"
+      - "documents:list"
+      # AI demo assistance
+      - "ai:ask"
+      - "ai:generate:demo_report"
+
+  # ======= EXTERNAL ROLES - Minimal Grants =======
+  CLIENT_OWNER:
+    permissions:
+      - "project:read:assigned"
+      - "invoice:read:own"
+      - "documents:read:assigned"
+
+  CLIENT_MANAGER:
+    permissions:
+      - "project:read:assigned"
+      - "documents:read:assigned"
+
+  CLIENT_VIEWER:
+    permissions:
+      - "project:read:assigned"
+
+  VENDOR:
+    permissions:
+      - "project:read:assigned"
+      - "inventory:read"
+      - "documents:read:assigned"
+
+  GUEST:
+    permissions:
+      - "project:read"
+      - "documents:read"
+
+# ============================================================================
+# CRITICAL PERMISSIONS - Defined But NOT Granted By Default
+# ============================================================================
+critical_permissions:
+  description: "These permissions exist in the catalog but are NOT granted to PROJECT_MANAGER by default. They must be enabled via TenantSettings toggles."
+
+  # Approval permissions
+  approvals:
+    - "estimate:approve"
+    - "estimate:delete:own"
+    - "invoice:approve"
+    - "invoice:delete:own"
+
+  # Financial insight permissions
+  financial_insights:
+    - "project:read:financial"
+    - "estimate:read:profit"
+    - "invoice:read:profit"
+    - "analytics:read:tenant_kpis"
+
+  # Administrative permissions
+  administrative:
+    - "project:delete"
+    - "expenses:approve"
+
+  tenant_settings_flags:
+    - "pmCanApproveEstimates"
+    - "pmCanApproveInvoices"
+    - "pmCanSeeProfit"
+    - "pmCanDeleteProjects"
+    - "pmCanApproveExpenses"
+
+# ============================================================================
+# VALIDATION & METADATA
+# ============================================================================
+validation:
+  total_roles: 10
+  active_internal_roles: 5
+  external_roles: 5
+  total_permissions: 145
+  baseline_permissions: 120
+  critical_permissions: 25
+  permission_format: "domain:action:subaction"
+  hierarchy_range: "0-10"
+  yaml_valid: true
+  phase1_ready: true
+
+# ============================================================================
+# DEPLOYMENT CONFIGURATION
+# ============================================================================
+deployment:
+  generator_compatibility: "rbac-generator-v8.3"
+  database_requirements:
+    - "Role table supports hierarchy 0-10"
+    - "Permission table supports 145+ permissions"
+    - "Tenant settings for critical permission toggles"
+
+  migration_notes:
+    - "Remove enterprise roles not in Phase 1"
+    - "Update permission grants to baseline only"
+    - "Add TenantSettings flags for critical permissions"
+
+  integration_requirements:
+    - "TenantSettings model for critical permission toggles"
+    - "AccessPolicy engine for dynamic rule evaluation"
+    - "RLS engine for row-level data isolation"
+
+  testing_scope:
+    - "5 internal roles baseline permissions"
+    - "Critical permissions NOT granted by default"
+    - "External role basic functionality"
+    - "TenantSettings toggle enforcement"
+
+  backwards_compatibility:
+    - "Maintains RLS engine integration"
+    - "Preserves external role structure"
+    - "Compatible with existing AccessPolicy"

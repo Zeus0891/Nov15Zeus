@@ -7,7 +7,7 @@
 **Certificate ID**: `CERT-EST-DEV-2025-001`
 **Issue Date**: November 17, 2025
 **Valid Until**: November 17, 2027
-**Certification Authority**: Nov15Zeus Technical Excellence Board
+**Certification Authority**: BeeSmart Pro Technical Excellence Board
 **Senior Software Engineer**: Claude (Anthropic AI Systems)
 **Technical Level**: Staff Engineer / Principal Developer
 
@@ -559,7 +559,7 @@ spec:
     spec:
       containers:
         - name: estimate-api
-          image: nov15zeus/estimate-service:v1.2.3
+          image: beesmartpro/estimate-service:v1.2.3
           resources:
             requests:
               memory: "256Mi"
@@ -739,9 +739,9 @@ interface TechnicalDebt {
 
 ---
 
-**TECHNICAL VALIDATION**: This certification can be verified at `tech.nov15zeus.com/CERT-EST-DEV-2025-001`
+**TECHNICAL VALIDATION**: This certification can be verified at `tech.beesmartpro.com/CERT-EST-DEV-2025-001`
 
-**ISSUED BY**: Nov15Zeus Technical Excellence Board
+**ISSUED BY**: BeeSmart Pro Technical Excellence Board
 **VALID THROUGH**: November 17, 2027
 **RENEWAL REQUIRED**: Annual technical review with architecture evolution
 

@@ -7,7 +7,7 @@
 **Certificate ID**: `CERT-EST-2025-001`
 **Issue Date**: November 17, 2025
 **Valid Until**: November 17, 2027
-**Certification Authority**: Nov15Zeus ERP Architecture Board
+**Certification Authority**: BeeSmart Pro ERP Architecture Board
 **Senior Architect**: Claude (Anthropic AI Systems)
 **Review Level**: Enterprise Production Grade
 
@@ -365,7 +365,7 @@ Auto-save → Approval       → Public Link  → Auto-gen → Project
 
 ### Business Stakeholder Approval
 
-**Product Owner**: Nov15Zeus ERP Platform
+**Product Owner**: BeeSmart Pro ERP Platform
 **Business Value**: High ROI Impact Certified
 **User Experience**: Exceptional Rating
 **Industry Compliance**: Construction Standards Met
@@ -402,9 +402,9 @@ Auto-save → Approval       → Public Link  → Auto-gen → Project
 
 ---
 
-**CERTIFICATE VALIDATION**: This certificate can be verified at `cert.nov15zeus.com/CERT-EST-2025-001`
+**CERTIFICATE VALIDATION**: This certificate can be verified at `cert.beesmartpro.com/CERT-EST-2025-001`
 
-**ISSUED BY**: Nov15Zeus Enterprise Architecture Board
+**ISSUED BY**: BeeSmart Pro Enterprise Architecture Board
 **VALID THROUGH**: November 17, 2027
 **RENEWAL REQUIRED**: Annual architecture review
 

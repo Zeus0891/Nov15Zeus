@@ -3,293 +3,1419 @@
 // Generated from Modules_Structure.md and models.generated.prisma
 
 model ProjectTask {
-  // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Identity & Tenant (Pattern A - Child Entity)
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status         ProjectTaskStatus     @default(NOT_STARTED)
+  scheduleStatus ProjectScheduleStatus @default(ON_SCHEDULE) // Uses projectsCore enum
+  version        Int                   @default(1)
+  createdAt      DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt      DateTime?             @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Pattern A - IDs only for Child Entity)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
   auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  dataClassification String  @default("CONFIDENTIAL") @db.VarChar(50)
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationships (Required)
+  // ─────────────────────────────────────────────────────────────
+  projectId      String  @db.Uuid
+  projectPhaseId String? @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectTask", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Source Linkage (1:1:1 Traceability - INHERITED from EstimateLineItem)
+  // ─────────────────────────────────────────────────────────────
+  sourceEstimateLineItemId String? @db.Uuid
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectTaskCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectTaskUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectTaskDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  // ─────────────────────────────────────────────────────────────
+  // ⚡ Task Hierarchy (Self-referencing for WBS)
+  // ─────────────────────────────────────────────────────────────
+  parentTaskId String? @db.Uuid
 
-  // 🔗 Parent relationships
-  projectPhaseId    String? @db.Uuid
-  projectId         String  @db.Uuid
+  // ─────────────────────────────────────────────────────────────
+  // 📄 Task Identity & Work Breakdown Structure (WBS)
+  // ─────────────────────────────────────────────────────────────
+  wbsCode     String  @db.VarChar(50) // e.g., 1.2.3
+  taskNumber  Int     @db.Integer // Sequence within parent
+  taskName    String  @db.VarChar(500)
+  description String? @db.Text
+  taskType    ProjectTaskType @default(WORK_PACKAGE)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Task Organization & Classification
+  // ─────────────────────────────────────────────────────────────
+  displayOrder       Int                       @default(0) @db.Integer
+  taskGroup          String?                   @db.VarChar(100) // Grouping related tasks
+  priority           ProjectTaskPriority   @default(NORMAL)
+  skillLevelRequired String?               @db.VarChar(50) // BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
+  tradeSpecialty     String?               @db.VarChar(100) // Construction trade specialty
+  complexityLevel    ProjectTaskComplexity @default(STANDARD)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Scheduling & Timeline
+  // ─────────────────────────────────────────────────────────────
+  plannedStartDate DateTime? @db.Timestamptz(6)
+  plannedEndDate   DateTime? @db.Timestamptz(6)
+  plannedDuration  Int?      @db.Integer // Hours or days
+
+  baselineStartDate DateTime? @db.Timestamptz(6)
+  baselineEndDate   DateTime? @db.Timestamptz(6)
+  baselineDuration  Int?      @db.Integer
+
+  actualStartDate DateTime? @db.Timestamptz(6)
+  actualEndDate   DateTime? @db.Timestamptz(6)
+  actualDuration  Int?      @db.Integer
+
+  forecastEndDate DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Budget & Cost Management (INHERITED from EstimateLineItem)
+  // ─────────────────────────────────────────────────────────────
+  currencyCode String @default("USD") @db.Char(3)
+
+  // Budgeted amounts
+  budgetedHours        Decimal @default(0) @db.Decimal(10, 2)
+  budgetedLaborCost    Decimal @default(0) @db.Decimal(12, 2)
+  budgetedMaterialCost Decimal @default(0) @db.Decimal(12, 2)
+  budgetedEquipmentCost Decimal @default(0) @db.Decimal(12, 2)
+  budgetedOtherCost    Decimal @default(0) @db.Decimal(12, 2)
+  totalBudgetedCost    Decimal @default(0) @db.Decimal(12, 2)
+
+  // Actual costs (from time tracking, purchases, etc.)
+  actualHours        Decimal @default(0) @db.Decimal(10, 2)
+  actualLaborCost    Decimal @default(0) @db.Decimal(12, 2)
+  actualMaterialCost Decimal @default(0) @db.Decimal(12, 2)
+  actualEquipmentCost Decimal @default(0) @db.Decimal(12, 2)
+  actualOtherCost    Decimal @default(0) @db.Decimal(12, 2)
+  totalActualCost    Decimal @default(0) @db.Decimal(12, 2)
+
+  // Committed costs (POs not yet received/invoiced)
+  committedCost Decimal @default(0) @db.Decimal(12, 2)
+
+  // Variance analysis
+  costVariance           Decimal @default(0) @db.Decimal(12, 2) // budget - actual
+  costVariancePercentage Decimal @default(0) @db.Decimal(8, 4) // (variance / budget) * 100
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Progress Tracking & Performance
+  // ─────────────────────────────────────────────────────────────
+  percentComplete Decimal @default(0) @db.Decimal(8, 4) // 0-100%
+  earnedValue     Decimal @default(0) @db.Decimal(12, 2)
+  plannedValue    Decimal @default(0) @db.Decimal(12, 2)
+
+  // Quantity tracking (INHERITED from EstimateLineItem)
+  plannedQuantity Decimal @default(0) @db.Decimal(10, 4)
+  actualQuantity  Decimal @default(0) @db.Decimal(10, 4)
+  unitOfMeasure   String? @db.VarChar(50)
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚙️ Task Configuration & Behavior
+  // ─────────────────────────────────────────────────────────────
+  isMilestone       Boolean @default(false)
+  isCriticalPath    Boolean @default(false)
+  isBlocking        Boolean @default(false)
+  isOptional        Boolean @default(false)
+  requiresApproval  Boolean @default(false)
+  allowPartialWork  Boolean @default(true)
+  isRecurring       Boolean @default(false)
+  requiresPermit    Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Quality & Compliance
+  // ─────────────────────────────────────────────────────────────
+  qualityStandard      String?  @db.VarChar(100)
+  inspectionRequired   Boolean  @default(false)
+  inspectionPassed     Boolean  @default(false)
+  inspectionDate       DateTime? @db.Timestamptz(6)
+  safetyCritical       Boolean  @default(false)
+  safetyRequirements   String?  @db.Text
+  complianceNotes      String?  @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ Risk & Issue Management
+  // ─────────────────────────────────────────────────────────────
+  riskLevel         String  @default("LOW") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  weatherDependent  Boolean @default(false)
+  weatherRiskLevel  String  @default("LOW") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  activeIssueCount  Int              @default(0) @db.Integer
+  blockerCount      Int              @default(0) @db.Integer
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Work Instructions & Documentation
+  // ─────────────────────────────────────────────────────────────
+  workInstructions   String? @db.Text
+  successCriteria    String? @db.Text
+  deliverables       String? @db.Text
+  specialInstructions String? @db.Text
+  clientNotes        String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 👥 Resource Requirements & Assignment
+  // ─────────────────────────────────────────────────────────────
+  requiredSkills        String? @db.Text
+  minimumCrewSize       Int?    @db.Integer
+  maximumCrewSize       Int?    @db.Integer
+  assignedMemberCount   Int     @default(0) @db.Integer
+  requiresSupervisor    Boolean @default(false)
+  requiresSpecialist    Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📍 Location & Spatial Information
+  // ─────────────────────────────────────────────────────────────
   projectLocationId String? @db.Uuid
+  workArea          String? @db.VarChar(255) // Specific area within location
+  accessRequirements String? @db.Text
+  equipmentRequired  String? @db.Text
+  materialsList      String? @db.Text
 
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Performance Metrics
+  // ─────────────────────────────────────────────────────────────
+  productivityRate     Decimal? @db.Decimal(8, 4) // Units per hour
+  efficiencyPercentage Decimal  @default(100) @db.Decimal(8, 4)
+  reworkRequired       Boolean  @default(false)
+  reworkHours          Decimal  @default(0) @db.Decimal(10, 2)
+  reworkCost           Decimal  @default(0) @db.Decimal(12, 2)
+
+  // ─────────────────────────────────────────────────────────────
   // 🔗 Relations
-  projectPhase    ProjectPhase?    @relation("ProjectPhaseToTasks", fields: [tenantId, projectPhaseId], references: [tenantId, id], onDelete: Restrict)
-  project         Project          @relation("ProjectToTasks", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
-  projectLocation ProjectLocation? @relation("ProjectLocationTasks", fields: [tenantId, projectLocationId], references: [tenantId, id], onDelete: Restrict)
+  // ─────────────────────────────────────────────────────────────
 
-  // 🔗 Opposite relations - ProjectsCore module (cross-module integration)
-  projectMilestones      ProjectMilestone[]      @relation("ProjectTaskToMilestone")
-  projectTeamMembers     ProjectTeamMember[]     @relation("ProjectTaskToTeamMembers")
-  projectBudgetLineItems ProjectBudgetLineItem[] @relation("ProjectTaskToBudgetLineItems")
-  projectDocuments       ProjectDocument[]       @relation("ProjectTaskToDocuments")
-  attachments            ProjectAttachment[]     @relation("ProjectTaskToAttachments")
-  historyEvents          ProjectHistoryEvent[]   @relation("ProjectTaskToHistoryEvents")
+  // Task hierarchy (self-referencing)
+  parentTask ProjectTask?  @relation("ProjectTaskHierarchy", fields: [tenantId, parentTaskId], references: [tenantId, id], onDelete: Restrict)
+  childTasks ProjectTask[] @relation("ProjectTaskHierarchy")
 
-  // 🔗 Opposite relations - Invoice module (billing integration)
-  invoiceLineItems InvoiceLineItem[] @relation("ProjectTaskToInvoiceLineItem")
+  // Cross-module parent relations (opposite relations for projectsCore.prisma)
+  project      Project?      @relation("ProjectToTasks", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
+  projectPhase ProjectPhase? @relation("ProjectPhaseToTasks", fields: [tenantId, projectPhaseId], references: [tenantId, id], onDelete: Restrict)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  // Cross-module child relations (opposite relations for projectsCore.prisma)
+  milestones      ProjectMilestone[]      @relation("ProjectTaskToMilestone")
+  teamMembers     ProjectTeamMember[]     @relation("ProjectTaskToTeamMembers")
+  projectLocation ProjectLocation?        @relation("ProjectLocationTasks", fields: [tenantId, projectLocationId], references: [tenantId, id], onDelete: Restrict)
+  budgetLineItems ProjectBudgetLineItem[] @relation("ProjectTaskToBudgetLineItems")
+  documents       ProjectDocument[]       @relation("ProjectTaskToDocuments")
+  taskAttachments ProjectAttachment[]     @relation("ProjectTaskToAttachments")
+  historyEvents   ProjectHistoryEvent[]   @relation("ProjectTaskToHistoryEvents")
+  invoiceLineItems InvoiceLineItem[]      @relation("ProjectTaskToInvoiceLineItem")
+
+  // Child relations (1:M) - within this schema
+  assignments   ProjectTaskAssignment[]  @relation("ProjectTaskToAssignments")
+  dependencies  ProjectTaskDependency[]  @relation("DependentProjectTask")
+  predecessors  ProjectTaskDependency[]  @relation("PredecessorProjectTask")
+  checklists    ProjectChecklistItem[]   @relation("ProjectTaskToChecklist")
+  comments      ProjectTaskComment[]     @relation("ProjectTaskToComments")
+  attachments   ProjectTaskAttachment[]  @relation("ProjectTaskToAttachments")
+  scheduleItems ProjectScheduleItem[]    @relation("TaskToScheduleItems")
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Strategic Indexes (40+ indexes per architecture)
+  // ─────────────────────────────────────────────────────────────
   @@unique([tenantId, id])
+  @@unique([tenantId, projectId, wbsCode]) // Unique WBS code per project
+  @@unique([tenantId, projectPhaseId, taskNumber]) // Unique task number per phase
+  // Parent relationships (most common lookups)
+  @@index([tenantId, projectId])
+  @@index([tenantId, projectPhaseId])
+  @@index([tenantId, parentTaskId])
+  @@index([tenantId, projectLocationId])
+  // Source traceability
+  @@index([tenantId, sourceEstimateLineItemId])
+  // Status & lifecycle (most common filters)
   @@index([tenantId, status])
+  @@index([tenantId, priority])
   @@index([tenantId, deletedAt])
+  // Task organization
+  @@index([tenantId, taskType])
+  @@index([tenantId, displayOrder])
+  @@index([tenantId, taskGroup])
+  @@index([tenantId, complexityLevel])
+  // Scheduling & timeline
+  @@index([tenantId, plannedStartDate])
+  @@index([tenantId, plannedEndDate])
+  @@index([tenantId, actualStartDate])
+  @@index([tenantId, forecastEndDate])
+  // Financial tracking
+  @@index([tenantId, totalBudgetedCost])
+  @@index([tenantId, totalActualCost])
+  @@index([tenantId, costVariance])
+  @@index([tenantId, costVariancePercentage])
+  // Progress & performance
+  @@index([tenantId, percentComplete])
+  @@index([tenantId, earnedValue])
+  @@index([tenantId, actualHours])
+  @@index([tenantId, productivityRate])
+  // Critical flags (performance queries)
+  @@index([tenantId, isMilestone])
+  @@index([tenantId, isCriticalPath])
+  @@index([tenantId, isBlocking])
+  @@index([tenantId, weatherDependent])
+  @@index([tenantId, safetyCritical])
+  // Quality & compliance
+  @@index([tenantId, inspectionRequired])
+  @@index([tenantId, inspectionPassed])
+  @@index([tenantId, requiresApproval])
+  @@index([tenantId, requiresPermit])
+  // Risk management
+  @@index([tenantId, riskLevel])
+  @@index([tenantId, weatherRiskLevel])
+  @@index([tenantId, activeIssueCount])
+  @@index([tenantId, blockerCount])
+  // Resource management
+  @@index([tenantId, tradeSpecialty])
+  @@index([tenantId, skillLevelRequired])
+  @@index([tenantId, assignedMemberCount])
+  @@index([tenantId, requiresSupervisor])
+  // Temporal queries (BRIN for time-series performance)
   @@index([createdAt], type: Brin)
+  @@index([plannedStartDate], type: Brin)
+  @@index([actualStartDate], type: Brin)
+  // Governance & analytics
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("project_task")
+  @@index([tenantId, recordSource])
+  @@index([tenantId, timezone])
+  // JSON metadata search
+  @@index([metadata], type: Gin)
+  @@map("project_tasks")
 }
 
 model ProjectTaskAssignment {
-  // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Identity & Tenant (Pattern A - Child Entity)
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status    ProjectTaskAssignmentStatus @default(ASSIGNED)
+  version   Int                         @default(1)
+  createdAt DateTime                    @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                    @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                   @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Pattern A - IDs only for Child Entity)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationships (Required)
+  // ─────────────────────────────────────────────────────────────
+  taskId   String @db.Uuid
+  memberId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectTaskAssignment", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Assignment Details
+  // ─────────────────────────────────────────────────────────────
+  assignmentRole   ProjectTaskAssignmentRole @default(PRIMARY)
+  responsibility   String?                   @db.Text
+  assignmentNotes  String?                   @db.Text
+  specialInstructions String?                @db.Text
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectTaskAssignmentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectTaskAssignmentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectTaskAssignmentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Assignment Timeline
+  // ─────────────────────────────────────────────────────────────
+  assignedDate     DateTime  @default(now()) @db.Timestamptz(6)
+  acceptedDate     DateTime? @db.Timestamptz(6)
+  startDate        DateTime? @db.Timestamptz(6)
+  plannedEndDate   DateTime? @db.Timestamptz(6)
+  actualEndDate    DateTime? @db.Timestamptz(6)
+  completedDate    DateTime? @db.Timestamptz(6)
+  declinedDate     DateTime? @db.Timestamptz(6)
+  reassignedDate   DateTime? @db.Timestamptz(6)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
+  // ─────────────────────────────────────────────────────────────
+  // ⏱️ Time & Effort Allocation
+  // ─────────────────────────────────────────────────────────────
+  plannedHours       Decimal @default(0) @db.Decimal(10, 2)
+  estimatedHours     Decimal @default(0) @db.Decimal(10, 2)
+  actualHours        Decimal @default(0) @db.Decimal(10, 2)
+  remainingHours     Decimal @default(0) @db.Decimal(10, 2)
+  overtimeHours      Decimal @default(0) @db.Decimal(10, 2)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  // Allocation percentage (0-100%)
+  allocationPercentage Decimal @default(100) @db.Decimal(5, 2)
+
+  // Productivity metrics
+  productivityRate     Decimal? @db.Decimal(8, 4) // Units per hour
+  efficiencyPercentage Decimal  @default(100) @db.Decimal(5, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Cost & Rate Management
+  // ─────────────────────────────────────────────────────────────
+  currencyCode     String  @default("USD") @db.Char(3)
+  billableRate     Decimal @default(0) @db.Decimal(10, 2)
+  costRate         Decimal @default(0) @db.Decimal(10, 2)
+  overtimeRate     Decimal @default(0) @db.Decimal(10, 2)
+
+  // Cost calculations
+  plannedCost      Decimal @default(0) @db.Decimal(12, 2)
+  actualCost       Decimal @default(0) @db.Decimal(12, 2)
+  billableAmount   Decimal @default(0) @db.Decimal(12, 2)
+  costVariance     Decimal @default(0) @db.Decimal(12, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🎯 Skills & Qualifications
+  // ─────────────────────────────────────────────────────────────
+  requiredSkills     String? @db.Text
+  memberSkillLevel   String? @db.VarChar(50) // BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
+  certificationRequired Boolean @default(false)
+  trainingRequired   Boolean @default(false)
+  supervisionLevel   String? @db.VarChar(50) // NONE, MINIMAL, MODERATE, CLOSE
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚙️ Assignment Configuration
+  // ─────────────────────────────────────────────────────────────
+  isLead             Boolean @default(false)
+  canReassign        Boolean @default(false)
+  requiresApproval   Boolean @default(false)
+  notificationEnabled Boolean @default(true)
+  autoAccept         Boolean @default(false)
+
+  // Work preferences
+  preferredShift     String? @db.VarChar(50) // DAY, NIGHT, SWING
+  remoteWorkAllowed  Boolean @default(false)
+  travelRequired     Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Performance Tracking
+  // ─────────────────────────────────────────────────────────────
+  performanceRating  Decimal? @db.Decimal(3, 2) // 1.00 - 5.00
+  qualityScore       Decimal? @db.Decimal(5, 2) // 0-100%
+  onTimeCompletion   Boolean  @default(true)
+  budgetCompliance   Boolean  @default(true)
+  clientSatisfaction Decimal? @db.Decimal(3, 2) // 1.00 - 5.00
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Communication & Feedback
+  // ─────────────────────────────────────────────────────────────
+  assignmentFeedback String? @db.Text
+  managerNotes       String? @db.Text
+  declineReason      String? @db.Text
+  reassignReason     String? @db.Text
+  completionNotes    String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  // Parent relations
+  projectTask ProjectTask @relation("ProjectTaskToAssignments", fields: [tenantId, taskId], references: [tenantId, id], onDelete: Cascade)
+  member      Member      @relation("MemberTaskAssignments", fields: [tenantId, memberId], references: [tenantId, id], onDelete: Restrict)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Strategic Indexes
+  // ─────────────────────────────────────────────────────────────
   @@unique([tenantId, id])
+  @@unique([tenantId, taskId, memberId]) // One assignment per member per task
+
+  // Parent relationships
+  @@index([tenantId, taskId])
+  @@index([tenantId, memberId])
+
+  // Status & lifecycle
   @@index([tenantId, status])
+  @@index([tenantId, assignmentRole])
   @@index([tenantId, deletedAt])
+
+  // Timeline tracking
+  @@index([tenantId, assignedDate])
+  @@index([tenantId, startDate])
+  @@index([tenantId, plannedEndDate])
+  @@index([tenantId, completedDate])
+
+  // Cost & performance
+  @@index([tenantId, billableRate])
+  @@index([tenantId, actualCost])
+  @@index([tenantId, performanceRating])
+  @@index([tenantId, allocationPercentage])
+
+  // Skills & qualifications
+  @@index([tenantId, memberSkillLevel])
+  @@index([tenantId, certificationRequired])
+  @@index([tenantId, supervisionLevel])
+
+  // Configuration flags
+  @@index([tenantId, isLead])
+  @@index([tenantId, requiresApproval])
+  @@index([tenantId, travelRequired])
+
+  // Performance metrics
+  @@index([tenantId, onTimeCompletion])
+  @@index([tenantId, budgetCompliance])
+  @@index([tenantId, qualityScore])
+
+  // Temporal queries
   @@index([createdAt], type: Brin)
+  @@index([assignedDate], type: Brin)
+
+  // Governance
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("project_task_assignment")
+  @@index([tenantId, recordSource])
+  @@index([metadata], type: Gin)
+
+  @@map("project_task_assignments")
 }
 
 model ProjectTaskDependency {
-  // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Identity & Tenant (Pattern A - Child Entity)
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Pattern A - IDs only for Child Entity)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Task Relationships (Required)
+  // ─────────────────────────────────────────────────────────────
+  dependentTaskId   String @db.Uuid  // Task that depends on predecessor
+  predecessorTaskId String @db.Uuid  // Task that must complete first
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectTaskDependency", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Dependency Configuration
+  // ─────────────────────────────────────────────────────────────
+  dependencyType     ProjectTaskDependencyType @default(FINISH_TO_START)
+  dependencyName     String?                   @db.VarChar(255)
+  description        String?                   @db.Text
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectTaskDependencyCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectTaskDependencyUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectTaskDependencyDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  // Dependency strength and enforcement
+  isMandatory        Boolean @default(true)   // Hard vs soft dependency
+  isExternal         Boolean @default(false)  // External dependency (outside project)
+  canOverride        Boolean @default(false)  // Can be overridden by PM
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
+  // Critical path impact
+  isCriticalPath     Boolean @default(false)  // Part of critical path
+  affectsCriticalPath Boolean @default(false) // Changes affect critical path
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  // ─────────────────────────────────────────────────────────────
+  // ⏱️ Timing & Lag/Lead Time
+  // ─────────────────────────────────────────────────────────────
+  lagTime            Int     @default(0) @db.Integer // Delay after predecessor (hours)
+  leadTime           Int     @default(0) @db.Integer // Overlap with predecessor (hours)
+
+  // Timing constraints
+  minimumLag         Int?    @db.Integer // Minimum required lag
+  maximumLag         Int?    @db.Integer // Maximum allowed lag
+
+  // Buffer management
+  bufferTime         Int     @default(0) @db.Integer // Safety buffer (hours)
+  consumedBuffer     Int     @default(0) @db.Integer // Buffer already used
+  remainingBuffer    Int     @default(0) @db.Integer // Remaining buffer
+
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Schedule Impact & Tracking
+  // ─────────────────────────────────────────────────────────────
+  // When predecessor completes
+  predecessorPlannedEnd DateTime? @db.Timestamptz(6)
+  predecessorActualEnd  DateTime? @db.Timestamptz(6)
+
+  // When dependent can/should start
+  dependentEarliestStart DateTime? @db.Timestamptz(6)
+  dependentPlannedStart  DateTime? @db.Timestamptz(6)
+  dependentActualStart   DateTime? @db.Timestamptz(6)
+
+  // Schedule variance
+  scheduleVariance   Int     @default(0) @db.Integer // Hours of variance
+  impactOnSchedule   String? @db.VarChar(100)        // Description of impact
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ Risk & Issue Management
+  // ─────────────────────────────────────────────────────────────
+  riskLevel          String  @default("LOW") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  riskDescription    String? @db.Text
+  mitigationPlan     String? @db.Text
+
+  // Violation tracking
+  hasViolations      Boolean @default(false)
+  violationCount     Int     @default(0) @db.Integer
+  lastViolationDate  DateTime? @db.Timestamptz(6)
+
+  // Issue escalation
+  requiresAttention  Boolean @default(false)
+  escalatedToManager Boolean @default(false)
+  escalationDate     DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Performance & Analytics
+  // ─────────────────────────────────────────────────────────────
+  // Historical performance
+  averageLagTime     Decimal? @db.Decimal(8, 2) // Historical average
+  adherenceRate      Decimal  @default(100) @db.Decimal(5, 2) // % compliance
+
+  // Impact metrics
+  delayImpact        Int     @default(0) @db.Integer // Hours of delay caused
+  costImpact         Decimal @default(0) @db.Decimal(12, 2) // Cost of delays
+
+  // Optimization data
+  optimizationScore  Decimal? @db.Decimal(5, 2) // 0-100 optimization score
+  canOptimize        Boolean  @default(false)   // Can be optimized
+  optimizationNotes  String?  @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔄 Workflow & Approval
+  // ─────────────────────────────────────────────────────────────
+  requiresApproval   Boolean   @default(false)
+  approvedBy         String?   @db.Uuid // Actor ID
+  approvedDate       DateTime? @db.Timestamptz(6)
+  approvalNotes      String?   @db.Text
+
+  // Change management
+  changeRequestId    String?   @db.Uuid
+  lastModifiedBy     String?   @db.Uuid // Actor ID
+  modificationReason String?   @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Documentation & Communication
+  // ─────────────────────────────────────────────────────────────
+  businessJustification String? @db.Text
+  technicalRequirements String? @db.Text
+  specialInstructions   String? @db.Text
+  communicationPlan     String? @db.Text
+  stakeholderNotes      String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  // Task relationships (using composite keys for multi-tenant)
+  dependentTask   ProjectTask @relation("DependentProjectTask", fields: [tenantId, dependentTaskId], references: [tenantId, id], onDelete: Cascade)
+  predecessorTask ProjectTask @relation("PredecessorProjectTask", fields: [tenantId, predecessorTaskId], references: [tenantId, id], onDelete: Cascade)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Strategic Indexes
+  // ─────────────────────────────────────────────────────────────
   @@unique([tenantId, id])
+  @@unique([tenantId, dependentTaskId, predecessorTaskId]) // No duplicate dependencies
+
+  // Task relationships (most critical for scheduling)
+  @@index([tenantId, dependentTaskId])
+  @@index([tenantId, predecessorTaskId])
+
+  // Dependency configuration
+  @@index([tenantId, dependencyType])
   @@index([tenantId, status])
+  @@index([tenantId, isMandatory])
+  @@index([tenantId, isExternal])
+
+  // Critical path analysis
+  @@index([tenantId, isCriticalPath])
+  @@index([tenantId, affectsCriticalPath])
+
+  // Timing & performance
+  @@index([tenantId, lagTime])
+  @@index([tenantId, leadTime])
+  @@index([tenantId, scheduleVariance])
+  @@index([tenantId, adherenceRate])
+
+  // Risk management
+  @@index([tenantId, riskLevel])
+  @@index([tenantId, hasViolations])
+  @@index([tenantId, requiresAttention])
+  @@index([tenantId, escalatedToManager])
+
+  // Schedule tracking
+  @@index([tenantId, predecessorPlannedEnd])
+  @@index([tenantId, dependentEarliestStart])
+  @@index([tenantId, dependentPlannedStart])
+
+  // Approval workflow
+  @@index([tenantId, requiresApproval])
+  @@index([tenantId, approvedBy])
+  @@index([tenantId, approvedDate])
+
+  // Performance metrics
+  @@index([tenantId, delayImpact])
+  @@index([tenantId, costImpact])
+  @@index([tenantId, optimizationScore])
+  @@index([tenantId, canOptimize])
+
+  // Lifecycle
   @@index([tenantId, deletedAt])
+
+  // Temporal queries
   @@index([createdAt], type: Brin)
+  @@index([predecessorActualEnd], type: Brin)
+  @@index([dependentActualStart], type: Brin)
+
+  // Governance
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("project_task_dependency")
+  @@index([tenantId, recordSource])
+  @@index([metadata], type: Gin)
+
+  @@map("project_task_dependencies")
 }
 
 model ProjectSchedule {
-  // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Identity & Tenant (Pattern A - Child Entity)
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status    ProjectScheduleManagementStatus @default(DRAFT)
+  version   Int                             @default(1)
+  createdAt DateTime                        @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                        @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                       @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Pattern A - IDs only for Child Entity)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
   auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  dataClassification String  @default("CONFIDENTIAL") @db.VarChar(50)
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationships (Required)
+  // ─────────────────────────────────────────────────────────────
+  projectId String @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectSchedule", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📄 Schedule Identity & Configuration
+  // ─────────────────────────────────────────────────────────────
+  scheduleName       String  @db.VarChar(255)
+  scheduleCode       String? @db.VarChar(50)  // Internal code
+  description        String? @db.Text
+  scheduleType       String  @default("MASTER") @db.VarChar(50) // MASTER, BASELINE, FORECAST, WHAT_IF
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectScheduleCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectScheduleUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectScheduleDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  // Schedule versioning & management
+  scheduleVersion    String  @default("1.0") @db.VarChar(20)
+  isActive           Boolean @default(true)
+  isBaseline         Boolean @default(false)
+  isCurrent          Boolean @default(false)
+  isPublished        Boolean @default(false)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
+  // Schedule hierarchy
+  parentScheduleId   String? @db.Uuid
+  masterScheduleId   String? @db.Uuid
+  baselineScheduleId String? @db.Uuid
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Schedule Timeline & Duration
+  // ─────────────────────────────────────────────────────────────
+  // Overall schedule dates
+  scheduledStartDate DateTime? @db.Timestamptz(6)
+  scheduledEndDate   DateTime? @db.Timestamptz(6)
+  actualStartDate    DateTime? @db.Timestamptz(6)
+  actualEndDate      DateTime? @db.Timestamptz(6)
+
+  // Duration in working hours
+  plannedDuration    Int?     @db.Integer
+  actualDuration     Int?     @db.Integer
+  remainingDuration  Int?     @db.Integer
+
+  // Working calendar configuration
+  workingDaysPerWeek Decimal @default(5) @db.Decimal(3, 1)
+  workingHoursPerDay Decimal @default(8) @db.Decimal(4, 2)
+
+  // Schedule health
+  scheduleHealth     String  @default("GREEN") @db.VarChar(20) // GREEN, YELLOW, RED
+  completionPercent  Decimal @default(0) @db.Decimal(5, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Critical Path & Performance Metrics
+  // ─────────────────────────────────────────────────────────────
+  // Critical path analysis
+  criticalPathDuration    Int?    @db.Integer     // Duration of critical path
+  criticalPathTasks       Int     @default(0)     // Number of critical path tasks
+  criticalPathFloat       Int     @default(0)     // Total float on critical path
+
+  // Performance indicators
+  schedulePerformanceIndex Decimal @default(1.0) @db.Decimal(6, 4) // SPI = EV/PV
+  scheduleVariance         Int     @default(0)    @db.Integer       // SV = EV - PV (hours)
+  scheduleVariancePercent  Decimal @default(0)    @db.Decimal(8, 4) // SV%
+
+  // Earned value metrics
+  plannedValue        Decimal @default(0) @db.Decimal(12, 2) // PV - Budgeted work scheduled
+  earnedValue         Decimal @default(0) @db.Decimal(12, 2) // EV - Budgeted work completed
+  actualCost          Decimal @default(0) @db.Decimal(12, 2) // AC - Actual cost of work
+
+  // Time-based metrics
+  earlyStartDate      DateTime? @db.Timestamptz(6)
+  earlyFinishDate     DateTime? @db.Timestamptz(6)
+  lateStartDate       DateTime? @db.Timestamptz(6)
+  lateFinishDate      DateTime? @db.Timestamptz(6)
+  totalFloat          Int       @default(0) @db.Integer // Total float available
+  freeFloat           Int       @default(0) @db.Integer // Free float available
+
+  // ─────────────────────────────────────────────────────────────
+  // 👥 Resource Management
+  // ─────────────────────────────────────────────────────────────
+  // Resource allocation
+  totalResourceHours     Decimal @default(0) @db.Decimal(12, 2)
+  allocatedResourceHours Decimal @default(0) @db.Decimal(12, 2)
+  availableResourceHours Decimal @default(0) @db.Decimal(12, 2)
+
+  // Resource utilization
+  resourceUtilization    Decimal @default(0) @db.Decimal(5, 2) // % utilization
+  overallocatedHours     Decimal @default(0) @db.Decimal(12, 2)
+  underallocatedHours    Decimal @default(0) @db.Decimal(12, 2)
+
+  // Team metrics
+  assignedTeamMembers    Int     @default(0) @db.Integer
+  activeTeamMembers      Int     @default(0) @db.Integer
+  requiredSkillsCount    Int     @default(0) @db.Integer
+  skillsGapCount         Int     @default(0) @db.Integer
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ Risk & Issue Management
+  // ─────────────────────────────────────────────────────────────
+  // Risk indicators
+  overallRiskLevel       String  @default("LOW") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  scheduleRiskScore      Decimal @default(0) @db.Decimal(5, 2) // 0-100 risk score
+
+  // Issue tracking
+  activeIssuesCount      Int     @default(0) @db.Integer
+  blockedTasksCount      Int     @default(0) @db.Integer
+  delayedTasksCount      Int     @default(0) @db.Integer
+
+  // Weather & external factors
+  weatherImpactDays      Int     @default(0) @db.Integer
+  externalDelayDays      Int     @default(0) @db.Integer
+  contingencyDays        Int     @default(0) @db.Integer
+  contingencyUsed        Int     @default(0) @db.Integer
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Quality & Compliance
+  // ─────────────────────────────────────────────────────────────
+  // Quality metrics
+  qualityGatesTotal      Int     @default(0) @db.Integer
+  qualityGatesPassed     Int     @default(0) @db.Integer
+  qualityScore           Decimal @default(100) @db.Decimal(5, 2)
+
+  // Compliance tracking
+  complianceChecksTotal  Int     @default(0) @db.Integer
+  complianceChecksPassed Int     @default(0) @db.Integer
+  complianceScore        Decimal @default(100) @db.Decimal(5, 2)
+
+  // Milestone tracking
+  milestonesTotal        Int     @default(0) @db.Integer
+  milestonesCompleted    Int     @default(0) @db.Integer
+  milestoneCompletionRate Decimal @default(0) @db.Decimal(5, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔄 Schedule Updates & Change Management
+  // ─────────────────────────────────────────────────────────────
+  // Update tracking
+  lastUpdateDate         DateTime? @db.Timestamptz(6)
+  updateFrequency        String?   @db.VarChar(50) // DAILY, WEEKLY, MONTHLY
+  nextUpdateDue          DateTime? @db.Timestamptz(6)
+
+  // Change management
+  changeRequestsCount    Int       @default(0) @db.Integer
+  approvedChangesCount   Int       @default(0) @db.Integer
+  pendingChangesCount    Int       @default(0) @db.Integer
+
+  // Baseline comparison
+  varianceFromBaseline   Int       @default(0) @db.Integer // Hours
+  baselineRevisionCount  Int       @default(0) @db.Integer
+  lastBaselineUpdate     DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔔 Notifications & Alerts
+  // ─────────────────────────────────────────────────────────────
+  enableNotifications    Boolean   @default(true)
+  alertThresholds        Json?     @db.JsonB // Custom alert thresholds
+  escalationRules        Json?     @db.JsonB // Escalation configuration
+
+  // Alert status
+  hasActiveAlerts        Boolean   @default(false)
+  criticalAlertsCount    Int       @default(0) @db.Integer
+  lastAlertDate          DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Documentation & Reporting
+  // ─────────────────────────────────────────────────────────────
+  scheduleNotes          String?   @db.Text
+  assumptions            String?   @db.Text
+  constraints            String?   @db.Text
+  exclusions             String?   @db.Text
+
+  // Reporting configuration
+  reportingFrequency     String?   @db.VarChar(50) // DAILY, WEEKLY, MONTHLY
+  reportingTemplate      String?   @db.VarChar(100)
+  dashboardEnabled       Boolean   @default(true)
+  publicReportingEnabled Boolean   @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  // Parent project relationship
+  project Project @relation("ProjectToSchedules", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
+
+  // Schedule hierarchy
+  parentSchedule ProjectSchedule?  @relation("ScheduleHierarchy", fields: [tenantId, parentScheduleId], references: [tenantId, id], onDelete: Restrict)
+  childSchedules ProjectSchedule[] @relation("ScheduleHierarchy")
+
+  // Child relations
+  scheduleItems ProjectScheduleItem[] @relation("ScheduleToItems")
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Strategic Indexes
+  // ─────────────────────────────────────────────────────────────
   @@unique([tenantId, id])
+  @@unique([tenantId, projectId, scheduleName]) // Unique schedule names per project
+
+  // Parent relationships
+  @@index([tenantId, projectId])
+  @@index([tenantId, parentScheduleId])
+  @@index([tenantId, masterScheduleId])
+  @@index([tenantId, baselineScheduleId])
+
+  // Schedule management
   @@index([tenantId, status])
+  @@index([tenantId, scheduleType])
+  @@index([tenantId, scheduleVersion])
+  @@index([tenantId, isActive])
+  @@index([tenantId, isBaseline])
+  @@index([tenantId, isCurrent])
+  @@index([tenantId, isPublished])
+
+  // Timeline tracking
+  @@index([tenantId, scheduledStartDate])
+  @@index([tenantId, scheduledEndDate])
+  @@index([tenantId, actualStartDate])
+  @@index([tenantId, actualEndDate])
+
+  // Performance metrics
+  @@index([tenantId, scheduleHealth])
+  @@index([tenantId, completionPercent])
+  @@index([tenantId, schedulePerformanceIndex])
+  @@index([tenantId, scheduleVariance])
+
+  // Critical path
+  @@index([tenantId, criticalPathDuration])
+  @@index([tenantId, criticalPathTasks])
+  @@index([tenantId, totalFloat])
+
+  // Resource management
+  @@index([tenantId, resourceUtilization])
+  @@index([tenantId, assignedTeamMembers])
+  @@index([tenantId, overallocatedHours])
+
+  // Risk & issues
+  @@index([tenantId, overallRiskLevel])
+  @@index([tenantId, scheduleRiskScore])
+  @@index([tenantId, activeIssuesCount])
+  @@index([tenantId, blockedTasksCount])
+
+  // Quality & compliance
+  @@index([tenantId, qualityScore])
+  @@index([tenantId, complianceScore])
+  @@index([tenantId, milestoneCompletionRate])
+
+  // Change management
+  @@index([tenantId, changeRequestsCount])
+  @@index([tenantId, varianceFromBaseline])
+  @@index([tenantId, baselineRevisionCount])
+
+  // Alerts & notifications
+  @@index([tenantId, hasActiveAlerts])
+  @@index([tenantId, criticalAlertsCount])
+  @@index([tenantId, enableNotifications])
+
+  // Updates & reporting
+  @@index([tenantId, lastUpdateDate])
+  @@index([tenantId, nextUpdateDue])
+  @@index([tenantId, reportingFrequency])
+
+  // Weather & external factors
+  @@index([tenantId, weatherImpactDays])
+  @@index([tenantId, contingencyDays])
+  @@index([tenantId, contingencyUsed])
+
+  // Lifecycle
   @@index([tenantId, deletedAt])
+
+  // Temporal queries (BRIN for time-series)
   @@index([createdAt], type: Brin)
+  @@index([scheduledStartDate], type: Brin)
+  @@index([actualStartDate], type: Brin)
+  @@index([lastUpdateDate], type: Brin)
+
+  // Governance
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("project_schedule")
+  @@index([tenantId, recordSource])
+  @@index([tenantId, timezone])
+
+  // JSON searches
+  @@index([metadata], type: Gin)
+  @@index([alertThresholds], type: Gin)
+  @@index([escalationRules], type: Gin)
+
+  @@map("project_schedules")
 }
 
 model ProjectScheduleItem {
-  // 🆔 Identity & Tenant
+  // ─────────────────────────────────────────────────────────────
+  // 🆔 Identity & Tenant (Pattern A - Child Entity)
+  // ─────────────────────────────────────────────────────────────
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Lifecycle & Concurrency
+  // ─────────────────────────────────────────────────────────────
+  status    ProjectScheduleItemStatus @default(SCHEDULED)
+  version   Int                       @default(1)
+  createdAt DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                 @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // ─────────────────────────────────────────────────────────────
+  // 👤 Actor Attribution (Pattern A - IDs only for Child Entity)
+  // ─────────────────────────────────────────────────────────────
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
+  // ─────────────────────────────────────────────────────────────
+  // 🔍 Enterprise Governance
+  // ─────────────────────────────────────────────────────────────
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Parent Relationships (Required)
+  // ─────────────────────────────────────────────────────────────
+  scheduleId String  @db.Uuid
+  taskId     String? @db.Uuid
 
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectScheduleItem", fields: [tenantId], references: [id], onDelete: Cascade)
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Schedule Item Details & Classification
+  // ─────────────────────────────────────────────────────────────
+  itemName        String                    @db.VarChar(255)
+  itemDescription String?                   @db.Text
+  itemType        ProjectScheduleItemStatus @default(SCHEDULED)
+  itemCode        String?                   @db.VarChar(50)    // WBS code or identifier
+  itemCategory    String?                   @db.VarChar(100)   // Category grouping
 
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectScheduleItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectScheduleItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectScheduleItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+  // Priority and criticality
+  priority        String                    @default("NORMAL") @db.VarChar(20)
+  isCritical      Boolean                   @default(false)
+  isMilestone     Boolean                   @default(false)
+  isDeliverable   Boolean                   @default(false)
 
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
+  // ─────────────────────────────────────────────────────────────
+  // 📅 Advanced Schedule Timing & Constraints
+  // ─────────────────────────────────────────────────────────────
+  // Scheduled timing
+  scheduledStart  DateTime? @db.Timestamptz(6)
+  scheduledEnd    DateTime? @db.Timestamptz(6)
+  actualStart     DateTime? @db.Timestamptz(6)
+  actualEnd       DateTime? @db.Timestamptz(6)
 
-  // 🗂️ Indexes & constraints (tenant-first)
+  // Baseline timing (original plan)
+  baselineStart   DateTime? @db.Timestamptz(6)
+  baselineEnd     DateTime? @db.Timestamptz(6)
+  baselineDuration Int?     @db.Integer
+
+  // Forecast timing (projected completion)
+  forecastStart   DateTime? @db.Timestamptz(6)
+  forecastEnd     DateTime? @db.Timestamptz(6)
+  forecastDuration Int?     @db.Integer
+
+  // Duration tracking (in hours)
+  plannedDuration    Int?     @db.Integer
+  actualDuration     Int?     @db.Integer
+  remainingWork      Int?     @db.Integer
+  originalEstimate   Int?     @db.Integer // Original time estimate
+
+  // Schedule constraints
+  constraintType     String?  @db.VarChar(50) // ASAP, ALAP, SNET, SNLT, FNET, FNLT, MSO
+  constraintDate     DateTime? @db.Timestamptz(6)
+  deadlineDate       DateTime? @db.Timestamptz(6)
+
+  // Float/slack calculations
+  totalFloat         Int      @default(0) @db.Integer // Total float available
+  freeFloat          Int      @default(0) @db.Integer // Free float without affecting successors
+  startFloat         Int      @default(0) @db.Integer // Start date flexibility
+  finishFloat        Int      @default(0) @db.Integer // Finish date flexibility
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Progress Tracking & Performance
+  // ─────────────────────────────────────────────────────────────
+  percentComplete     Decimal  @default(0) @db.Decimal(5, 2)   // 0-100%
+  physicalComplete    Decimal  @default(0) @db.Decimal(5, 2)   // Physical % complete
+  workComplete        Boolean  @default(false)
+
+  // Earned Value metrics
+  plannedValue        Decimal  @default(0) @db.Decimal(12, 2) // PV - Budgeted work scheduled
+  earnedValue         Decimal  @default(0) @db.Decimal(12, 2) // EV - Budgeted work completed
+  actualCost          Decimal  @default(0) @db.Decimal(12, 2) // AC - Actual cost incurred
+
+  // Performance indicators
+  scheduleVariance    Decimal  @default(0) @db.Decimal(12, 2) // SV = EV - PV
+  costVariance        Decimal  @default(0) @db.Decimal(12, 2) // CV = EV - AC
+  schedulePerformanceIndex Decimal @default(1.0) @db.Decimal(6, 4) // SPI = EV/PV
+  costPerformanceIndex     Decimal @default(1.0) @db.Decimal(6, 4) // CPI = EV/AC
+
+  // Quality metrics
+  qualityScore        Decimal? @db.Decimal(5, 2) // 0-100 quality rating
+  reworkRequired      Boolean  @default(false)
+  reworkHours         Decimal  @default(0) @db.Decimal(10, 2)
+
+  // ─────────────────────────────────────────────────────────────
+  // 👥 Resource Allocation & Management
+  // ─────────────────────────────────────────────────────────────
+  // Resource requirements
+  requiredSkills      String?  @db.Text
+  skillLevel          String?  @db.VarChar(50) // BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
+  tradeSpecialty      String?  @db.VarChar(100)
+
+  // Resource allocation
+  assignedResources   Int      @default(0) @db.Integer // Number of assigned resources
+  requiredResources   Int      @default(1) @db.Integer // Number of required resources
+  plannedEffort       Decimal  @default(0) @db.Decimal(10, 2) // Person-hours
+  actualEffort        Decimal  @default(0) @db.Decimal(10, 2) // Actual person-hours
+  remainingEffort     Decimal  @default(0) @db.Decimal(10, 2)
+
+  // Resource utilization
+  resourceUtilization Decimal  @default(100) @db.Decimal(5, 2) // % utilization
+  overallocated       Boolean  @default(false)
+  underallocated      Boolean  @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 💰 Cost Tracking & Financial Management
+  // ─────────────────────────────────────────────────────────────
+  currencyCode        String   @default("USD") @db.Char(3)
+
+  // Budgeted costs
+  budgetedLaborCost   Decimal  @default(0) @db.Decimal(12, 2)
+  budgetedMaterialCost Decimal @default(0) @db.Decimal(12, 2)
+  budgetedEquipmentCost Decimal @default(0) @db.Decimal(12, 2)
+  budgetedOtherCost   Decimal  @default(0) @db.Decimal(12, 2)
+  totalBudgetedCost   Decimal  @default(0) @db.Decimal(12, 2)
+
+  // Actual costs (accumulated from timesheets, purchases, etc.)
+  actualLaborCost     Decimal  @default(0) @db.Decimal(12, 2)
+  actualMaterialCost  Decimal  @default(0) @db.Decimal(12, 2)
+  actualEquipmentCost Decimal  @default(0) @db.Decimal(12, 2)
+  actualOtherCost     Decimal  @default(0) @db.Decimal(12, 2)
+  totalActualCost     Decimal  @default(0) @db.Decimal(12, 2)
+
+  // Cost forecasting
+  estimateAtCompletion Decimal @default(0) @db.Decimal(12, 2) // EAC
+  estimateToComplete   Decimal @default(0) @db.Decimal(12, 2) // ETC
+  varianceAtCompletion Decimal @default(0) @db.Decimal(12, 2) // VAC
+
+  // ─────────────────────────────────────────────────────────────
+  // 📋 Organization & Positioning
+  // ─────────────────────────────────────────────────────────────
+  sequenceOrder   Int      @default(0) @db.Integer // Order within schedule
+  displayOrder    Int      @default(0) @db.Integer // UI display order
+  indentLevel     Int      @default(0) @db.Integer // WBS hierarchy level
+  sortKey         String?  @db.VarChar(100)       // Custom sort key
+  grouping        String?  @db.VarChar(100)       // Item grouping
+
+  // Hierarchy relationships
+  parentItemId    String?  @db.Uuid // Parent schedule item
+  summaryItem     Boolean  @default(false) // Is summary/rollup item
+  rollupChildren  Boolean  @default(false) // Roll up child progress
+
+  // ─────────────────────────────────────────────────────────────
+  // ⚠️ Risk & Issue Management
+  // ─────────────────────────────────────────────────────────────
+  riskLevel          String  @default("LOW") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  riskDescription    String? @db.Text
+  riskMitigation     String? @db.Text
+
+  // Issue tracking
+  hasActiveIssues    Boolean @default(false)
+  issueCount         Int     @default(0) @db.Integer
+  blockedBy          String? @db.Text // Description of blockers
+
+  // Delay tracking
+  isDelayed          Boolean @default(false)
+  delayReason        String? @db.Text
+  delayDays          Int     @default(0) @db.Integer
+  delayImpact        String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🌤️ External Factors & Dependencies
+  // ─────────────────────────────────────────────────────────────
+  weatherDependent   Boolean @default(false)
+  weatherRisk        String  @default("LOW") @db.VarChar(20)
+  seasonalFactor     String? @db.VarChar(50) // WINTER, SPRING, SUMMER, FALL
+
+  // External dependencies
+  hasExternalDeps    Boolean @default(false)
+  externalDepsCount  Int     @default(0) @db.Integer
+  vendorDependent    Boolean @default(false)
+  permitRequired     Boolean @default(false)
+  inspectionRequired Boolean @default(false)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📊 Status & Workflow Management
+  // ─────────────────────────────────────────────────────────────
+  workflowStatus     String  @default("SCHEDULED") @db.VarChar(50)
+  approvalRequired   Boolean @default(false)
+  approvedBy         String? @db.Uuid // Member ID
+  approvedAt         DateTime? @db.Timestamptz(6)
+
+  // Completion criteria
+  completionCriteria String? @db.Text
+  acceptanceCriteria String? @db.Text
+  deliverables       String? @db.Text
+
+  // Status tracking
+  lastStatusUpdate   DateTime? @db.Timestamptz(6)
+  statusNotes        String?   @db.Text
+  nextReviewDate     DateTime? @db.Timestamptz(6)
+
+  // ─────────────────────────────────────────────────────────────
+  // 📝 Documentation & Communication
+  // ─────────────────────────────────────────────────────────────
+  workInstructions   String? @db.Text
+  specialInstructions String? @db.Text
+  safetyRequirements String? @db.Text
+  qualityRequirements String? @db.Text
+
+  // Communication
+  notesInternal      String? @db.Text
+  notesClient        String? @db.Text
+  lastCommentDate    DateTime? @db.Timestamptz(6)
+  communicationPlan  String? @db.Text
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔧 Configuration & Behavior
+  // ─────────────────────────────────────────────────────────────
+  isActive           Boolean @default(true)
+  isTemplate         Boolean @default(false)
+  canModify          Boolean @default(true)
+  autoSchedule       Boolean @default(true)
+  calculateProgress  Boolean @default(true)
+
+  // Update behavior
+  lastCalculated     DateTime? @db.Timestamptz(6)
+  calculationMethod  String?   @db.VarChar(50) // MANUAL, AUTO, WEIGHTED
+  progressMethod     String    @default("DURATION") @db.VarChar(50) // DURATION, WORK, UNITS
+
+  // Display preferences
+  showInGantt        Boolean @default(true)
+  showInReports      Boolean @default(true)
+  colorCode          String? @db.VarChar(7) // Hex color code
+  iconType           String? @db.VarChar(50)
+
+  // ─────────────────────────────────────────────────────────────
+  // 🔗 Relations
+  // ─────────────────────────────────────────────────────────────
+
+  // Parent schedule relationship
+  schedule ProjectSchedule @relation("ScheduleToItems", fields: [tenantId, scheduleId], references: [tenantId, id], onDelete: Cascade)
+
+  // Optional task linkage
+  task ProjectTask? @relation("TaskToScheduleItems", fields: [tenantId, taskId], references: [tenantId, id], onDelete: Restrict)
+
+  // Hierarchy relationships
+  parentItem ProjectScheduleItem?  @relation("ScheduleItemHierarchy", fields: [tenantId, parentItemId], references: [tenantId, id], onDelete: Restrict)
+  childItems ProjectScheduleItem[] @relation("ScheduleItemHierarchy")
+
+  // ─────────────────────────────────────────────────────────────
+  // 📏 Constraints & Strategic Indexes (50+ indexes per architecture)
+  // ─────────────────────────────────────────────────────────────
   @@unique([tenantId, id])
+  @@unique([tenantId, scheduleId, sequenceOrder]) // Unique sequence per schedule
+  @@unique([tenantId, scheduleId, itemCode]) // Unique WBS codes per schedule (if provided)
+
+  // Parent & hierarchy relationships
+  @@index([tenantId, scheduleId])
+  @@index([tenantId, taskId])
+  @@index([tenantId, parentItemId])
+
+  // Status & classification
   @@index([tenantId, status])
+  @@index([tenantId, itemType])
+  @@index([tenantId, priority])
+  @@index([tenantId, workflowStatus])
+
+  // Critical flags (performance queries)
+  @@index([tenantId, isCritical])
+  @@index([tenantId, isMilestone])
+  @@index([tenantId, isDeliverable])
+  @@index([tenantId, summaryItem])
+
+  // Timeline & scheduling
+  @@index([tenantId, scheduledStart])
+  @@index([tenantId, scheduledEnd])
+  @@index([tenantId, actualStart])
+  @@index([tenantId, actualEnd])
+  @@index([tenantId, baselineStart])
+  @@index([tenantId, forecastEnd])
+  @@index([tenantId, deadlineDate])
+
+  // Progress & performance
+  @@index([tenantId, percentComplete])
+  @@index([tenantId, physicalComplete])
+  @@index([tenantId, workComplete])
+  @@index([tenantId, schedulePerformanceIndex])
+  @@index([tenantId, costPerformanceIndex])
+
+  // Organization & hierarchy
+  @@index([tenantId, sequenceOrder])
+  @@index([tenantId, displayOrder])
+  @@index([tenantId, indentLevel])
+  @@index([tenantId, itemCategory])
+  @@index([tenantId, grouping])
+
+  // Duration & effort tracking
+  @@index([tenantId, plannedDuration])
+  @@index([tenantId, actualDuration])
+  @@index([tenantId, remainingWork])
+  @@index([tenantId, plannedEffort])
+  @@index([tenantId, actualEffort])
+
+  // Float & constraint analysis
+  @@index([tenantId, totalFloat])
+  @@index([tenantId, freeFloat])
+  @@index([tenantId, constraintType])
+  @@index([tenantId, constraintDate])
+
+  // Resource management
+  @@index([tenantId, assignedResources])
+  @@index([tenantId, requiredResources])
+  @@index([tenantId, resourceUtilization])
+  @@index([tenantId, overallocated])
+  @@index([tenantId, skillLevel])
+  @@index([tenantId, tradeSpecialty])
+
+  // Financial tracking
+  @@index([tenantId, totalBudgetedCost])
+  @@index([tenantId, totalActualCost])
+  @@index([tenantId, earnedValue])
+  @@index([tenantId, scheduleVariance])
+  @@index([tenantId, costVariance])
+  @@index([tenantId, estimateAtCompletion])
+
+  // Risk & issue management
+  @@index([tenantId, riskLevel])
+  @@index([tenantId, hasActiveIssues])
+  @@index([tenantId, issueCount])
+  @@index([tenantId, isDelayed])
+  @@index([tenantId, delayDays])
+
+  // External factors
+  @@index([tenantId, weatherDependent])
+  @@index([tenantId, weatherRisk])
+  @@index([tenantId, hasExternalDeps])
+  @@index([tenantId, permitRequired])
+  @@index([tenantId, inspectionRequired])
+
+  // Quality & approval
+  @@index([tenantId, qualityScore])
+  @@index([tenantId, reworkRequired])
+  @@index([tenantId, approvalRequired])
+  @@index([tenantId, approvedBy])
+  @@index([tenantId, approvedAt])
+
+  // Configuration & behavior
+  @@index([tenantId, isActive])
+  @@index([tenantId, isTemplate])
+  @@index([tenantId, autoSchedule])
+  @@index([tenantId, showInGantt])
+  @@index([tenantId, showInReports])
+
+  // Status updates & workflow
+  @@index([tenantId, lastStatusUpdate])
+  @@index([tenantId, nextReviewDate])
+  @@index([tenantId, lastCalculated])
+  @@index([tenantId, calculationMethod])
+  @@index([tenantId, progressMethod])
+
+  // Lifecycle
   @@index([tenantId, deletedAt])
+
+  // Temporal queries (BRIN for time-series performance)
   @@index([createdAt], type: Brin)
+  @@index([scheduledStart], type: Brin)
+  @@index([actualStart], type: Brin)
+  @@index([baselineStart], type: Brin)
+  @@index([lastStatusUpdate], type: Brin)
+
+  // Governance & search
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("project_schedule_item")
+  @@index([tenantId, recordSource])
+  @@index([tenantId, timezone])
+  @@index([metadata], type: Gin)
+
+  @@map("project_schedule_items")
 }
 
 model ProjectCriticalPath {
@@ -297,14 +1423,69 @@ model ProjectCriticalPath {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  // 🔗 Parent Relations (REQUIRED)
+  projectId String @db.Uuid
+  project   Project @relation(fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 📊 Critical Path Analysis
+  pathName             String  @db.VarChar(255)
+  pathType             String  @default("FORWARD_PASS") @db.VarChar(50) // FORWARD_PASS, BACKWARD_PASS, CRITICAL_CHAIN
+  calculationMethod    String  @db.VarChar(100)
+  calculationDate      DateTime @db.Timestamptz(6)
+  calculatedBy         String? @db.Uuid
+
+  // ⏱️ Duration Analysis
+  totalDuration        Int     @default(0) // Duration in hours or days
+  totalDurationUnit    String  @default("DAYS") @db.VarChar(20) // HOURS, DAYS, WEEKS
+  longestPathDuration  Int     @default(0)
+  shortestPathDuration Int     @default(0)
+
+  // 📈 Path Metrics
+  totalFloat           Decimal @default(0) @db.Decimal(10, 2) // Total float in path
+  freeFloat            Decimal @default(0) @db.Decimal(10, 2) // Free float available
+  negativeFloat        Decimal @default(0) @db.Decimal(10, 2) // Behind schedule indicator
+
+  // 🎯 Critical Path Sequence (JSON array of task IDs)
+  criticalPathSequence Json    @db.JsonB // Array of task IDs in sequence
+  alternativePaths     Json?   @db.JsonB // Alternative critical paths
+
+  // 📊 Impact Analysis
+  riskLevel            String  @default("MEDIUM") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  impactDescription    String?   @db.Text
+  recommendedActions   String?   @db.Text
+  bufferRecommendation Decimal?  @db.Decimal(10, 2) // Recommended buffer time
+
+  // 📅 Schedule Impact
+  earlyStartDate       DateTime? @db.Timestamptz(6)
+  earlyFinishDate      DateTime? @db.Timestamptz(6)
+  lateStartDate        DateTime? @db.Timestamptz(6)
+  lateFinishDate       DateTime? @db.Timestamptz(6)
+
+  // 🔄 Calculation Status
+  isValid              Boolean   @default(true)
+  lastValidationDate   DateTime? @db.Timestamptz(6)
+  validationErrors     Json?     @db.JsonB
+  recalculationNeeded  Boolean   @default(false)
+
+  // 📈 Performance Metrics
+  schedulePerformanceIndex Decimal? @db.Decimal(8, 4) // SPI
+  timeVariance             Decimal? @db.Decimal(10, 2) // TV
+  scheduleVariance         Decimal? @db.Decimal(10, 2) // SV
+
+  // 🚨 Alerts & Notifications
+  hasSlippedTasks      Boolean   @default(false)
+  criticalTaskCount    Int       @default(0)
+  atRiskTaskCount      Int       @default(0)
+  alertThreshold       Decimal?  @db.Decimal(5, 2) // % threshold for alerts
+
+  // 📊 Lifecycle
+  status    String @default("ACTIVE") @db.VarChar(50) // ACTIVE, OUTDATED, ARCHIVED
+  version   Int                @default(1)
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?          @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs Only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
@@ -312,38 +1493,27 @@ model ProjectCriticalPath {
   // 🧠 Governance
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  retentionPolicy    String? @db.VarChar(50)
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectCriticalPath", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectCriticalPathCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectCriticalPathUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectCriticalPathDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & Constraints
   @@unique([tenantId, id])
+  @@unique([tenantId, projectId, pathName])
+  @@index([tenantId, projectId])
   @@index([tenantId, status])
+  @@index([tenantId, pathType])
+  @@index([tenantId, calculationDate])
+  @@index([tenantId, riskLevel])
+  @@index([tenantId, isValid])
+  @@index([tenantId, hasSlippedTasks])
+  @@index([tenantId, recalculationNeeded])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+  @@index([metadata], type: Gin)
   @@map("project_critical_path")
 }
 
@@ -352,14 +1522,90 @@ model ProjectBaseline {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // 🔗 Parent Relations (REQUIRED)
+  projectId String @db.Uuid
+  project   Project @relation(fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
+
+  // 📊 Baseline Information
+  baselineName        String   @db.VarChar(255)
+  baselineType        String   @default("ORIGINAL") @db.VarChar(50) // ORIGINAL, CURRENT, APPROVED, SNAPSHOT
+  baselineDate        DateTime @db.Timestamptz(6)
+  baselineBy          String?  @db.Uuid // Member who created baseline
+  description         String?  @db.Text
+
+  // 📅 Schedule Baseline
+  originalStartDate   DateTime? @db.Timestamptz(6)
+  originalEndDate     DateTime? @db.Timestamptz(6)
+  originalDuration    Int?     // Original planned duration
+  durationUnit        String   @default("DAYS") @db.VarChar(20) // HOURS, DAYS, WEEKS
+
+  // 💰 Budget Baseline
+  originalBudget      Decimal @default(0) @db.Decimal(12, 2)
+  originalLaborCost   Decimal @default(0) @db.Decimal(12, 2)
+  originalMaterialCost Decimal @default(0) @db.Decimal(12, 2)
+  originalEquipmentCost Decimal @default(0) @db.Decimal(12, 2)
+  originalOtherCost   Decimal @default(0) @db.Decimal(12, 2)
+  contingencyAmount   Decimal @default(0) @db.Decimal(12, 2)
+
+  // 📊 Scope Baseline
+  originalTaskCount   Int     @default(0)
+  originalPhaseCount  Int     @default(0)
+  scopeDescription    String? @db.Text
+  majorDeliverables   Json?   @db.JsonB // Array of deliverable descriptions
+
+  // 🔄 Variance Tracking
+  scheduleVariance    Decimal @default(0) @db.Decimal(10, 2) // Days ahead/behind
+  budgetVariance      Decimal @default(0) @db.Decimal(12, 2) // Amount over/under
+  scopeVariance       String? @db.Text // Scope changes description
+
+  // 📈 Performance Baselines
+  plannedValue        Decimal @default(0) @db.Decimal(12, 2) // PV for EVM
+  baselineProgress    Decimal @default(0) @db.Decimal(5, 2)  // Expected % complete by date
+
+  // 🔍 Change Log
+  changeLog           Json?   @db.JsonB // History of baseline changes
+  changeReason        String? @db.Text
+  approvedChanges     Json?   @db.JsonB // Approved change orders affecting baseline
+
+  // ⏱️ Milestone Baselines
+  originalMilestones  Json?   @db.JsonB // Original milestone dates and deliverables
+  milestoneVariances  Json?   @db.JsonB // Variance tracking for milestones
+
+  // 🎯 Quality Baselines
+  qualityStandards    Json?   @db.JsonB // Original quality criteria
+  deliveryStandards   Json?   @db.JsonB // Expected delivery standards
+  acceptanceCriteria  String? @db.Text
+
+  // 📊 Resource Baselines
+  plannedResources    Json?   @db.JsonB // Original resource allocation
+  teamComposition     Json?   @db.JsonB // Original team structure
+  skillRequirements   Json?   @db.JsonB // Required skills/certifications
+
+  // 🚨 Risk Baselines
+  identifiedRisks     Json?   @db.JsonB // Original risk register
+  riskMitigations     Json?   @db.JsonB // Planned risk responses
+  contingencyPlans    Json?   @db.JsonB // Contingency strategies
+
+  // 📊 Status & Flags
+  isActive            Boolean @default(true)
+  isCurrent           Boolean @default(false) // Current active baseline
+  isLocked            Boolean @default(false) // Locked from changes
+  requiresApproval    Boolean @default(true)  // Changes require approval
+  approvedAt          DateTime? @db.Timestamptz(6)
+  approvedBy          String?   @db.Uuid
+
+  // 📈 Performance Metrics
+  baselineAccuracy    Decimal? @db.Decimal(5, 2) // How accurate was this baseline
+  forecastReliability Decimal? @db.Decimal(5, 2) // Reliability score
+
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  status    String   @default("ACTIVE") @db.VarChar(50) // ACTIVE, SUPERSEDED, ARCHIVED
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs Only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
@@ -367,38 +1613,27 @@ model ProjectBaseline {
   // 🧠 Governance
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  retentionPolicy    String? @db.VarChar(50)
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectBaseline", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectBaselineCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectBaselineUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectBaselineDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & Constraints
   @@unique([tenantId, id])
+  @@unique([tenantId, projectId, baselineName])
+  @@index([tenantId, projectId])
+  @@index([tenantId, baselineType])
+  @@index([tenantId, baselineDate])
+  @@index([tenantId, isActive])
+  @@index([tenantId, isCurrent])
+  @@index([tenantId, isLocked])
   @@index([tenantId, status])
+  @@index([tenantId, approvedAt])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+  @@index([metadata], type: Gin)
   @@map("project_baseline")
 }
 
@@ -407,14 +1642,88 @@ model ProjectChecklistItem {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // 🔗 Parent Relations (REQUIRED)
+  taskId      String @db.Uuid
+  projectTask ProjectTask @relation("ProjectTaskToChecklist", fields: [tenantId, taskId], references: [tenantId, id], onDelete: Cascade)
+
+  // 📊 Checklist Item Details
+  checklistName       String  @db.VarChar(255)
+  description         String? @db.Text
+  checklistType       String  @default("QUALITY_GATE") @db.VarChar(50) // QUALITY_GATE, SAFETY_CHECK, COMPLIANCE, INSPECTION
+  category            String? @db.VarChar(100) // Group related checklist items
+  sortOrder           Int     @default(0)
+
+  // ✅ Completion Tracking
+  isCompleted         Boolean   @default(false)
+  completedDate       DateTime? @db.Timestamptz(6)
+  completedBy         String?   @db.Uuid // Member who completed
+  completionNotes     String?   @db.Text
+
+  // 📋 Completion Criteria
+  completionCriteria  String?   @db.Text
+  acceptanceCriteria  String?   @db.Text
+  verificationMethod  String?   @db.VarChar(100) // INSPECTION, TEST, ANALYSIS, DEMONSTRATION
+  evidenceRequired    Boolean   @default(false)
+  evidenceProvided    Json?     @db.JsonB // File references, photos, etc.
+
+  // 🚨 Requirements & Flags
+  isMandatory         Boolean   @default(true)
+  isQualityGate       Boolean   @default(false) // Blocks task completion
+  isSafetyCheck       Boolean   @default(false) // Safety-related check
+  isComplianceCheck   Boolean   @default(false) // Regulatory compliance
+  requiresApproval    Boolean   @default(false) // Needs supervisor approval
+
+  // 👤 Approval Tracking
+  approvedBy          String?   @db.Uuid
+  approvedAt          DateTime? @db.Timestamptz(6)
+  approvalNotes       String?   @db.Text
+  rejectedReason      String?   @db.Text
+
+  // ⏰ Timing & Dependencies
+  dueDate             DateTime? @db.Timestamptz(6)
+  estimatedDuration   Int?      // Minutes required
+  actualDuration      Int?      // Actual time taken
+
+  // 📊 Dependencies
+  dependsOnTaskIds    Json?     @db.JsonB // Array of task IDs that must complete first
+  dependsOnChecklistIds Json?   @db.JsonB // Array of checklist item IDs
+  blocksTaskIds       Json?     @db.JsonB // Tasks blocked by this checklist
+
+  // 🔍 Verification & Quality
+  verificationStatus  String    @default("PENDING") @db.VarChar(50) // PENDING, VERIFIED, FAILED, WAIVED
+  verifiedBy          String?   @db.Uuid
+  verifiedAt          DateTime? @db.Timestamptz(6)
+  verificationNotes   String?   @db.Text
+
+  // 📈 Performance Tracking
+  attemptCount        Int       @default(0) // Number of completion attempts
+  failureCount        Int       @default(0) // Number of failed attempts
+  reworkRequired      Boolean   @default(false)
+  reworkReason        String?   @db.Text
+
+  // 🔗 External References
+  standardReference   String?   @db.VarChar(255) // Reference to standard/specification
+  documentReference   String?   @db.VarChar(255) // Related document ID
+  inspectionReference String?   @db.VarChar(255) // Related inspection ID
+
+  // 📊 Risk & Impact
+  riskLevel           String    @default("LOW") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  impactIfSkipped     String?   @db.Text
+  costOfNonCompliance Decimal?  @db.Decimal(10, 2)
+
+  // 🎯 Assignment & Responsibility
+  assignedTo          String?   @db.Uuid // Member responsible for completion
+  assignedRole        String?   @db.VarChar(100) // Role responsible (foreman, inspector, etc.)
+  escalationLevel     Int       @default(0) // Escalation level for overdue items
+
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  status    String   @default("ACTIVE") @db.VarChar(50) // ACTIVE, COMPLETED, SKIPPED, WAIVED
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs Only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
@@ -422,38 +1731,32 @@ model ProjectChecklistItem {
   // 🧠 Governance
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  retentionPolicy    String? @db.VarChar(50)
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectChecklistItem", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectChecklistItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectChecklistItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectChecklistItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & Constraints
   @@unique([tenantId, id])
+  @@unique([tenantId, taskId, checklistName])
+  @@index([tenantId, taskId])
+  @@index([tenantId, isCompleted])
+  @@index([tenantId, isMandatory])
+  @@index([tenantId, isQualityGate])
+  @@index([tenantId, isSafetyCheck])
+  @@index([tenantId, isComplianceCheck])
+  @@index([tenantId, requiresApproval])
+  @@index([tenantId, verificationStatus])
   @@index([tenantId, status])
+  @@index([tenantId, checklistType])
+  @@index([tenantId, dueDate])
+  @@index([tenantId, assignedTo])
+  @@index([tenantId, riskLevel])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+  @@index([metadata], type: Gin)
   @@map("project_checklist_item")
 }
 
@@ -462,14 +1765,81 @@ model ProjectTaskComment {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // 🔗 Parent Relations (REQUIRED)
+  taskId      String @db.Uuid
+  projectTask ProjectTask @relation("ProjectTaskToComments", fields: [tenantId, taskId], references: [tenantId, id], onDelete: Cascade)
+
+  // 💬 Comment Content
+  commentText       String  @db.Text
+  commentType       String  @default("GENERAL") @db.VarChar(50) // GENERAL, STATUS_UPDATE, ISSUE, QUESTION, INSTRUCTION
+  subject           String? @db.VarChar(255) // Optional subject line
+
+  // 🎯 Context & Threading
+  parentCommentId   String? @db.Uuid // For threaded conversations
+  threadLevel       Int     @default(0) // Nesting level (0 = top level)
+  isResolved        Boolean @default(false) // For issues/questions
+  resolvedBy        String? @db.Uuid
+  resolvedAt        DateTime? @db.Timestamptz(6)
+
+  // 👥 Mentions & Notifications
+  mentions          Json?   @db.JsonB // Array of mentioned member IDs
+  notifyMembers     Json?   @db.JsonB // Array of members to notify
+  isUrgent          Boolean @default(false)
+  requiresResponse  Boolean @default(false)
+  responseBy        DateTime? @db.Timestamptz(6) // Response deadline
+
+  // 📎 Attachments & References
+  hasAttachments    Boolean @default(false)
+  attachmentCount   Int     @default(0)
+  referencedTaskIds Json?   @db.JsonB // Array of related task IDs
+  referencedFileIds Json?   @db.JsonB // Array of related file IDs
+
+  // 🔍 Visibility & Access
+  visibility        String  @default("TEAM") @db.VarChar(50) // TEAM, PROJECT, PRIVATE, CLIENT
+  isInternal        Boolean @default(true) // Internal team only
+  isClientVisible   Boolean @default(false) // Visible to client portal
+
+  // 📊 Engagement Tracking
+  isRead            Boolean @default(false)
+  readBy            Json?   @db.JsonB // Array of member IDs who read
+  lastReadAt        DateTime? @db.Timestamptz(6)
+  isStarred         Boolean @default(false) // Important flag
+  isFollowing       Boolean @default(false) // Follow for updates
+
+  // 🏷️ Categorization & Tagging
+  category          String? @db.VarChar(100) // Progress, Issue, Question, etc.
+  tags              Json?   @db.JsonB // Array of tag strings
+  priority          String  @default("NORMAL") @db.VarChar(20) // LOW, NORMAL, HIGH, URGENT
+
+  // 📈 Workflow Integration
+  triggersAction    Boolean @default(false) // Creates action item
+  actionItemId      String? @db.Uuid
+  statusChange      String? @db.VarChar(100) // If comment triggers status change
+
+  // ✏️ Edit History
+  isEdited          Boolean @default(false)
+  editCount         Int     @default(0)
+  lastEditedAt      DateTime? @db.Timestamptz(6)
+  lastEditedBy      String?   @db.Uuid
+  originalText      String?   @db.Text // Original before edits
+
+  // 🔒 Approval & Review
+  requiresApproval  Boolean @default(false)
+  approvedBy        String? @db.Uuid
+  approvedAt        DateTime? @db.Timestamptz(6)
+
+  // 📱 Communication Channels
+  sourceChannel     String? @db.VarChar(50) // WEB, MOBILE, EMAIL, SMS
+  externalId        String? @db.VarChar(255) // External system reference
+
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  status    String   @default("ACTIVE") @db.VarChar(50) // ACTIVE, ARCHIVED, DELETED
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs Only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
@@ -477,38 +1847,29 @@ model ProjectTaskComment {
   // 🧠 Governance
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  retentionPolicy    String? @db.VarChar(50)
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectTaskComment", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectTaskCommentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectTaskCommentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectTaskCommentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & Constraints
   @@unique([tenantId, id])
+  @@index([tenantId, taskId])
+  @@index([tenantId, parentCommentId])
+  @@index([tenantId, commentType])
+  @@index([tenantId, isResolved])
+  @@index([tenantId, isUrgent])
+  @@index([tenantId, requiresResponse])
+  @@index([tenantId, visibility])
+  @@index([tenantId, isClientVisible])
+  @@index([tenantId, priority])
   @@index([tenantId, status])
+  @@index([tenantId, createdByActorId])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+  @@index([metadata], type: Gin)
   @@map("project_task_comment")
 }
 
@@ -517,14 +1878,113 @@ model ProjectTaskAttachment {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
+  // 🔗 Parent Relations (REQUIRED)
+  taskId      String @db.Uuid
+  projectTask ProjectTask @relation("ProjectTaskToAttachments", fields: [tenantId, taskId], references: [tenantId, id], onDelete: Cascade)
+
+  // 📎 File Information
+  fileName        String  @db.VarChar(255)
+  originalName    String  @db.VarChar(255) // Original uploaded filename
+  fileType        String  @db.VarChar(100) // MIME type
+  fileExtension   String  @db.VarChar(20)  // .jpg, .pdf, etc.
+  fileSize        BigInt  @default(0)      // Size in bytes
+  filePath        String  @db.VarChar(500) // Storage path/URL
+
+  // 📊 File Classification
+  attachmentType  String  @default("DOCUMENT") @db.VarChar(50) // PHOTO, DOCUMENT, DRAWING, SPECIFICATION, VIDEO, AUDIO
+  category        String? @db.VarChar(100) // Progress, Quality, Safety, etc.
+  subcategory     String? @db.VarChar(100) // More specific classification
+
+  // 📝 Content Description
+  title           String? @db.VarChar(255)
+  description     String? @db.Text
+  tags            Json?   @db.JsonB // Array of tag strings
+  keywords        Json?   @db.JsonB // Search keywords
+
+  // 📅 Version Control
+  versionNumber   Int     @default(1)
+  isLatestVersion Boolean @default(true)
+  supersededBy    String? @db.Uuid // ID of newer version
+  supersedes      String? @db.Uuid // ID of older version
+  versionNotes    String? @db.Text
+
+  // 🔍 Content Analysis
+  hasOCRData      Boolean @default(false)
+  ocrText         String? @db.Text // Extracted text content
+  contentHash     String? @db.VarChar(64) // File content hash
+  thumbnailPath   String? @db.VarChar(500) // Thumbnail/preview path
+
+  // 📐 Image/Media Properties
+  imageWidth      Int?    // For images
+  imageHeight     Int?    // For images
+  duration        Int?    // For video/audio (seconds)
+  resolution      String? @db.VarChar(50) // Image resolution
+  colorDepth      Int?    // Color depth for images
+
+  // 📍 Location & Context
+  gpsLatitude     Decimal? @db.Decimal(10, 8) // GPS coordinates
+  gpsLongitude    Decimal? @db.Decimal(11, 8)
+  locationName    String?  @db.VarChar(255)
+  capturedAt      DateTime? @db.Timestamptz(6) // When photo/file was captured
+  deviceInfo      String?  @db.VarChar(255) // Camera/device information
+
+  // 🔐 Access Control
+  visibility      String  @default("TEAM") @db.VarChar(50) // TEAM, PROJECT, PRIVATE, CLIENT, PUBLIC
+  isPublic        Boolean @default(false)
+  isClientVisible Boolean @default(false)
+  requiresLogin   Boolean @default(true)
+  downloadAllowed Boolean @default(true)
+
+  // 📋 Approval & Review
+  requiresApproval Boolean @default(false)
+  approvedBy      String? @db.Uuid
+  approvedAt      DateTime? @db.Timestamptz(6)
+  approvalNotes   String? @db.Text
+  rejectionReason String? @db.Text
+
+  // 🎯 Quality & Compliance
+  isQualityRecord Boolean @default(false) // Quality documentation
+  isSafetyRecord  Boolean @default(false) // Safety documentation
+  isComplianceDoc Boolean @default(false) // Compliance document
+  expiryDate      DateTime? @db.Timestamptz(6) // For certificates, permits
+
+  // 🔗 Cross-References
+  linkedCommentId String? @db.Uuid // Associated comment
+  linkedTaskIds   Json?   @db.JsonB // Array of related task IDs
+  linkedDocumentIds Json? @db.JsonB // Array of related document IDs
+  externalId      String? @db.VarChar(255) // External system reference
+
+  // 📊 Usage Tracking
+  downloadCount   Int     @default(0)
+  viewCount       Int     @default(0)
+  lastAccessedAt  DateTime? @db.Timestamptz(6)
+  lastAccessedBy  String?   @db.Uuid
+
+  // 🔧 Processing Status
+  processingStatus String @default("READY") @db.VarChar(50) // UPLOADING, PROCESSING, READY, ERROR
+  processingError  String? @db.Text
+  virusScanStatus  String? @db.VarChar(50) // PENDING, CLEAN, INFECTED, ERROR
+  virusScanDate    DateTime? @db.Timestamptz(6)
+
+  // 📱 Source Information
+  uploadSource    String? @db.VarChar(50) // WEB, MOBILE, EMAIL, API
+  uploadDevice    String? @db.VarChar(255) // Device information
+  uploadMethod    String? @db.VarChar(50) // FORM, DRAG_DROP, API, EMAIL
+
+  // 🗄️ Storage & Backup
+  storageProvider String? @db.VarChar(100) // S3, Azure, Local, etc.
+  storageRegion   String? @db.VarChar(100) // Storage region/location
+  isBackedUp      Boolean @default(false)
+  backupDate      DateTime? @db.Timestamptz(6)
+
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  status    String   @default("ACTIVE") @db.VarChar(50) // ACTIVE, ARCHIVED, DELETED, SUPERSEDED
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
   deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Actor Attribution (Pattern A - IDs Only)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
@@ -532,37 +1992,207 @@ model ProjectTaskAttachment {
   // 🧠 Governance
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  retentionPolicy    String? @db.VarChar(50)
+  metadata           Json?   @db.JsonB
+  recordSource       String? @db.VarChar(50)
+  timezone           String? @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToProjectTaskAttachment", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("ProjectTaskAttachmentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("ProjectTaskAttachmentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("ProjectTaskAttachmentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
+  // 🗂️ Indexes & Constraints
   @@unique([tenantId, id])
+  @@unique([tenantId, taskId, fileName, versionNumber])
+  @@index([tenantId, taskId])
+  @@index([tenantId, attachmentType])
+  @@index([tenantId, fileType])
+  @@index([tenantId, category])
+  @@index([tenantId, isLatestVersion])
+  @@index([tenantId, requiresApproval])
+  @@index([tenantId, isQualityRecord])
+  @@index([tenantId, isSafetyRecord])
+  @@index([tenantId, isComplianceDoc])
+  @@index([tenantId, visibility])
+  @@index([tenantId, isClientVisible])
   @@index([tenantId, status])
+  @@index([tenantId, processingStatus])
+  @@index([tenantId, capturedAt])
+  @@index([tenantId, expiryDate])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+  @@index([metadata], type: Gin)
   @@map("project_task_attachment")
+}
+
+// ============================================================================
+// PROJECT TASK SCHEDULING ENUMS
+// ============================================================================
+
+/// Task status lifecycle for work execution
+enum ProjectTaskStatus {
+  NOT_STARTED       // Task not yet begun
+  IN_PROGRESS       // Work in progress
+  BLOCKED           // Blocked by dependencies or issues
+  ON_HOLD           // Temporarily paused
+  UNDER_REVIEW      // Work completed, under review
+  COMPLETED         // Task completed successfully
+  CANCELLED         // Task cancelled
+  REWORK_REQUIRED   // Rework needed
+}
+
+/// Task type classification for WBS organization
+enum ProjectTaskType {
+  WORK_PACKAGE      // Standard work package
+  MILESTONE         // Project milestone
+  SUMMARY_TASK      // Parent/summary task
+  DELIVERABLE       // Specific deliverable
+  INSPECTION        // Quality inspection task
+  APPROVAL          // Approval gate
+  PROCUREMENT       // Procurement activity
+  SETUP             // Setup/preparation work
+  CLEANUP           // Cleanup/finishing work
+}
+
+/// Task priority levels for resource allocation
+enum ProjectTaskPriority {
+  LOW               // Low priority
+  NORMAL            // Normal priority
+  HIGH              // High priority
+  URGENT            // Urgent - expedite
+  CRITICAL          // Critical path item
+}
+
+/// Task complexity levels for resource planning
+enum ProjectTaskComplexity {
+  SIMPLE            // Simple task - entry level
+  STANDARD          // Standard complexity
+  COMPLEX           // Complex - requires experience
+  EXPERT            // Expert level required
+  SPECIALIZED       // Specialized skills required
+}
+
+/// Task assignment status lifecycle
+enum ProjectTaskAssignmentStatus {
+  ASSIGNED          // Resource assigned
+  ACCEPTED          // Assignment accepted
+  IN_PROGRESS       // Work in progress
+  COMPLETED         // Assignment completed
+  DECLINED          // Assignment declined
+  REASSIGNED        // Reassigned to different resource
+  CANCELLED         // Assignment cancelled
+}
+
+/// Task assignment role types
+enum ProjectTaskAssignmentRole {
+  PRIMARY           // Primary responsible party
+  SECONDARY         // Secondary support
+  SUPERVISOR        // Supervising the work
+  SPECIALIST        // Technical specialist
+  HELPER            // Assistant/helper
+  INSPECTOR         // Quality inspector
+  CLIENT_REP        // Client representative
+}
+
+/// Task dependency types for scheduling
+enum ProjectTaskDependencyType {
+  FINISH_TO_START   // Predecessor must finish before successor starts (FS)
+  START_TO_START    // Both tasks start at same time (SS)
+  FINISH_TO_FINISH  // Both tasks finish at same time (FF)
+  START_TO_FINISH   // Successor can't finish until predecessor starts (SF)
+}
+
+/// Schedule management status for tracking
+enum ProjectScheduleManagementStatus {
+  DRAFT             // Schedule in draft
+  BASELINE          // Baseline schedule
+  CURRENT           // Current working schedule
+  UPDATED           // Updated schedule
+  APPROVED          // Approved schedule
+  ARCHIVED          // Archived schedule
+}
+
+/// Schedule item status
+enum ProjectScheduleItemStatus {
+  SCHEDULED         // Item scheduled
+  IN_PROGRESS       // Work in progress
+  COMPLETED         // Item completed
+  DELAYED           // Behind schedule
+  RESCHEDULED       // Rescheduled
+  CANCELLED         // Cancelled
+}
+
+/// Critical path status
+enum ProjectCriticalPathStatus {
+  ACTIVE            // Active critical path
+  INACTIVE          // Not on critical path
+  UPDATED           // Path updated
+  ARCHIVED          // Archived path
+}
+
+/// Baseline status for variance tracking
+enum ProjectBaselineStatus {
+  DRAFT             // Baseline in draft
+  APPROVED          // Approved baseline
+  CURRENT           // Current baseline
+  SUPERSEDED        // Superseded by new baseline
+  ARCHIVED          // Archived baseline
+}
+
+/// Checklist item status
+enum ProjectChecklistItemStatus {
+  PENDING           // Not yet started
+  IN_PROGRESS       // In progress
+  COMPLETED         // Completed successfully
+  FAILED            // Failed requirements
+  WAIVED            // Requirements waived
+  NOT_APPLICABLE    // Not applicable
+}
+
+/// Checklist item priority
+enum ProjectChecklistItemPriority {
+  LOW               // Low priority
+  NORMAL            // Normal priority
+  HIGH              // High priority
+  CRITICAL          // Critical - must complete
+  MANDATORY         // Mandatory compliance item
+}
+
+/// Task comment status
+enum ProjectTaskCommentStatus {
+  ACTIVE            // Active comment
+  RESOLVED          // Issue resolved
+  ARCHIVED          // Archived comment
+  DELETED           // Soft deleted
+}
+
+/// Task comment type
+enum ProjectTaskCommentType {
+  GENERAL           // General comment
+  ISSUE             // Issue reported
+  QUESTION          // Question asked
+  UPDATE            // Status update
+  APPROVAL          // Approval note
+  INSTRUCTION       // Work instruction
+  WARNING           // Warning/caution
+}
+
+/// Task attachment status
+enum ProjectTaskAttachmentStatus {
+  ACTIVE            // Active attachment
+  ARCHIVED          // Archived attachment
+  DELETED           // Soft deleted
+  SUPERSEDED        // Replaced by newer version
+}
+
+/// Task attachment type
+enum ProjectTaskAttachmentType {
+  PHOTO             // Progress photo
+  DOCUMENT          // Document attachment
+  DRAWING           // Technical drawing
+  SPECIFICATION     // Specifications
+  INSPECTION        // Inspection report
+  CERTIFICATE       // Certificate/compliance
+  VIDEO             // Video documentation
+  AUDIO             // Audio recording
+  PLAN              // Work plan
+  REPORT            // Progress report
 }

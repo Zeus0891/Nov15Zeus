@@ -180,7 +180,18 @@ model Project {
   historyEvents ProjectHistoryEvent[]
 
   // 🔗 Cross-Schema Relations (projectTaskScheduling.prisma)
-  tasks ProjectTask[] @relation("ProjectToTasks")
+  tasks         ProjectTask[]         @relation("ProjectToTasks")
+  schedules     ProjectSchedule[]     @relation("ProjectToSchedules")
+  criticalPaths ProjectCriticalPath[]
+  baselines     ProjectBaseline[]
+
+  // 🔗 Cross-Schema Relations (projectRisk.prisma)
+  risks         ProjectRisk[]         @relation("ProjectToRisks")
+  issues        ProjectIssue[]        @relation("ProjectToIssues")
+  decisions     ProjectDecision[]     @relation("ProjectToDecisions")
+  dailyLogs     ProjectDailyLog[]     @relation("ProjectToDailyLogs")
+  progressReports ProjectProgress[]   @relation("ProjectToProgress")
+  notes         ProjectNote[]         @relation("ProjectToNotes")
 
   // 🔗 Cross-Module Back Relations (via globalId)
   invoices               Invoice[]               @relation("ProjectToInvoices")

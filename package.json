@@ -1,5 +1,5 @@
 {
-  "name": "nov15zeus-erp",
+  "name": "beesmart-pro",
   "version": "1.0.0",
   "description": "ERP Enterprise Multitenant Platform",
   "main": "dist/server.js",
@@ -10,7 +10,12 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "rbac:generate": "npx tsx RBAC/rbac-generator-v8.2.ts --verbose",
+    "rbac:validate": "npx tsx RBAC/rbac-generator-v8.2.ts --validate-only",
+    "rbac:quick": "./scripts/generate-rbac.sh --quick",
+    "rbac:production": "./scripts/generate-rbac.sh --production",
+    "rbac:seed": "npx tsx generated/rbac/rbac-seed.ts"
   },
   "keywords": [
     "erp",
@@ -20,15 +25,21 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/uuid": "^10.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "tsx": "^4.20.6",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@prisma/client": "^6.19.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.10.1",
+    "commander": "^14.0.2",
+    "js-yaml": "^4.1.1",
     "nodemon": "^3.1.11",
     "prisma": "^6.19.0",
     "ts-node": "^10.9.2",

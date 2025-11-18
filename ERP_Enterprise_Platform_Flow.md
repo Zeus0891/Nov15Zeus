@@ -196,49 +196,74 @@ We're not building another project management tool or another accounting system.
 
 ---
 
-### **PROJECT Module** (30 Models across 3 modules)
+### **PROJECT Module Suite v2.1** (30 Models across 3 modules - Pattern BH)
 
-**Purpose**: Project execution and delivery management
+**Purpose**: Project execution and delivery management with 1:1:1 traceability
 
 **Key Capabilities**:
 
-**Core Project Management** (projectsCore.prisma):
+**Core Project Management** (projectsCore.prisma - 10 models):
 
-- Project hierarchy with phases and milestones
-- Team member assignment with roles and rates
-- Multiple location tracking (jobsites, laydown yards)
-- Budget management with variance tracking
-- Document library with version control
-- Complete project history and audit trail
+- Project header with 1:1:1 linkage (Project.globalId = Estimate.globalId)
+- Project phases inherited from EstimateSection with WBS structure
+- Milestone tracking with billing triggers for Invoice generation
+- Team member assignment with roles, rates, and permissions
+- Multiple location tracking (jobsites, laydown yards, offices)
+- Budget management with variance tracking and EAC calculations
+- Document library with version control and access permissions
+- Complete project history and Actor Attribution (Pattern B)
 
-**Work Breakdown & Scheduling** (projectTaskScheduling.prisma):
+**Work Breakdown & Scheduling** (projectTaskScheduling.prisma - 10 models):
 
-- WBS (Work Breakdown Structure) with unlimited levels
-- Task dependencies (FS, SS, FF, SF) for CPM scheduling
-- Resource assignment and capacity planning
-- Critical path analysis with float calculation
-- Baseline comparison for schedule variance
-- Quality gates and checklist items
-- Task-level comments and attachments
+- ProjectTask inherited from EstimateLineItem with budget preservation
+- WBS (Work Breakdown Structure) with unlimited hierarchical levels
+- Task dependencies (FS, SS, FF, SF) for Critical Path Method scheduling
+- Resource assignment with capacity planning and availability
+- Critical path analysis with float calculation and timeline impact
+- Baseline comparison for schedule variance and recovery planning
+- Quality gates and checklist items for milestone completion
+- Task-level comments and attachments with permission controls
 
-**Risk & Daily Operations** (projectRisk.prisma):
+**Risk & Daily Operations** (projectRisk.prisma - 10 models):
 
-- Risk register with probability/impact scoring
-- Issue tracking and resolution workflows
-- Decision log with rationale documentation
-- Daily logs with weather, progress, and issues
-- Labor, equipment, and material daily tracking
-- Progress photos with GPS coordinates
-- Safety incident linkage
+- Risk register with probability/impact scoring and mitigation plans
+- Issue tracking and resolution workflows with owner assignment
+- Decision log with rationale documentation and approval chains
+- Daily logs with weather, progress, safety incidents, and team status
+- Labor, equipment, and material daily tracking for cost control
+- Progress photos with GPS coordinates and timestamp verification
+- Safety incident linkage with OSHA compliance reporting
+
+**Triple Status Innovation**:
+
+- status: Primary workflow (PLANNING → ACTIVE → COMPLETED → CLOSED)
+- budgetStatus: Financial health (ON_BUDGET → OVERBUDGET → CRITICAL)
+- scheduleStatus: Timeline health (ON_SCHEDULE → DELAYED → CRITICAL)
+
+**CRM Integration (Future Phase)**:
+
+- [Future] Project.crmAccountId → CRMAccount (customer linkage)
+- [Future] Project.crmContactId → CRMContact (primary contact)
+- Project.jobsiteAddressId → CRMAddress (work location)
+
+**Access Control Integration**:
+
+- Permission-based operations: project:create, project:read, project:update, project:delete
+- Management permissions: project:approve, project:close, project:archive
+- Financial access: project:budget, project:cost-tracking, project:billing
+- Team management: project:assign-team, task:create, task:assign, task:complete
+- Field operations: risk:create, issue:create, daily-log:create
 
 **Innovative Features**:
 
+- ⭐ **1:1:1 Immutable Traceability** - Perfect lineage from Estimate through Invoice
 - ⭐ **Earned Value Management (EVM)** - SPI, CPI, EAC, VAC calculations
-- ⭐ **Triple status dimension** - status (workflow), budgetStatus (financial), scheduleStatus (timeline)
-- ⭐ **Construction-specific** - daily logs, weather tracking, safety integration
-- ⭐ **Real-time cost control** - budget vs actual vs committed with automated alerts
+- ⭐ **Triple status dimension** - Granular project health monitoring
+- ⭐ **Construction-specific** - Daily logs, weather tracking, safety integration
+- ⭐ **Real-time cost control** - Budget vs actual vs committed with automated alerts
+- ⭐ **Actor Attribution** - Complete accountability for every project decision
 
-**Competitive Advantage**: Procore lacks earned value management. BuilderTrend has basic scheduling but no CPM. We deliver enterprise PM with construction-specific features that general PM tools don't understand.
+**Competitive Advantage**: Procore lacks earned value management and 1:1:1 traceability. BuilderTrend has basic scheduling but no CPM or advanced cost control. We deliver enterprise PM with construction-specific features and complete financial integration that general PM tools don't understand.
 
 ---
 
@@ -301,71 +326,97 @@ We're not building another project management tool or another accounting system.
 
 ## 📦 Inventory & Procurement Management
 
-### **INVENTORY Module** (30 Models across 3 modules)
+### **INVENTORY Module Suite v1.0** (30 Models across 3 modules - Pattern A/B)
 
-**Purpose**: Complete material and equipment lifecycle management
+**Purpose**: Complete material and equipment lifecycle management with zero-loss prevention
 
 **Key Capabilities**:
 
-**Inventory Core** (inventoryCore.prisma):
+**Inventory Core** (inventoryCore.prisma - 10 models):
 
-- Item master with SKU, barcode, QR code tracking
-- Hierarchical categorization (unlimited levels)
-- Multi-location tracking (warehouses, jobsites, trucks)
-- Bin-level precision for large warehouses
-- Unit of measure with conversion matrix
-- Stock levels by location and bin
-- Vendor management with pricing tiers
-- Multiple photos and specification documents
+- InventoryItem (Pattern B - Critical entity with full Actor relations)
+- Item master with itemNumber, SKU, barcode, QR code tracking
+- Hierarchical categorization (InventoryCategory) with unlimited levels
+- Multi-location tracking (InventoryLocation, InventoryBin) - warehouses, jobsites, trucks
+- Unit of measure (InventoryUnitOfMeasure) with conversion matrix
+- Stock levels (InventoryStock) by location and bin with real-time updates
+- Vendor management (InventorySupplier, InventoryItemVendor) with pricing tiers
+- Multiple photos and specification documents (InventoryAttachment)
 
-**Transaction Management** (inventoryTransactions.prisma):
+**Transaction Management** (inventoryTransactions.prisma - 10 models):
 
-- Receipts from purchase orders
-- Issues to projects with task linkage
-- Transfers between locations
-- Returns from projects/suppliers
-- Physical count cycles (full, cycle, ABC)
-- Adjustments with mandatory reason codes
-- Complete transaction history and audit trail
+- Receipts from purchase orders with QR/barcode scanning
+- Issues to projects with ProjectTask linkage for cost tracking
+- Transfers between locations with mandatory approvals
+- Returns from projects/suppliers with reason documentation
+- Physical count cycles (full, cycle, ABC) with variance investigation
+- Adjustments (InventoryAdjustment) with mandatory reason codes
+- Complete transaction history (InventoryTransaction) and audit trail
+- Real-time cost updates using FIFO/LIFO/Average methods
 
-**Control & Prevention** (inventoryControl.prisma):
+**Control & Prevention** (inventoryControl.prisma - 10 models):
 
-- **Zero-Loss Prevention System** (industry-unique):
-  - Loss event documentation (theft, damage, waste, expiration)
-  - Root cause categorization
-  - Formal investigations with findings
-  - Corrective actions and prevention measures
-  - Financial impact tracking and insurance claims
-- Formal audit support with findings tracking
-- Material reservations for projects
-- Automated reorder point triggers
-- Safety stock management by location
-- Demand forecasting and planning
+- **Zero-Loss Prevention System** (industry-unique innovation):
+  - Loss event documentation (InventoryLossEvent) - theft, damage, waste, expiration
+  - Root cause categorization (InventoryLossCause) with prevention focus
+  - Formal investigations (InventoryLossInvestigation) with findings
+  - Corrective actions and prevention measures tracking
+  - Financial impact tracking and insurance claims integration
+- Formal audit support (InventoryAudit) with findings tracking
+- Material reservations (InventoryReservation) for projects - prevent over-commitment
+- Automated reorder point triggers (InventoryReorderPoint) by location
+- Safety stock management (InventorySafetyStock) by location and seasonality
+- Demand forecasting and planning with AI-driven insights
 
-**Costing Methods**:
+**Integration with Business Modules**:
 
-- FIFO (First In, First Out)
-- LIFO (Last In, First Out)
-- Weighted Average
-- Standard Cost with variance tracking
-- Real-time cost updates on receipts
+- **Estimate Integration**: EstimateLineItem links to InventoryItem for accurate pricing
+- **Project Integration**: ProjectTask material issues tracked in InventoryTransaction
+- **Invoice Integration**: InvoiceLineItem can reference InventoryItem for billing
+- **Purchase Orders**: Automated PO generation when stock hits reorder points
+- **Job Costing**: Real-time material costs flow to project cost tracking
 
-**Tracking Methods**:
+**Access Control Integration**:
 
-- Standard (quantity only)
-- Serialized (individual items with serial numbers)
-- Lot/Batch (materials with lot numbers and expiration dates)
+- Permission-based operations: inventory:create, inventory:read, inventory:update
+- Stock management: inventory:adjust, inventory:transfer, inventory:count
+- Loss investigation: inventory:investigate-loss, inventory:approve-writeoff
+- Procurement: inventory:create-po, inventory:receive-stock
+- Reporting: inventory:reports, inventory:analytics
+
+**Costing Methods** (Real-time calculation):
+
+- FIFO (First In, First Out) - Most common for materials
+- LIFO (Last In, First Out) - Tax advantages in some jurisdictions
+- Weighted Average - Smoothed cost fluctuations
+- Standard Cost - Variance tracking for budget control
+- Real-time cost updates on all receipts and adjustments
+
+**Tracking Methods** (by item type):
+
+- Standard (quantity only) - Bulk materials, consumables
+- Serialized (individual items) - Tools, equipment with serial numbers
+- Lot/Batch - Materials with lot numbers and expiration dates
+
+**Mobile Integration**:
+
+- QR/barcode scanning for receipts, issues, and transfers
+- Photo capture for damage documentation
+- GPS verification for location tracking
+- Offline capability with sync when connected
 
 **Innovative Features**:
 
-- ⭐ **Zero-Loss Prevention** - forces investigation of ALL losses (industry-unique)
-- ⭐ **Multi-location/multi-bin** - track materials across distributed operations
-- ⭐ **Project reservations** - prevent over-commitment of materials
-- ⭐ **Serial/lot tracking** - complete traceability for tools and materials
+- ⭐ **Zero-Loss Prevention** - Forces investigation of ALL losses (industry-unique)
+- ⭐ **Multi-location/multi-bin** - Track materials across distributed operations
+- ⭐ **Project reservations** - Prevent over-commitment of materials to multiple projects
+- ⭐ **Serial/lot tracking** - Complete traceability for tools and materials
 - ⭐ **Advanced costing** - FIFO/LIFO/Average with real-time updates
-- ⭐ **Automated reordering** - never run out of critical materials
+- ⭐ **Automated reordering** - Never run out of critical materials
+- ⭐ **Actor Attribution** - Complete accountability for every inventory transaction
+- ⭐ **Cross-module integration** - Native integration with all business workflows
 
-**Competitive Advantage**: None of the major competitors (Procore, BuilderTrend, ServiceTitan, Jobber) offer serious inventory management. They assume you'll use Excel or a separate inventory system. We deliver enterprise-grade inventory control with construction-specific features like zero-loss prevention.
+**Competitive Advantage**: None of the major competitors (Procore, BuilderTrend, ServiceTitan, Jobber) offer serious inventory management. They assume you'll use Excel or a separate inventory system. We deliver enterprise-grade inventory control with construction-specific features like zero-loss prevention, project material reservations, and complete integration with estimating, project management, and job costing.
 
 ---
 
@@ -874,7 +925,15 @@ We're not building another project management tool or another accounting system.
 - Payment history
 - Mobile-responsive design
 
-**Key Feature**: While most systems require customers to create accounts and remember passwords, we offer **both** portal access AND no-login public links. Clients can choose their preferred experience.
+**Access Control Integration**:
+
+- Permission-based portal access with customerportal:access rights
+- Customer role assignments for project visibility
+- Document access controls (public vs private documents)
+- Payment portal permissions for invoice:public:pay operations
+- Message threading with team communication permissions
+
+**Key Feature**: While most systems require customers to create accounts and remember passwords, we offer **both** portal access AND no-login public links. Clients can choose their preferred experience with enterprise-grade security controls.
 
 ---
 
@@ -887,9 +946,10 @@ We're not building another project management tool or another accounting system.
 1. **Lead Capture**: Homeowner fills out website form requesting kitchen remodel
 2. **CRM Entry**: System creates CRMAccount, CRMContact, and initial CRMInteraction
 3. **Site Visit**: Estimator schedules site visit, logs notes and photos in CRM
-4. **Estimate Creation**:
+4. **Estimate Creation** (requires estimate:create permission):
    - Create Estimate (estimateNumber: EST-2025-001, globalId: "01HZQ...")
-   - Link to CRMAccount (customer)
+   - Link to CRMAccount via crmAccountId (REQUIRED - central customer entity)
+   - Link to CRMContact via crmContactId (optional - primary contact)
    - Add EstimateSection: Demolition, Plumbing, Electrical, Cabinets, Countertops, Flooring, Paint
    - For each section, add EstimateLineItem with:
      - Item description
@@ -909,24 +969,33 @@ We're not building another project management tool or another accounting system.
 **Stage 2: Project Setup (Week 2)**
 
 8. **Final Approval**: Admin approves estimate (status = APPROVED)
-9. **Auto-Generation**:
-   - System creates Project (projectNumber: EST-2025-001, same globalId)
-   - EstimateSection → ProjectPhase (7 phases created)
-   - EstimateLineItem → ProjectTask (45 tasks created with budgets)
+9. **Auto-Generation** (1:1:1 Immutable Traceability):
+   - System creates Project (projectNumber: EST-2025-001, same globalId) with project:create permission
+   - Link: Project.sourceEstimateId → Estimate (bidirectional traceability)
+   - Inherit CRM: Project.crmAccountId, Project.crmContactId from Estimate
+   - EstimateSection → ProjectPhase (7 phases created with sourceEstimateSectionId)
+   - EstimateLineItem → ProjectTask (45 tasks created with sourceEstimateLineItemId)
+   - Budget preservation: EstimateLineItem.totalPrice → ProjectTask.budgetedCost
    - EstimateAttachment → ProjectTaskAttachment (photos flow through)
-   - Create Invoice (invoiceNumber: EST-2025-001, same globalId)
-   - EstimateLineItem → InvoiceLineItem
+   - Initialize triple status: status=PLANNING, budgetStatus=ON_BUDGET, scheduleStatus=ON_SCHEDULE
+   - Create Invoice (invoiceNumber: EST-2025-001, same globalId) with invoice:create permission
+   - Link: Invoice.sourceEstimateId → Estimate, Invoice.relatedProjectId → Project
+   - EstimateLineItem → InvoiceLineItem (preserving quantities, pricing, and traceability)
    - Invoice.billingType = MILESTONE
    - Create 3 InvoiceMilestone records (50% deposit, 25% rough-in, 25% completion)
-10. **Material Planning**:
-    - System reviews ProjectTask for materials needed
-    - Creates InventoryReservation for cabinets, countertops, fixtures
-    - InventoryStock.quantityReserved updated
-    - Trigger reorder if materials below reorder point
-11. **Team Assignment**:
-    - Assign project manager (ProjectTeamMember)
-    - Assign foreman
-    - Assign crew members by phase
+10. **Material Planning** (Zero-Loss Inventory Integration):
+    - System reviews ProjectTask for materials needed (links to InventoryItem)
+    - Creates InventoryReservation for cabinets, countertops, fixtures with project:budget permission
+    - InventoryStock.quantityReserved updated automatically
+    - Trigger InventoryReorderPoint if materials below safety stock
+    - Generate PurchaseOrder for missing materials
+    - Track InventoryCommitment for materials on order
+11. **Team Assignment** (Access Control Integration):
+    - Assign project manager (ProjectTeamMember) with project:assign-team permission
+    - Grant PROJECT_MANAGER role with project:_, task:_, risk:\* permissions
+    - Assign foreman with FIELD_SUPERVISOR role (daily-log:\*, task:update:assigned)
+    - Assign crew members by phase with limited task:read permissions
+    - Set up notification preferences and communication channels
 12. **Schedule Creation**:
     - Generate ProjectSchedule based on estimated durations
     - Set ProjectTask dependencies (can't install cabinets until plumbing rough-in complete)
@@ -1020,17 +1089,23 @@ We're not building another project management tool or another accounting system.
 
 **Stage 1: Opportunity to Contract (Month 1-2)**
 
-1. **RFP Response**:
+1. **RFP Response** (Access Control: crm-account:create, document:create):
    - Receive RFP documents via email
-   - Create CRMAccount (property owner)
-   - Upload RFP to Document with AI extraction
+   - Create CRMAccount (property owner - REQUIRED central customer entity)
+   - Create CRMContact (property manager, architect contacts)
+   - Create CRMAddress (project site location)
+   - Upload RFP to Document with AI extraction and Actor Attribution tracking
    - System extracts: scope, budget range, timeline, requirements
-2. **Estimate Development**:
-   - Create Estimate with 25 EstimateSection
-   - 850 EstimateLineItem with detailed breakdowns
-   - EstimateComparison tracking 3 competitor bids
-   - Multiple EstimateRevision as scope clarifies
-   - Internal approval workflow (estimator → PM → VP → CFO)
+2. **Estimate Development** (Access Control: estimate:create, estimate-line:create):
+   - Create Estimate with 25 EstimateSection linked to CRMAccount
+   - 850 EstimateLineItem with detailed breakdowns and InventoryItem linkage
+   - EstimateComparison tracking 3 competitor bids with Actor Attribution
+   - Multiple EstimateRevision (immutable snapshots) as scope clarifies
+   - Internal approval workflow with role-based permissions:
+     - ESTIMATOR: estimate:create, estimate:update
+     - PROJECT_MANAGER: estimate:approve:submit
+     - VP: estimate:approve:internal (under $500K)
+     - CFO: estimate:approve:internal (over $500K)
 3. **Client Presentation**:
    - Send EstimatePublicLink for review
    - Schedule presentation meeting (CRMInteraction)
@@ -1045,10 +1120,14 @@ We're not building another project management tool or another accounting system.
 
 **Stage 2: Project Mobilization (Month 2-3)**
 
-5. **Project Setup**:
-   - Auto-generate Project from Estimate (same globalId)
-   - 25 ProjectPhase created from EstimateSection
-   - 850 ProjectTask created from EstimateLineItem
+5. **Project Setup** (1:1:1 Immutable Traceability):
+   - Auto-generate Project from Estimate (same globalId) with project:create permission
+   - Link: Project.sourceEstimateId → Estimate for bidirectional traceability
+   - Inherit CRM: Project.crmAccountId from Estimate.crmAccountId
+   - 25 ProjectPhase created from EstimateSection (sourceEstimateSectionId preserved)
+   - 850 ProjectTask created from EstimateLineItem (sourceEstimateLineItemId preserved)
+   - Initialize triple status: status=PLANNING, budgetStatus=ON_BUDGET, scheduleStatus=ON_SCHEDULE
+   - Assign PROJECT_MANAGER role with project:_, task:_, risk:\* permissions
    - Baseline schedule set (ProjectBaseline)
 6. **Subcontractor Management**:
    - Create PurchaseOrder for each subcontractor trade

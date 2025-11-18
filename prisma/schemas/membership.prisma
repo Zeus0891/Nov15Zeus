@@ -74,6 +74,7 @@ model Member {
   approvedMilestones      ProjectMilestone[]      @relation("ProjectMilestoneApprover")
   // Project relations
   projectTeamAssignments ProjectTeamMember[] @relation("MemberToProjectTeam")
+  taskAssignments        ProjectTaskAssignment[] @relation("MemberTaskAssignments")
 
   // Project Documents Relations (Pattern A - IDs only audit)
   projectDocumentsCreated       ProjectDocument[] @relation("ProjectDocumentCreator")

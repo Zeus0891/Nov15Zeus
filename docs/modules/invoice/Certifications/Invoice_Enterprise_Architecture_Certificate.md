@@ -7,7 +7,7 @@
 **Certificate ID**: `CERT-INV-2025-002`
 **Issue Date**: November 17, 2025
 **Valid Until**: November 17, 2027
-**Certification Authority**: Nov15Zeus ERP Architecture Board
+**Certification Authority**: BeeSmart Pro ERP Architecture Board
 **Senior Architect**: Claude (Anthropic AI Systems)
 **Review Level**: Enterprise Production Grade
 
@@ -722,9 +722,9 @@ WHERE invoiceDate >= DATE_SUB(CURRENT_DATE, INTERVAL 12 MONTH);
 
 ---
 
-**CERTIFICATE VALIDATION**: This certificate can be verified at `cert.nov15zeus.com/CERT-INV-2025-002`
+**CERTIFICATE VALIDATION**: This certificate can be verified at `cert.beesmartpro.com/CERT-INV-2025-002`
 
-**ISSUED BY**: Nov15Zeus Enterprise Architecture Board
+**ISSUED BY**: BeeSmart Pro Enterprise Architecture Board
 **VALID THROUGH**: November 17, 2027
 **RENEWAL REQUIRED**: Annual financial compliance review
 

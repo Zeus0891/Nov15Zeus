@@ -1,36 +1,23 @@
-# Nov15Zeus - ERP Enterprise Multitenant Platform
+# BeeSmart Pro - ERP Enterprise Multitenant Platform
 
-An enterprise-grade ERP platform built with modern technologies, designed for multi-tenant architecture.
+A comprehensive ERP solution designed for construction contractors and field services.
 
-## Technology Stack
+## Overview
 
-- **Backend Framework:** Node.js with Express
-- **Language:** TypeScript
-- **Database:** PostgreSQL (hosted on Neon)
-- **ORM:** Prisma
-- **Architecture:** Multitenant
+BeeSmart Pro is a multi-tenant ERP platform built with Node.js, TypeScript, and PostgreSQL (via Neon Database).
+
+## Features
+
+- Multi-tenant architecture
+- Prisma ORM with PostgreSQL
+- Role-based access control (RBAC)
+- Row-level security (RLS)
+- Enterprise-grade security
 
 ## Project Structure
 
-```
-Nov15Zeus/
-├── src/
-│   ├── config/          # Configuration files
-│   ├── controllers/     # Request handlers
-│   ├── middleware/      # Express middleware
-│   ├── routes/          # API routes
-│   ├── services/        # Business logic
-│   ├── types/           # TypeScript type definitions
-│   ├── utils/           # Utility functions
-│   ├── app.ts           # Express app setup
-│   └── server.ts        # Server entry point
-├── prisma/
-│   └── schema.prisma    # Database schema
-├── .env                 # Environment variables (not in git)
-├── .env.example         # Environment variables template
-├── tsconfig.json        # TypeScript configuration
-└── package.json         # Project dependencies
-```
+````
+BeeSmart-Pro/
 
 ## Getting Started
 
@@ -44,16 +31,18 @@ Nov15Zeus/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Zeus0891/Nov15Zeus.git
-cd Nov15Zeus
-```
+git clone https://github.com/Zeus0891/BeeSmart-Pro.git
+cd BeeSmart-Pro
+````
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .env.example .env
 ```
@@ -65,16 +54,19 @@ cp .env.example .env
 ### Database Setup
 
 1. Generate Prisma Client:
+
 ```bash
 npm run prisma:generate
 ```
 
 2. Run database migrations:
+
 ```bash
 npm run prisma:migrate
 ```
 
 3. (Optional) Open Prisma Studio to view your database:
+
 ```bash
 npm run prisma:studio
 ```
@@ -82,11 +74,13 @@ npm run prisma:studio
 ### Running the Application
 
 **Development mode:**
+
 ```bash
 npm run dev
 ```
 
 **Production build:**
+
 ```bash
 npm run build
 npm start
@@ -101,20 +95,21 @@ The server will start on `http://localhost:3000`
 ## Multitenant Architecture
 
 This platform supports multitenancy through:
+
 - Tenant isolation at the database level
 - Tenant identification via subdomain or HTTP headers (`x-tenant-id`)
 - Tenant-specific data scoping
 
 ## Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NODE_ENV` | Application environment | `development` |
-| `PORT` | Server port | `3000` |
-| `DATABASE_URL` | Neon PostgreSQL connection string | `postgresql://...` |
-| `DIRECT_URL` | Direct database connection (for migrations) | `postgresql://...` |
-| `JWT_SECRET` | Secret key for JWT tokens | `your-secret-key` |
-| `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:3000` |
+| Variable          | Description                                 | Example                 |
+| ----------------- | ------------------------------------------- | ----------------------- |
+| `NODE_ENV`        | Application environment                     | `development`           |
+| `PORT`            | Server port                                 | `3000`                  |
+| `DATABASE_URL`    | Neon PostgreSQL connection string           | `postgresql://...`      |
+| `DIRECT_URL`      | Direct database connection (for migrations) | `postgresql://...`      |
+| `JWT_SECRET`      | Secret key for JWT tokens                   | `your-secret-key`       |
+| `ALLOWED_ORIGINS` | CORS allowed origins                        | `http://localhost:3000` |
 
 ## Scripts
 
@@ -128,4 +123,3 @@ This platform supports multitenancy through:
 ## License
 
 ISC
-

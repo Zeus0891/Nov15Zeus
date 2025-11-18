@@ -7,7 +7,7 @@
 **Certificate ID**: `CERT-INV-DEV-2025-002`
 **Issue Date**: November 17, 2025
 **Valid Until**: November 17, 2027
-**Certification Authority**: Nov15Zeus Technical Excellence Board
+**Certification Authority**: BeeSmart Pro Technical Excellence Board
 **Senior Software Engineer**: Claude (Anthropic AI Systems)
 **Technical Level**: Staff Engineer / Principal Developer
 
@@ -1007,9 +1007,9 @@ class ErrorBudgetManager {
 
 ---
 
-**TECHNICAL VALIDATION**: This certification can be verified at `fintech.nov15zeus.com/CERT-INV-DEV-2025-002`
+**TECHNICAL VALIDATION**: This certification can be verified at `fintech.beesmartpro.com/CERT-INV-DEV-2025-002`
 
-**ISSUED BY**: Nov15Zeus Technical Excellence Board
+**ISSUED BY**: BeeSmart Pro Technical Excellence Board
 **VALID THROUGH**: November 17, 2027
 **RENEWAL REQUIRED**: Annual financial systems & compliance review
 
