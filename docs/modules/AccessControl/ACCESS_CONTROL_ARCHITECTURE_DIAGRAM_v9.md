@@ -914,16 +914,16 @@ EXAMPLE SECURITY FLOW:
     │   └── No approval permissions
     └── Scope: Own records + assigned tasks only (RLS enforced)
 
-    DRIVER (roleCode: DRIVER, hierarchy: 9)
-    ├── Permission Count: 13/156 (8%)
-    ├── Scope: Delivery tasks and logistics operations
-    ├── Key Permissions:
-   │   ├── task:list:delivery, task:read:delivery, task:update:delivery
+   DRIVER (roleCode: DRIVER, hierarchy: 9)
+   ├── Permission Count: 13/156 (8%)
+   ├── Scope: Delivery tasks and logistics operations
+   ├── Key Permissions:
+   │   ├── task:list:delivery, task:read:delivery, task:update:status:delivery
    │   ├── project:read:delivery_info, inventory:read:delivery_items
-    │   ├── time:create:own_entry, time:read:own
+   │   ├── time:create:own_entry, time:read:own
    │   ├── expenses:create:delivery, expenses:list:own, expenses:read:own
-   │   ├── documents:read:delivery
-    │   └── scheduling:read:own
+   │   ├── documents:read:delivery, documents:upload:delivery
+   │   └── scheduling:read:own
     ├── Restrictions:
     │   ├── No full project access beyond delivery info
     │   ├── No estimate, invoice, or financial access
@@ -954,30 +954,30 @@ EXAMPLE SECURITY FLOW:
     │   └── No real integrations or billing access
     └── Scope: Demo/training content only
 
-PERMISSION DISTRIBUTION BY DOMAIN (18 Domains Total):
+PERMISSION DISTRIBUTION BY DOMAIN (18 Domains Total — Illustrative Examples):
 
-   Domain: estimate (13 permissions)
-   ├── ADMIN: All 7 base permissions (create, list, read, update, delete, send, approve)
-   ├── PROJECT_MANAGER: 4 base + 3 critical via TenantSettings
-   ├── WORKER: None (no estimate access)
-   ├── DRIVER: None (no estimate access)
+   Domain: estimate (Examples)
+   ├── ADMIN: create, list, read, update, delete, send, approve
+   ├── PROJECT_MANAGER: base create/list/read/update (own) + approve via TenantSettings (if enabled)
+   ├── WORKER: No estimate access
+   ├── DRIVER: No estimate access
    └── VIEWER: estimate:list, estimate:read (demo data only)
 
-   Domain: project (20 permissions)
-   ├── ADMIN: All project permissions including financial and assignments
-   ├── PROJECT_MANAGER: own scope + assignments + team/schedule visibility
+   Domain: project (Examples)
+   ├── ADMIN: Full project permissions including financial and assignments
+   ├── PROJECT_MANAGER: project:create:own, project:update:own, project:assign:worker/driver/task, project:read:team/schedule
    ├── WORKER: project:read:assigned (limited to assigned work)
    ├── DRIVER: project:read:delivery_info
    └── VIEWER: project:list, project:read (demo projects only)
 
-   Domain: invoice (14 permissions)
-   ├── ADMIN: All invoice permissions including writeoff
-   ├── PROJECT_MANAGER: 4 base + 3 critical via TenantSettings
-   ├── WORKER: None (no invoice access)
-   ├── DRIVER: None (no invoice access)
+   Domain: invoice (Examples)
+   ├── ADMIN: Full invoice permissions including writeoff
+   ├── PROJECT_MANAGER: base create/list/read/update (own) + approve via TenantSettings (if enabled)
+   ├── WORKER: No invoice access
+   ├── DRIVER: No invoice access
    └── VIEWER: invoice:list, invoice:read (demo data only)
 
-    18 Domains: tenant, accesscontrol, identity, membership, estimate, invoice, project, task, expenses, inventory, scheduling, time, payroll, crm, documents, changeorder, ai, analytics
+    18 Domains (authoritative list in rbac_schema_v9.0.yml): tenant, accesscontrol, identity, membership, estimate, invoice, project, task, expenses, inventory, scheduling, time, payroll, crm, documents, changeorder, ai, analytics
 
 ROLE HIERARCHY ENFORCEMENT:
 ├── Higher roles (lower hierarchy numbers) inherit permissions
