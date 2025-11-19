@@ -58,13 +58,13 @@ The RLS Engine v9.0 serves as the **data access enforcement layer** for the BeeS
 
 ### Role Hierarchy (Phase 1 - 0=Highest Authority)
 
-| Role                | Hierarchy | Authority Level | Access Scope                    |
-| ------------------- | --------- | --------------- | ------------------------------- |
-| **ADMIN**           | 0         | Full System     | All tenants, all data           |
-| **PROJECT_MANAGER** | 2         | Department      | Assigned projects + team        |
-| **WORKER**          | 8         | Operational     | Own timesheets + assigned tasks |
-| **DRIVER**          | 9         | Field           | Own routes + deliveries         |
-| **VIEWER**          | 10        | Read-Only       | Limited dashboard access        |
+| Role                | Hierarchy | Authority Level | Access Scope                                        |
+| ------------------- | --------- | --------------- | --------------------------------------------------- |
+| **ADMIN**           | 0         | Tenant Owner    | Full access within their own tenant (tenant-scoped) |
+| **PROJECT_MANAGER** | 2         | Department      | Assigned projects + team                            |
+| **WORKER**          | 8         | Operational     | Own timesheets + assigned tasks                     |
+| **DRIVER**          | 9         | Field           | Own routes + deliveries                             |
+| **VIEWER**          | 10        | Read-Only       | Limited dashboard access                            |
 
 ---
 

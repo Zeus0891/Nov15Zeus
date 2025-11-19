@@ -174,13 +174,13 @@ export const rlsMiddleware = async (req, res, next) => {
 
 ### Role Hierarchy (Phase 1)
 
-| Role                | Hierarchy | Access Pattern                                              |
-| ------------------- | --------- | ----------------------------------------------------------- |
-| **ADMIN**           | 0         | Full system access, bypass most restrictions                |
-| **PROJECT_MANAGER** | 2         | Department-level access, PM permissions from TenantSettings |
-| **WORKER**          | 8         | Own data + assigned projects/tasks                          |
-| **DRIVER**          | 9         | Own routes + deliveries                                     |
-| **VIEWER**          | 10        | Read-only dashboard access                                  |
+| Role                | Hierarchy | Access Pattern                                                                                 |
+| ------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| **ADMIN**           | 0         | Full access within their own tenant (tenant-scoped). No cross-tenant or platform-level powers. |
+| **PROJECT_MANAGER** | 2         | Department-level access, PM permissions from TenantSettings                                    |
+| **WORKER**          | 8         | Own data + assigned projects/tasks                                                             |
+| **DRIVER**          | 9         | Own routes + deliveries                                                                        |
+| **VIEWER**          | 10        | Read-only dashboard access                                                                     |
 
 ### Common Access Patterns
 
