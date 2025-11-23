@@ -1,0 +1,553 @@
+// This file is auto-generated. Do not edit manually.
+// Module: jobCosting.prisma
+// Generated from Modules_Structure.md and models.generated.prisma
+
+model CostCode {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToCostCode", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("CostCodeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("CostCodeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("CostCodeDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("cost_code")
+}
+
+model CostCategory {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToCostCategory", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("CostCategoryCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("CostCategoryUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("CostCategoryDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("cost_category")
+}
+
+model CostType {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToCostType", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("CostTypeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("CostTypeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("CostTypeDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("cost_type")
+}
+
+model CostCenter {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToCostCenter", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("CostCenterCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("CostCenterUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("CostCenterDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("cost_center")
+}
+
+model JobCostLedger {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToJobCostLedger", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("JobCostLedgerCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("JobCostLedgerUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("JobCostLedgerDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("job_cost_ledger")
+}
+
+model JobCostLine {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToJobCostLine", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("JobCostLineCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("JobCostLineUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("JobCostLineDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("job_cost_line")
+}
+
+model JobCostBudget {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToJobCostBudget", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("JobCostBudgetCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("JobCostBudgetUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("JobCostBudgetDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("job_cost_budget")
+}
+
+model JobCostBudgetLine {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToJobCostBudgetLine", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("JobCostBudgetLineCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("JobCostBudgetLineUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("JobCostBudgetLineDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("job_cost_budget_line")
+}
+
+model JobCostForecast {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToJobCostForecast", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("JobCostForecastCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("JobCostForecastUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("JobCostForecastDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("job_cost_forecast")
+}
+
+model JobCostHistoryEvent {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToJobCostHistoryEvent", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("JobCostHistoryEventCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("JobCostHistoryEventUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("JobCostHistoryEventDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("job_cost_history_event")
+}

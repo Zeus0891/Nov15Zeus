@@ -1,0 +1,556 @@
+// This file is auto-generated. Do not edit manually.
+// Module: paymentsARCashApplication.prisma
+// Generated from Modules_Structure.md and models.generated.prisma
+
+model Payment {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPayment", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // 🔗 Opposite relations - Invoice module (cash application)
+  invoicePaymentApplications InvoicePaymentApplication[] @relation("PaymentToInvoiceApplications")
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment")
+}
+
+model PaymentMethod {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentMethod", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentMethodCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentMethodUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentMethodDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_method")
+}
+
+model PaymentGatewayTransaction {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentGatewayTransaction", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentGatewayTransactionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentGatewayTransactionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentGatewayTransactionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_gateway_transaction")
+}
+
+model PaymentApplication {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentApplication", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentApplicationCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentApplicationUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentApplicationDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_application")
+}
+
+model PaymentUnapplied {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentUnapplied", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentUnappliedCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentUnappliedUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentUnappliedDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_unapplied")
+}
+
+model PaymentRefund {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentRefund", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentRefundCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentRefundUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentRefundDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_refund")
+}
+
+model PaymentReconciliation {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentReconciliation", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentReconciliationCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentReconciliationUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentReconciliationDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_reconciliation")
+}
+
+model PaymentDispute {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentDispute", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentDisputeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentDisputeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentDisputeDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_dispute")
+}
+
+model PaymentAttachment {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentAttachment", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentAttachmentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentAttachmentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentAttachmentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_attachment")
+}
+
+model PaymentHistoryEvent {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToPaymentHistoryEvent", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("PaymentHistoryEventCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PaymentHistoryEventUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PaymentHistoryEventDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("payment_history_event")
+}

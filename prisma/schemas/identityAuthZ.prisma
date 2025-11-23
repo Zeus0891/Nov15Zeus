@@ -1,0 +1,100 @@
+// Module: identityAuthZ.prisma
+// Auto-generated from schema_generated.prisma
+// Tables: Permission, AccessResource
+
+model Permission {
+  // 🆔 Identity (no tenantId)
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+
+  // 🔎 Observability (OPCIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // 👥 Actor relations (ENABLE ONLY for truly critical global entities)
+  // createdByActor Actor? @relation("PermissionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("PermissionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("PermissionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (global)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+
+  @@map("permission")
+}
+
+model AccessResource {
+  // 🆔 Identity (no tenantId)
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+
+  // 🔎 Observability (OPCIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // 👥 Actor relations (ENABLE ONLY for truly critical global entities)
+  // createdByActor Actor? @relation("AccessResourceCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("AccessResourceUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("AccessResourceDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (global)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+
+  @@map("access_resource")
+}
+

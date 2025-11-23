@@ -1,0 +1,1033 @@
+// This file is auto-generated. Do not edit manually.
+// Module: tenant.prisma
+// Generated from Modules_Structure.md and models.generated.prisma
+
+model Tenant {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 🏢 Business Identity
+  name            String  @db.VarChar(255)
+  slug            String  @unique @db.VarChar(100)
+  displayName     String? @db.VarChar(255)
+  description     String? @db.Text
+  website         String? @db.VarChar(500)
+  industry        String? @db.VarChar(100)
+  companySize     String? @db.VarChar(50)
+  timezone        String  @default("UTC") @db.VarChar(50)
+  locale          String  @default("en-US") @db.VarChar(10)
+  currencyCode    String  @default("USD") @db.Char(3)
+
+  // 📱 Contact Information
+  primaryEmail    String? @db.VarChar(255)
+  primaryPhone    String? @db.VarChar(50)
+  supportEmail    String? @db.VarChar(255)
+  billingEmail    String? @db.VarChar(255)
+
+  // 📍 Address Information
+  addressLine1    String? @db.VarChar(255)
+  addressLine2    String? @db.VarChar(255)
+  city            String? @db.VarChar(100)
+  state           String? @db.VarChar(100)
+  postalCode      String? @db.VarChar(20)
+  country         String? @db.VarChar(100)
+
+  // 🔐 Security & Compliance
+  isActive        Boolean @default(true)
+  isVerified      Boolean @default(false)
+  isSuspended     Boolean @default(false)
+  suspensionReason String? @db.Text
+  mfaRequired     Boolean @default(false)
+  ssoEnabled      Boolean @default(false)
+  ssoProvider     String? @db.VarChar(50)
+  ipWhitelist     String? @db.Text
+
+  // 💰 Subscription & Billing
+  subscriptionPlan     String  @default("FREE") @db.VarChar(50)
+  subscriptionStatus   String  @default("ACTIVE") @db.VarChar(50)
+  billingCycle         String  @default("MONTHLY") @db.VarChar(50)
+  trialEndsAt          DateTime? @db.Timestamptz(6)
+  subscriptionEndsAt   DateTime? @db.Timestamptz(6)
+  maxUsers             Int     @default(5)
+  maxProjects          Int     @default(10)
+  storageLimit         BigInt  @default(1073741824) // 1GB in bytes
+  apiRequestLimit      Int     @default(1000)
+
+  // 🏗️ Construction Specific
+  licenseNumber        String? @db.VarChar(100)
+  contractorType       String? @db.VarChar(100)
+  bondingCompany       String? @db.VarChar(255)
+  insuranceProvider    String? @db.VarChar(255)
+  safetyRating         String? @db.VarChar(50)
+  unionAffiliation     String? @db.VarChar(255)
+  certifications       String? @db.Text // JSON array
+  specialties          String? @db.Text // JSON array
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern B - Critical Global Entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // Actor relations (Pattern B)
+  createdByActor Actor? @relation("TenantCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("TenantUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("TenantDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification TenantDataClassification @default(PUBLIC)
+  retentionPolicy    RetentionPolicy? @default(STANDARD)
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // 🔗 Opposite relations
+  estimates             Estimate[]             @relation("TenantToEstimate")
+  estimateRevisions     EstimateRevision[]     @relation("TenantToEstimateRevision")
+  estimateSections      EstimateSection[]      @relation("TenantToEstimateSection")
+  estimateLineItems     EstimateLineItem[]     @relation("TenantToEstimateLineItem")
+  estimateTaxes         EstimateTax[]          @relation("TenantToEstimateTax")
+  estimateDiscounts     EstimateDiscount[]     @relation("TenantToEstimateDiscount")
+  estimateFees          EstimateFee[]          @relation("TenantToEstimateFee")
+  estimateTerms         EstimateTerm[]         @relation("TenantToEstimateTerm")
+  estimateAttachments   EstimateAttachment[]   @relation("TenantToEstimateAttachment")
+  estimateAssumptions   EstimateAssumption[]   @relation("TenantToEstimateAssumption")
+  estimateExclusions    EstimateExclusion[]    @relation("TenantToEstimateExclusion")
+  estimateAlternates    EstimateAlternate[]    @relation("TenantToEstimateAlternate")
+  estimateComments      EstimateComment[]      @relation("TenantToEstimateComment")
+  estimateComparisons   EstimateComparison[]   @relation("TenantToEstimateComparison")
+  estimatePublicLinks   EstimatePublicLink[]   @relation("TenantToEstimatePublicLink")
+  estimateHistoryEvents EstimateHistoryEvent[] @relation("TenantToEstimateHistoryEvent")
+
+  // 🔗 Opposite relations - Invoice module
+  invoices                   Invoice[]                   @relation("TenantToInvoice")
+  invoiceLineItems           InvoiceLineItem[]           @relation("TenantToInvoiceLineItem")
+  invoiceTaxes               InvoiceTax[]                @relation("TenantToInvoiceTax")
+  invoiceDiscounts           InvoiceDiscount[]           @relation("TenantToInvoiceDiscount")
+  invoiceFees                InvoiceFee[]                @relation("TenantToInvoiceFee")
+  invoiceRetainages          InvoiceRetainage[]          @relation("TenantToInvoiceRetainage")
+  invoiceProgresses          InvoiceProgress[]           @relation("TenantToInvoiceProgress")
+  invoiceMilestones          InvoiceMilestone[]          @relation("TenantToInvoiceMilestone")
+  invoicePaymentApplications InvoicePaymentApplication[] @relation("TenantToInvoicePaymentApplication")
+  invoiceAttachments         InvoiceAttachment[]         @relation("TenantToInvoiceAttachment")
+  invoiceComments            InvoiceComment[]            @relation("TenantToInvoiceComment")
+  invoiceRevisions           InvoiceRevision[]           @relation("TenantToInvoiceRevision")
+  invoiceAdjustments         InvoiceAdjustment[]         @relation("TenantToInvoiceAdjustment")
+  invoiceCredits             InvoiceCredit[]             @relation("TenantToInvoiceCredit")
+  invoiceDebits              InvoiceDebit[]              @relation("TenantToInvoiceDebit")
+  invoiceHistories           InvoiceHistory[]            @relation("TenantToInvoiceHistory")
+  invoicePublicLinks         InvoicePublicLink[]         @relation("TenantToInvoicePublicLink")
+  invoiceReminders           InvoiceReminder[]           @relation("TenantToInvoiceReminder")
+
+  // 🔗 Opposite relations - Project module
+  projects                 Project[]                 @relation("TenantToProject")
+  projectPhases            ProjectPhase[]            @relation("TenantToProjectPhase")
+  projectMilestones        ProjectMilestone[]        @relation("TenantToProjectMilestone")
+  projectTeamMembers       ProjectTeamMember[]       @relation("TenantToProjectTeamMember")
+  projectLocations         ProjectLocation[]         @relation("TenantToProjectLocation")
+  projectBudgets           ProjectBudget[]           @relation("TenantToProjectBudget")
+  projectBudgetLineItems   ProjectBudgetLineItem[]   @relation("TenantToProjectBudgetLineItem")
+  projectDocuments         ProjectDocument[]         @relation("TenantToProjectDocument")
+  projectAttachments       ProjectAttachment[]       @relation("TenantToProjectAttachment")
+  projectHistoryEvents     ProjectHistoryEvent[]     @relation("TenantToProjectHistoryEvent")
+
+  // 🔗 Opposite relations - Tenant module
+  tenantSettings           TenantSettings[]          @relation("TenantToTenantSettings")
+  tenantSubscriptions      TenantSubscription[]      @relation("TenantToTenantSubscription")
+  tenantUsageRecords       TenantUsageRecord[]       @relation("TenantToTenantUsageRecord")
+  tenantDomains            TenantDomain[]            @relation("TenantToTenantDomain")
+  tenantBrandings          TenantBranding[]          @relation("TenantToTenantBranding")
+  tenantModules            TenantModule[]            @relation("TenantToTenantModule")
+  tenantFeatureFlags       TenantFeatureFlag[]       @relation("TenantToTenantFeatureFlag")
+  tenantComplianceSettings TenantComplianceSetting[] @relation("TenantToTenantComplianceSetting")
+  tenantHistoryEvents      TenantHistoryEvent[]      @relation("TenantToTenantHistoryEvent")
+
+  // 🔎 Observability (Enable as needed)
+  traceId      String? @db.VarChar(64)
+  spanId       String? @db.VarChar(32)
+  authContext  String? @db.Text
+  hashToken    String? @db.VarChar(255)
+  metadata     Json?   @db.JsonB
+  recordSource TenantRecordSource? @default(SYSTEM)
+
+  // 🗂️ Indexes & constraints (Global scope - no tenant)
+  @@index([status, isActive])
+  @@index([slug])
+  @@index([subscriptionPlan])
+  @@index([subscriptionStatus])
+  @@index([trialEndsAt])
+  @@index([subscriptionEndsAt])
+  @@index([isVerified, isSuspended])
+  @@index([industry])
+  @@index([country])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@index([hashToken])
+  @@index([recordSource])
+  @@index([metadata], type: Gin)
+  @@map("tenant")
+}
+
+model TenantSettings {
+  // 🆔 Identity
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 🏢 General Settings
+  companyName         String  @db.VarChar(255)
+  legalBusinessName   String? @db.VarChar(255)
+  taxId               String? @db.VarChar(50)
+  registrationNumber  String? @db.VarChar(50)
+  businessType        String? @db.VarChar(100)
+  fiscalYearStart     Int     @default(1) // Month (1-12)
+  defaultCurrency     String  @default("USD") @db.Char(3)
+  dateFormat          String  @default("MM/DD/YYYY") @db.VarChar(20)
+  timeFormat          String  @default("12") @db.VarChar(5)
+  numberFormat        String  @default("US") @db.VarChar(10)
+
+  // 💰 Financial Settings
+  invoicePrefix           String  @default("INV") @db.VarChar(10)
+  estimatePrefix          String  @default("EST") @db.VarChar(10)
+  projectPrefix           String  @default("PRJ") @db.VarChar(10)
+  poPrefix                String  @default("PO") @db.VarChar(10)
+  defaultPaymentTerms     Int     @default(30)
+  defaultTaxRate          Decimal @default(0) @db.Decimal(5, 4)
+  retainagePercentage     Decimal @default(0) @db.Decimal(5, 2)
+  lateFeePercentage       Decimal @default(0) @db.Decimal(5, 2)
+  discountPercentage      Decimal @default(0) @db.Decimal(5, 2)
+  requireEstimateApproval Boolean @default(true)
+  requireInvoiceApproval  Boolean @default(true)
+  autoCreateProject       Boolean @default(false)
+
+  // 📋 Project Management Settings
+  defaultProjectStatus      String  @default("PLANNING") @db.VarChar(50)
+  enableTimeTracking        Boolean @default(true)
+  enableExpenseTracking     Boolean @default(true)
+  enableProgressPhotos      Boolean @default(true)
+  enableDailyLogs           Boolean @default(true)
+  enableRiskManagement      Boolean @default(false)
+  enableQualityControl      Boolean @default(false)
+  enableSafetyManagement    Boolean @default(true)
+  requireTaskApproval       Boolean @default(false)
+  enableProjectTemplates    Boolean @default(true)
+  enableChangeOrderTracking Boolean @default(true)
+
+  // 👥 User & Permission Settings
+  maxUsers                    Int     @default(5)
+  enableUserRegistration      Boolean @default(false)
+  requireEmailVerification    Boolean @default(true)
+  enableTwoFactorAuth         Boolean @default(false)
+  passwordExpirationDays      Int?    @default(90)
+  sessionTimeoutMinutes       Int     @default(480) // 8 hours
+  enableApiAccess             Boolean @default(false)
+  apiRequestLimit             Int     @default(1000)
+
+  // 📧 Notification Settings
+  enableEmailNotifications    Boolean @default(true)
+  enableSmsNotifications      Boolean @default(false)
+  enablePushNotifications     Boolean @default(true)
+  notifyOnEstimateApproval    Boolean @default(true)
+  notifyOnInvoicePayment      Boolean @default(true)
+  notifyOnProjectMilestone    Boolean @default(true)
+  notifyOnTaskAssignment      Boolean @default(true)
+  notifyOnOverdueInvoices     Boolean @default(true)
+  notifyOnBudgetVariance      Boolean @default(true)
+  dailyDigestEnabled          Boolean @default(false)
+  weeklyReportEnabled         Boolean @default(false)
+
+  // 🎨 UI/UX Settings
+  themeColor              String  @default("#3B82F6") @db.VarChar(7)
+  logoUrl                 String? @db.VarChar(500)
+  faviconUrl              String? @db.VarChar(500)
+  enableDarkMode          Boolean @default(false)
+  enableCustomBranding    Boolean @default(false)
+  enablePublicPortal      Boolean @default(false)
+  publicPortalDomain      String? @db.VarChar(255)
+  enableClientPortal      Boolean @default(false)
+  clientPortalDomain      String? @db.VarChar(255)
+
+  // 🏗️ Construction Specific Settings
+  enableJobCosting            Boolean @default(true)
+  enableEquipmentTracking     Boolean @default(false)
+  enableInventoryManagement   Boolean @default(false)
+  enableSubcontractorPortal   Boolean @default(false)
+  enableLienWaiverTracking    Boolean @default(false)
+  enableComplianceTracking    Boolean @default(false)
+  enableUnionReporting        Boolean @default(false)
+  enablePrevailingWageTracking Boolean @default(false)
+  enableCertifiedPayroll      Boolean @default(false)
+  requireSafetyTraining       Boolean @default(false)
+
+  // 🔐 Security & Compliance Settings
+  enableAuditLog              Boolean @default(true)
+  enableDataEncryption        Boolean @default(true)
+  enableIpWhitelisting        Boolean @default(false)
+  enableSsoIntegration        Boolean @default(false)
+  ssoProvider                 String? @db.VarChar(50)
+  gdprCompliant               Boolean @default(false)
+  ccpaCompliant               Boolean @default(false)
+  hipaaCompliant              Boolean @default(false)
+  soc2Compliant               Boolean @default(false)
+  dataRetentionDays           Int     @default(2555) // 7 years
+  enableDataBackup            Boolean @default(true)
+  backupFrequency             String  @default("DAILY") @db.VarChar(20)
+
+  // 📱 Integration Settings
+  enableQuickbooksSync        Boolean @default(false)
+  quickbooksCompanyId         String? @db.VarChar(100)
+  enableSageSync              Boolean @default(false)
+  sageCompanyId               String? @db.VarChar(100)
+  enableProCoreSync           Boolean @default(false)
+  proCoreCompanyId            String? @db.VarChar(100)
+  enableSlackIntegration      Boolean @default(false)
+  slackWorkspaceId            String? @db.VarChar(100)
+  enableTeamsIntegration      Boolean @default(false)
+  teamsWorkspaceId            String? @db.VarChar(100)
+
+  // 📊 Project Manager Permissions (Critical for RLS)
+  pmCanCreateEstimates        Boolean @default(true)
+  pmCanApproveEstimates       Boolean @default(false)
+  pmCanDeleteOwnEstimates     Boolean @default(true)
+  pmCanViewAllEstimates       Boolean @default(true)
+  pmCanCreateInvoices         Boolean @default(true)
+  pmCanApproveInvoices        Boolean @default(false)
+  pmCanDeleteOwnInvoices      Boolean @default(true)
+  pmCanViewAllInvoices        Boolean @default(true)
+  pmCanCreateProjects         Boolean @default(true)
+  pmCanDeleteOwnProjects      Boolean @default(true)
+  pmCanViewAllProjects        Boolean @default(true)
+  pmCanManageTeam             Boolean @default(true)
+  pmCanAccessReports          Boolean @default(true)
+  pmCanManageSettings         Boolean @default(false)
+
+  // 🎯 Performance & Limits
+  maxProjectsPerUser          Int     @default(50)
+  maxEstimatesPerMonth        Int     @default(100)
+  maxInvoicesPerMonth         Int     @default(200)
+  maxStoragePerProject        BigInt  @default(536870912) // 512MB
+  maxFileUploadSize           BigInt  @default(52428800)  // 50MB
+  maxPhotosPerProject         Int     @default(1000)
+  maxTeamMembersPerProject    Int     @default(25)
+  enableUsageLimits           Boolean @default(true)
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs only - supporting entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant Tenant @relation("TenantToTenantSettings", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification TenantDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy? @default(STANDARD)
+  metadata           Json? @db.JsonB
+  recordSource       TenantRecordSource? @default(SYSTEM)
+  timezone           String? @db.VarChar(50)
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // 🗂️ Indexes & constraints (Global scope - no tenant)
+  @@unique([tenantId]) // One settings record per tenant
+  @@index([tenantId, status])
+  @@index([enableEmailNotifications])
+  @@index([enableTimeTracking])
+  @@index([requireEstimateApproval])
+  @@index([requireInvoiceApproval])
+  @@index([enableAuditLog])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@index([metadata], type: Gin)
+  @@map("tenant_settings")
+}
+
+model TenantSubscription {
+  // 🆔 Identity
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 💰 Subscription Details
+  planId              String    @db.VarChar(100)
+  planName            String    @db.VarChar(255)
+  planType            String    @default("STANDARD") @db.VarChar(50)
+  billingCycle        String    @default("MONTHLY") @db.VarChar(50)
+  currency            String    @default("USD") @db.Char(3)
+  baseAmount          Decimal   @default(0) @db.Decimal(12, 2)
+  discountAmount      Decimal   @default(0) @db.Decimal(12, 2)
+  taxAmount           Decimal   @default(0) @db.Decimal(12, 2)
+  totalAmount         Decimal   @default(0) @db.Decimal(12, 2)
+  pricePerUser        Decimal?  @db.Decimal(12, 2)
+  pricePerProject     Decimal?  @db.Decimal(12, 2)
+  setupFee            Decimal   @default(0) @db.Decimal(12, 2)
+
+  // 📅 Billing Dates
+  startDate           DateTime  @db.Timestamptz(6)
+  endDate             DateTime? @db.Timestamptz(6)
+  trialStartDate      DateTime? @db.Timestamptz(6)
+  trialEndDate        DateTime? @db.Timestamptz(6)
+  nextBillingDate     DateTime? @db.Timestamptz(6)
+  lastBillingDate     DateTime? @db.Timestamptz(6)
+  canceledAt          DateTime? @db.Timestamptz(6)
+  suspendedAt         DateTime? @db.Timestamptz(6)
+  reactivatedAt       DateTime? @db.Timestamptz(6)
+
+  // 🎯 Limits & Features
+  maxUsers            Int       @default(5)
+  maxProjects         Int       @default(10)
+  maxStorage          BigInt    @default(1073741824) // 1GB
+  maxApiRequests      Int       @default(1000)
+  maxDocuments        Int       @default(100)
+  maxTeamMembers      Int       @default(25)
+  enableTimeTracking  Boolean   @default(true)
+  enableInvoicing     Boolean   @default(true)
+  enableReporting     Boolean   @default(false)
+  enableIntegrations  Boolean   @default(false)
+  enableCustomBranding Boolean  @default(false)
+  enableApiAccess     Boolean   @default(false)
+  enableSsoSupport    Boolean   @default(false)
+  supportLevel        String    @default("STANDARD") @db.VarChar(50)
+
+  // 💳 Billing Information
+  paymentMethodId     String?   @db.VarChar(100)
+  customerId          String?   @db.VarChar(100)
+  subscriptionId      String?   @db.VarChar(100)
+  invoiceId           String?   @db.VarChar(100)
+  prorationAmount     Decimal   @default(0) @db.Decimal(12, 2)
+  creditsUsed         Int       @default(0)
+  creditsRemaining    Int       @default(0)
+  overage             Boolean   @default(false)
+  overageAmount       Decimal   @default(0) @db.Decimal(12, 2)
+
+  // 🔄 Status & Actions
+  subscriptionStatus  String    @default("ACTIVE") @db.VarChar(50)
+  paymentStatus       String    @default("CURRENT") @db.VarChar(50)
+  autoRenew           Boolean   @default(true)
+  cancelAtPeriodEnd   Boolean   @default(false)
+  cancelReason        String?   @db.Text
+  upgradeDowngradeAt  DateTime? @db.Timestamptz(6)
+  gracePeriodEndsAt   DateTime? @db.Timestamptz(6)
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs only - supporting entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant Tenant @relation("TenantToTenantSubscription", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification TenantDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy? @default(STANDARD)
+  metadata           Json? @db.JsonB
+  recordSource       TenantRecordSource? @default(SYSTEM)
+  timezone           String? @db.VarChar(50)
+
+  // 🔎 Observability (Enable as needed)
+  traceId      String? @db.VarChar(64)
+  spanId       String? @db.VarChar(32)
+  authContext  String? @db.Text
+  hashToken    String? @db.VarChar(255)
+
+  // 🗂️ Indexes & constraints (Global scope - no tenant)
+  @@unique([tenantId, planId]) // One active subscription per plan per tenant
+  @@index([tenantId, subscriptionStatus])
+  @@index([subscriptionStatus, paymentStatus])
+  @@index([nextBillingDate])
+  @@index([trialEndDate])
+  @@index([endDate])
+  @@index([planType])
+  @@index([autoRenew])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@index([hashToken])
+  @@index([recordSource])
+  @@index([metadata], type: Gin)
+  @@map("tenant_subscription")
+}
+
+model TenantUsageRecord {
+  // 🆔 Identity
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Usage Period
+  recordDate      DateTime @db.Timestamptz(6)
+  periodStart     DateTime @db.Timestamptz(6)
+  periodEnd       DateTime @db.Timestamptz(6)
+  recordType      String   @default("DAILY") @db.VarChar(50)
+
+  // 👥 User Metrics
+  activeUsers     Int @default(0)
+  maxUsers        Int @default(0)
+  newUsers        Int @default(0)
+  loginCount      Int @default(0)
+  sessionDuration BigInt @default(0) // Total session time in seconds
+
+  // 📋 Project Metrics
+  activeProjects  Int @default(0)
+  newProjects     Int @default(0)
+  completedProjects Int @default(0)
+  archivedProjects Int @default(0)
+
+  // 📄 Document Metrics
+  estimatesCreated Int @default(0)
+  invoicesCreated  Int @default(0)
+  documentsUploaded Int @default(0)
+  reportsGenerated Int @default(0)
+
+  // 💾 Storage Metrics
+  storageUsed     BigInt @default(0) // Bytes
+  storageLimit    BigInt @default(0) // Bytes
+  filesUploaded   Int    @default(0)
+  filesDeleted    Int    @default(0)
+  avgFileSize     BigInt @default(0) // Bytes
+
+  // 🔌 API Metrics
+  apiRequests     Int @default(0)
+  apiLimit        Int @default(0)
+  apiErrors       Int @default(0)
+  webhookCalls    Int @default(0)
+
+  // 📧 Communication Metrics
+  emailsSent      Int @default(0)
+  smssSent        Int @default(0)
+  notificationsSent Int @default(0)
+  reportEmailsSent Int @default(0)
+
+  // 💰 Billing Metrics
+  billingAmount   Decimal @default(0) @db.Decimal(12, 2)
+  overage         Boolean @default(false)
+  overageAmount   Decimal @default(0) @db.Decimal(12, 2)
+  creditsUsed     Int     @default(0)
+  creditsEarned   Int     @default(0)
+
+  // 🎯 Feature Usage
+  timeTrackingHours    Decimal @default(0) @db.Decimal(10, 2)
+  expenseEntriesCreated Int    @default(0)
+  tasksCreated         Int     @default(0)
+  tasksCompleted       Int     @default(0)
+  photosUploaded       Int     @default(0)
+  dailyLogsCreated     Int     @default(0)
+
+  // 🚨 Performance Metrics
+  errorCount      Int @default(0)
+  warningCount    Int @default(0)
+  avgResponseTime Int @default(0) // Milliseconds
+  uptime          Decimal @default(100) @db.Decimal(5, 2) // Percentage
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs only - supporting entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant Tenant @relation("TenantToTenantUsageRecord", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification TenantDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy? @default(STANDARD)
+  metadata           Json? @db.JsonB
+  recordSource       TenantRecordSource? @default(SYSTEM)
+  timezone           String? @db.VarChar(50)
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("tenant_usage_record")
+}
+
+model TenantDomain {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("tenant_domain")
+}
+
+model TenantBranding {
+  // 🆔 Identity
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 🎨 Brand Identity
+  brandName         String  @db.VarChar(255)
+  brandTagline      String? @db.VarChar(500)
+  brandDescription  String? @db.Text
+  brandStory        String? @db.Text
+  brandValues       String? @db.Text // JSON array
+  brandMission      String? @db.Text
+  brandVision       String? @db.Text
+
+  // 🖼️ Visual Assets
+  primaryLogoUrl      String? @db.VarChar(500)
+  secondaryLogoUrl    String? @db.VarChar(500)
+  logoMarkUrl         String? @db.VarChar(500)
+  logoTextUrl         String? @db.VarChar(500)
+  whiteBgLogoUrl      String? @db.VarChar(500)
+  darkBgLogoUrl       String? @db.VarChar(500)
+  faviconUrl          String? @db.VarChar(500)
+  appleIconUrl        String? @db.VarChar(500)
+  socialMediaIconUrl  String? @db.VarChar(500)
+  watermarkUrl        String? @db.VarChar(500)
+
+  // 🎨 Color Palette
+  primaryColor       String @default("#3B82F6") @db.VarChar(7)
+  secondaryColor     String @default("#64748B") @db.VarChar(7)
+  accentColor        String @default("#F59E0B") @db.VarChar(7)
+  successColor       String @default("#10B981") @db.VarChar(7)
+  warningColor       String @default("#F59E0B") @db.VarChar(7)
+  errorColor         String @default("#EF4444") @db.VarChar(7)
+  neutralColor       String @default("#6B7280") @db.VarChar(7)
+  backgroundColor    String @default("#FFFFFF") @db.VarChar(7)
+  surfaceColor       String @default("#F8FAFC") @db.VarChar(7)
+  textPrimaryColor   String @default("#111827") @db.VarChar(7)
+  textSecondaryColor String @default("#6B7280") @db.VarChar(7)
+  borderColor        String @default("#E5E7EB") @db.VarChar(7)
+
+  // 🔤 Typography
+  primaryFont        String @default("Inter") @db.VarChar(100)
+  secondaryFont      String @default("system-ui") @db.VarChar(100)
+  headingFont        String @default("Inter") @db.VarChar(100)
+  bodyFont           String @default("Inter") @db.VarChar(100)
+  codeFont           String @default("Fira Code") @db.VarChar(100)
+  fontSizeScale      String @default("1.0") @db.VarChar(10)
+  lineHeightScale    String @default("1.5") @db.VarChar(10)
+  letterSpacing      String @default("normal") @db.VarChar(20)
+
+  // 🖌️ Design System
+  borderRadius       String @default("6px") @db.VarChar(20)
+  buttonStyle        String @default("rounded") @db.VarChar(50)
+  inputStyle         String @default("outlined") @db.VarChar(50)
+  cardStyle          String @default("elevated") @db.VarChar(50)
+  shadowStyle        String @default("soft") @db.VarChar(50)
+  animationStyle     String @default("smooth") @db.VarChar(50)
+  gridSystem         String @default("12-column") @db.VarChar(50)
+  spacingScale       String @default("4px") @db.VarChar(20)
+
+  // 📱 Application Branding
+  appName            String? @db.VarChar(255)
+  appIcon            String? @db.VarChar(500)
+  splashScreenUrl    String? @db.VarChar(500)
+  loadingAnimationUrl String? @db.VarChar(500)
+  customCssUrl       String? @db.VarChar(500)
+  customJsUrl        String? @db.VarChar(500)
+  customFontsUrl     String? @db.VarChar(500)
+
+  // 📄 Document Branding
+  letterheadUrl         String? @db.VarChar(500)
+  invoiceTemplateUrl    String? @db.VarChar(500)
+  estimateTemplateUrl   String? @db.VarChar(500)
+  proposalTemplateUrl   String? @db.VarChar(500)
+  contractTemplateUrl   String? @db.VarChar(500)
+  reportHeaderUrl       String? @db.VarChar(500)
+  reportFooterUrl       String? @db.VarChar(500)
+  certificateTemplateUrl String? @db.VarChar(500)
+
+  // 🌐 Web Presence
+  customDomain          String? @db.VarChar(255)
+  subdomain             String? @db.VarChar(100)
+  metaTitle             String? @db.VarChar(255)
+  metaDescription       String? @db.VarChar(500)
+  metaKeywords          String? @db.VarChar(500)
+  openGraphImageUrl     String? @db.VarChar(500)
+  twitterCardImageUrl   String? @db.VarChar(500)
+  googleAnalyticsId     String? @db.VarChar(100)
+  googleTagManagerId    String? @db.VarChar(100)
+  facebookPixelId       String? @db.VarChar(100)
+
+  // 📧 Email Branding
+  emailHeaderUrl        String? @db.VarChar(500)
+  emailFooterUrl        String? @db.VarChar(500)
+  emailSignatureUrl     String? @db.VarChar(500)
+  emailTemplateStyle    String @default("modern") @db.VarChar(50)
+  emailPrimaryColor     String @default("#3B82F6") @db.VarChar(7)
+  emailSecondaryColor   String @default("#64748B") @db.VarChar(7)
+  emailFont             String @default("Arial") @db.VarChar(100)
+  unsubscribeFooter     String? @db.Text
+
+  // 🏗️ Construction Industry Specific
+  safetyBadgeUrl        String? @db.VarChar(500)
+  licenseBadgeUrl       String? @db.VarChar(500)
+  insuranceBadgeUrl     String? @db.VarChar(500)
+  bondingBadgeUrl       String? @db.VarChar(500)
+  certificationBadges   String? @db.Text // JSON array of badge URLs
+  unionLogoUrl          String? @db.VarChar(500)
+  partnerLogos          String? @db.Text // JSON array of partner logo URLs
+  equipmentBrandingUrl  String? @db.VarChar(500)
+  vehicleDecalUrl       String? @db.VarChar(500)
+  uniformLogoUrl        String? @db.VarChar(500)
+  hardHatStickerUrl     String? @db.VarChar(500)
+
+  // 📱 Mobile App Branding
+  mobileAppIcon         String? @db.VarChar(500)
+  mobileSplashScreen    String? @db.VarChar(500)
+  mobileThemeColor      String @default("#3B82F6") @db.VarChar(7)
+  mobileStatusBarStyle  String @default("dark-content") @db.VarChar(50)
+  mobileNavigationStyle String @default("tabs") @db.VarChar(50)
+  pushNotificationIcon  String? @db.VarChar(500)
+
+  // 🎯 Portal Customization
+  clientPortalLogo      String? @db.VarChar(500)
+  clientPortalTheme     String @default("light") @db.VarChar(50)
+  clientPortalColor     String @default("#3B82F6") @db.VarChar(7)
+  subcontractorPortalLogo String? @db.VarChar(500)
+  subcontractorPortalTheme String @default("light") @db.VarChar(50)
+  subcontractorPortalColor String @default("#3B82F6") @db.VarChar(7)
+  employeePortalLogo    String? @db.VarChar(500)
+  employeePortalTheme   String @default("light") @db.VarChar(50)
+  employeePortalColor   String @default("#3B82F6") @db.VarChar(7)
+
+  // 🎨 Advanced Customization
+  enableDarkMode        Boolean @default(false)
+  enableCustomThemes    Boolean @default(false)
+  enableBrandOverrides  Boolean @default(false)
+  enableWhiteLabeling   Boolean @default(false)
+  customThemes          String? @db.Text // JSON array of custom theme definitions
+  brandingRules         String? @db.Text // JSON object of branding rules and restrictions
+  accessibilityMode     String @default("standard") @db.VarChar(50)
+  contrastRatio         String @default("AA") @db.VarChar(10)
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs only - supporting entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant Tenant @relation("TenantToTenantBranding", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification TenantDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy? @default(STANDARD)
+  metadata           Json? @db.JsonB
+  recordSource       TenantRecordSource? @default(SYSTEM)
+  timezone           String? @db.VarChar(50)
+
+  // 🔎 Observability (Enable as needed)
+  traceId      String? @db.VarChar(64)
+  spanId       String? @db.VarChar(32)
+  authContext  String? @db.Text
+  hashToken    String? @db.VarChar(255)
+
+  // 🗂️ Indexes & constraints (Global scope - no tenant)
+  @@unique([tenantId]) // One branding record per tenant
+  @@index([tenantId, status])
+  @@index([customDomain])
+  @@index([subdomain])
+  @@index([enableDarkMode])
+  @@index([enableWhiteLabeling])
+  @@index([primaryColor])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@index([hashToken])
+  @@index([recordSource])
+  @@index([metadata], type: Gin)
+  @@map("tenant_branding")
+}
+
+model TenantModule {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("tenant_module")
+}
+
+model TenantFeatureFlag {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("tenant_feature_flag")
+}
+
+model TenantComplianceSetting {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("tenant_compliance_setting")
+}
+
+model TenantHistoryEvent {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("tenant_history_event")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TenantDataClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+enum TenantRecordSource {
+  API
+  IMPORT
+  SYSTEM
+  MANUAL
+  MIGRATION
+  WEBHOOK
+}
+
+enum RetentionPolicy {
+  STANDARD   // 7 years
+  EXTENDED   // 10 years
+  PERMANENT  // Never delete
+  CUSTOM     // Custom period
+}

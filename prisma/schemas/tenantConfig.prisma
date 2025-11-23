@@ -1,0 +1,289 @@
+// Module: tenantConfig.prisma
+// Auto-generated from schema_generated.prisma
+// Tables: TenantSettings, TenantDomain, TenantBranding, TenantModule, TenantFeatureFlag
+
+model TenantSettings {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToTenantSettings", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("TenantSettingsCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("TenantSettingsUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("TenantSettingsDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("tenant_settings")
+}
+
+
+
+model TenantDomain {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToTenantDomain", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("TenantDomainCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("TenantDomainUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("TenantDomainDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("tenant_domain")
+}
+
+model TenantBranding {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToTenantBranding", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("TenantBrandingCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("TenantBrandingUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("TenantBrandingDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("tenant_branding")
+}
+
+model TenantModule {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToTenantModule", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("TenantModuleCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("TenantModuleUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("TenantModuleDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("tenant_module")
+}
+
+model TenantFeatureFlag {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToTenantFeatureFlag", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("TenantFeatureFlagCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("TenantFeatureFlagUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("TenantFeatureFlagDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("tenant_feature_flag")
+}
+
+
+
+

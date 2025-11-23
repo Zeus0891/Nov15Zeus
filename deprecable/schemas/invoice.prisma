@@ -1,0 +1,2849 @@
+model Invoice {
+  // 🆔 Identity & Hybrid Pattern (Pattern BH - Base Hybrid)
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+  globalId String @db.Uuid // 1:1:1 traceability with Estimate/Project
+
+  // 📊 Lifecycle
+  status    InvoiceStatus @default(DRAFT)
+  version   Int           @default(1)
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?     @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern B - Full Relations for Critical Revenue Entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  createdByActor Actor? @relation("InvoiceCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("InvoiceUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("InvoiceDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 📄 Business Identity
+  invoiceNumber      String    @db.VarChar(50)
+  invoiceDate        DateTime? @db.Timestamptz(6)
+  dueDate            DateTime? @db.Timestamptz(6)
+  title              String?   @db.VarChar(255)
+  referenceCode      String?   @db.VarChar(100)
+  description        String?   @db.Text
+  termsAndConditions String?   @db.Text
+
+  // 👥 CRM Linkage (Corrected Model Names)
+  crmAccountId    String  @db.Uuid
+  crmContactId    String? @db.Uuid
+  billToAddressId String? @db.Uuid
+  shipToAddressId String? @db.Uuid
+
+  // 🔗 Source Linkage (1:1:1 Traceability)
+  sourceEstimateId String? @db.Uuid // 1:1:1 linkage via globalId
+  relatedProjectId String? @db.Uuid // 1:1:1 linkage via globalId
+  contractId       String? @db.Uuid
+
+  // 👤 Ownership & Terms
+  ownerMemberId  String? @db.Uuid
+  paymentTermsId String? @db.Uuid
+
+  // 📊 Triple Status Dimension
+  paymentStatus    InvoicePaymentStatus    @default(UNPAID)
+  collectionStatus InvoiceCollectionStatus @default(CURRENT)
+
+  // 📅 Event Timestamps
+  issueDate      DateTime? @db.Timestamptz(6)
+  sentToClientAt DateTime? @db.Timestamptz(6)
+  clientViewedAt DateTime? @db.Timestamptz(6)
+  firstPaymentAt DateTime? @db.Timestamptz(6)
+  fullyPaidAt    DateTime? @db.Timestamptz(6)
+  voidedAt       DateTime? @db.Timestamptz(6)
+  writtenOffAt   DateTime? @db.Timestamptz(6)
+  lastReminderAt DateTime? @db.Timestamptz(6)
+  nextReminderAt DateTime? @db.Timestamptz(6)
+
+  // 💰 Financial Totals (Denormalized for Performance)
+  currencyCode        String  @default("USD") @db.Char(3)
+  subtotalAmount      Decimal @default(0) @db.Decimal(12, 2)
+  discountAmount      Decimal @default(0) @db.Decimal(12, 2)
+  taxAmount           Decimal @default(0) @db.Decimal(12, 2)
+  feeAmount           Decimal @default(0) @db.Decimal(12, 2)
+  retainageAmount     Decimal @default(0) @db.Decimal(12, 2) // Construction-specific
+  retainagePercentage Decimal @default(0) @db.Decimal(8, 4) // Construction-specific
+  totalAmount         Decimal @default(0) @db.Decimal(12, 2)
+  amountPaid          Decimal @default(0) @db.Decimal(12, 2)
+  amountDue           Decimal @default(0) @db.Decimal(12, 2)
+  lineItemCount       Int     @default(0)
+  totalQuantity       Decimal @default(0) @db.Decimal(10, 4)
+
+  // 📊 Payment Tracking
+  lastPaymentDate      DateTime? @db.Timestamptz(6)
+  lastPaymentAmount    Decimal   @default(0) @db.Decimal(12, 2)
+  paymentCount         Int       @default(0)
+  earlyPaymentDiscount Decimal   @default(0) @db.Decimal(8, 4)
+
+  // 🏗️ Billing Type & Progress
+  billingType            InvoiceBillingType @default(STANDARD)
+  progressPercentage     Decimal            @default(0) @db.Decimal(8, 4)
+  cumulativeBilledAmount Decimal            @default(0) @db.Decimal(12, 2)
+  previouslyBilledAmount Decimal            @default(0) @db.Decimal(12, 2)
+  currentPeriodAmount    Decimal            @default(0) @db.Decimal(12, 2)
+  milestoneId            String?            @db.Uuid
+
+  // ⚙️ Behavior Flags
+  isRecurring           Boolean @default(false)
+  isProgress            Boolean @default(false)
+  isMilestone           Boolean @default(false)
+  isRetainage           Boolean @default(false)
+  isFinal               Boolean @default(false)
+  isVoided              Boolean @default(false)
+  isWrittenOff          Boolean @default(false)
+  autoSendReminders     Boolean @default(true)
+  partialPaymentAllowed Boolean @default(true)
+  requiresApproval      Boolean @default(false)
+
+  // 🔗 External Module References
+  approvalRequestId          String? @db.Uuid
+  eSignatureEnvelopeId       String? @db.Uuid
+  numberSequenceAllocationId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant Tenant @relation("TenantToInvoice", fields: [tenantId], references: [id], onDelete: Restrict)
+
+  // CRM Relations (tenant-to-tenant composite keys)
+  crmAccount    CRMAccount  @relation("InvoiceAccount", fields: [tenantId, crmAccountId], references: [tenantId, id], onDelete: Restrict)
+  crmContact    CRMContact? @relation("InvoiceContact", fields: [tenantId, crmContactId], references: [tenantId, id], onDelete: SetNull)
+  billToAddress CRMAddress? @relation("InvoiceBillToAddress", fields: [tenantId, billToAddressId], references: [tenantId, id], onDelete: SetNull)
+  shipToAddress CRMAddress? @relation("InvoiceShipToAddress", fields: [tenantId, shipToAddressId], references: [tenantId, id], onDelete: SetNull)
+
+  // Source Relations (1:1:1 traceability)
+  sourceEstimate Estimate? @relation("EstimateToInvoices", fields: [tenantId, sourceEstimateId], references: [tenantId, id], onDelete: SetNull)
+  relatedProject Project?  @relation("ProjectToInvoices", fields: [tenantId, relatedProjectId], references: [tenantId, id], onDelete: SetNull)
+
+  // Ownership (tenant-to-tenant)
+  ownerMember Member? @relation("InvoiceOwner", fields: [tenantId, ownerMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // External Relations (external modules)
+  approvalRequest    ApprovalRequest?    @relation("InvoiceApproval", fields: [tenantId, approvalRequestId], references: [tenantId, id], onDelete: SetNull)
+  eSignatureEnvelope ESignatureEnvelope? @relation("InvoiceESignature", fields: [tenantId, eSignatureEnvelopeId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🔗 Child Relations (1:M)
+  invoiceLineItems           InvoiceLineItem[]           @relation("InvoiceToLineItems")
+  invoiceTaxes               InvoiceTax[]                @relation("InvoiceToTaxes")
+  invoiceDiscounts           InvoiceDiscount[]           @relation("InvoiceToDiscounts")
+  invoiceFees                InvoiceFee[]                @relation("InvoiceToFees")
+  invoiceRetainages          InvoiceRetainage[]          @relation("InvoiceToRetainages")
+  invoiceProgresses          InvoiceProgress[]           @relation("InvoiceToProgresses")
+  invoiceMilestones          InvoiceMilestone[]          @relation("InvoiceToMilestones")
+  invoicePaymentApplications InvoicePaymentApplication[] @relation("InvoiceToPaymentApplications")
+  invoiceAttachments         InvoiceAttachment[]         @relation("InvoiceToAttachments")
+  invoiceComments            InvoiceComment[]            @relation("InvoiceToComments")
+  invoiceRevisions           InvoiceRevision[]           @relation("InvoiceToRevisions")
+  invoiceAdjustments         InvoiceAdjustment[]         @relation("InvoiceToAdjustments")
+  invoiceCredits             InvoiceCredit[]             @relation("InvoiceToCredits")
+  invoiceDebits              InvoiceDebit[]              @relation("InvoiceToDebits")
+  invoiceHistories           InvoiceHistory[]            @relation("InvoiceToHistories")
+  invoicePublicLinks         InvoicePublicLink[]         @relation("InvoiceToPublicLinks")
+  invoiceReminders           InvoiceReminder[]           @relation("InvoiceToReminders")
+
+  // 🔗 Cross-Module Relations
+  projectMilestones ProjectMilestone[] @relation("InvoiceToProjectMilestone")
+
+  // 🗂️ Constraints & Strategic Indexes (35+ indexes per architecture)
+  @@unique([tenantId, id]) // Primary constraint
+  @@unique([tenantId, globalId]) // Hybrid pattern constraint
+  @@unique([tenantId, invoiceNumber]) // Business constraint
+  // Global linkage
+  @@index([globalId]) // Cross-tenant 1:1:1 traceability
+  // Status filters (most common queries)
+  @@index([tenantId, status])
+  @@index([tenantId, paymentStatus])
+  @@index([tenantId, collectionStatus])
+  // Critical business filters
+  @@index([tenantId, crmAccountId]) // Customer invoice lists (most common)
+  @@index([tenantId, ownerMemberId]) // Ownership queries
+  @@index([tenantId, sourceEstimateId]) // 1:1:1 traceability
+  @@index([tenantId, relatedProjectId]) // 1:1:1 traceability
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  // Temporal indexes (BRIN for performance)
+  @@index([invoiceDate], type: Brin) // Revenue reports
+  @@index([dueDate], type: Brin) // Collections workflow
+  @@index([createdAt], type: Brin) // Audit queries
+  // Financial queries
+  @@index([tenantId, totalAmount]) // Revenue analysis
+  @@index([tenantId, amountDue]) // AR balance queries
+  @@index([tenantId, amountPaid]) // Cash reports
+  @@index([tenantId, retainageAmount]) // Construction tracking
+  // Date-based workflows
+  @@index([tenantId, sentToClientAt])
+  @@index([tenantId, fullyPaidAt])
+  @@index([tenantId, nextReminderAt]) // Reminder scheduling
+  @@index([tenantId, lastReminderAt])
+  // Governance & analytics
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  // CRM lookups
+  @@index([tenantId, crmContactId])
+  @@index([tenantId, billToAddressId])
+  // External module integration
+  @@index([tenantId, approvalRequestId])
+  @@index([tenantId, eSignatureEnvelopeId])
+  @@index([tenantId, contractId])
+  @@index([tenantId, milestoneId])
+  // Billing type filters
+  @@index([tenantId, billingType])
+  @@index([tenantId, isProgress])
+  @@index([tenantId, isMilestone])
+  @@index([tenantId, isRetainage])
+  @@index([tenantId, isFinal])
+  // Behavior flags
+  @@index([tenantId, isVoided])
+  @@index([tenantId, isWrittenOff])
+  @@index([tenantId, autoSendReminders])
+  // Extensibility
+  @@index([tenantId, timezone])
+  @@index([metadata], type: Gin) // JSON search
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceLineItemStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern B - Critical Business Entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  createdByActor Actor? @relation("InvoiceLineItemCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  updatedByActor Actor? @relation("InvoiceLineItemUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  deletedByActor Actor? @relation("InvoiceLineItemDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 💼 Business Fields (Aligned with EstimateLineItem)
+  lineNumber    Int                   @default(1)
+  itemName      String                @db.VarChar(255)
+  description   String                @db.Text
+  quantity      Decimal               @db.Decimal(10, 4)
+  unitPrice     Decimal               @db.Decimal(10, 2) // Aligned with Estimate precision
+  lineTotal     Decimal               @default(0) @db.Decimal(12, 2)
+  unitOfMeasure InvoiceUnitOfMeasure? @default(EACH)
+  productCode   String?               @db.VarChar(100)
+  // category        String? // InvoiceLineItemCategory enum to be defined
+  sortOrder     Int                   @default(0)
+
+  // 💰 Cost Analysis (Aligned with EstimateLineItem)
+  unitCost           Decimal @default(0) @db.Decimal(10, 2)
+  totalCost          Decimal @default(0) @db.Decimal(12, 2)
+  markupPercentage   Decimal @default(0) @db.Decimal(8, 4) // Changed precision to match standards
+  discountPercentage Decimal @default(0) @db.Decimal(8, 4)
+  discountAmount     Decimal @default(0) @db.Decimal(10, 2)
+
+  // 🏗️ Construction-specific (Aligned with EstimateLineItem)
+  laborHours             Decimal? @db.Decimal(10, 2)
+  laborRate              Decimal? @db.Decimal(12, 2)
+  materialCost           Decimal? @db.Decimal(12, 2)
+  equipmentCost          Decimal? @db.Decimal(12, 2)
+  subcontractAmount      Decimal? @db.Decimal(12, 2)
+  overheadPercentage     Decimal? @db.Decimal(8, 4)
+  profitMarginPercentage Decimal? @db.Decimal(8, 4)
+
+  // ⏰ Time Estimation (for Project/Task integration)
+  estimatedHours        Decimal?  @db.Decimal(8, 2)
+  estimatedDurationDays Decimal?  @db.Decimal(6, 2)
+  estimatedStartDate    DateTime? @db.Timestamptz(6)
+  estimatedEndDate      DateTime? @db.Timestamptz(6)
+
+  // 🔗 External Integrations (Aligned with EstimateLineItem)
+  sourceEstimateLineItemId String? @db.Uuid
+  relatedProjectTaskId     String? @db.Uuid
+  inventoryItemId          String? @db.Uuid
+  costCodeId               String? @db.Uuid
+  serviceCatalogItemId     String? @db.Uuid
+
+  // 📊 Progress Tracking (Invoice-specific)
+  percentComplete Decimal @default(0) @db.Decimal(8, 4)
+  billedToDate    Decimal @default(0) @db.Decimal(12, 2)
+  remainingToBill Decimal @default(0) @db.Decimal(12, 2)
+
+  // ⚙️ Business Flags (Aligned with EstimateLineItem)
+  isTaxable         Boolean @default(true)
+  isDiscountable    Boolean @default(true)
+  requiresApproval  Boolean @default(false)
+  isMaterial        Boolean @default(false)
+  allowModification Boolean @default(true)
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceLineItem", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToLineItems", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Child Relations (Line-item scoped attachments - up to 5 per line)
+  attachments InvoiceAttachment[] @relation("InvoiceLineItemAttachments")
+
+  // Source relations (optional)
+  sourceEstimateLineItem EstimateLineItem? @relation("EstimateLineItemToInvoiceLineItem", fields: [tenantId, sourceEstimateLineItemId], references: [tenantId, id], onDelete: SetNull)
+  relatedProjectTask     ProjectTask?      @relation("ProjectTaskToInvoiceLineItem", fields: [tenantId, relatedProjectTaskId], references: [tenantId, id], onDelete: SetNull)
+  inventoryItem          InventoryItem?    @relation("InventoryItemToInvoiceLineItem", fields: [tenantId, inventoryItemId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup (most common)
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, sourceEstimateLineItemId]) // Traceability
+  @@index([tenantId, relatedProjectTaskId]) // Project integration
+  @@index([tenantId, inventoryItemId]) // Inventory lookup
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@index([metadata], type: Gin)
+  @@map("invoice_line_items")
+}
+
+model InvoiceTax {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceTaxStatus @default(ACTIVE)
+  version   Int              @default(1)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?        @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 💼 Business Fields (Aligned with EstimateTax)
+  taxName          String         @db.VarChar(100)
+  taxCode          String?        @db.VarChar(50)
+  taxType          InvoiceTaxType @default(SALES_TAX)
+  jurisdiction     String?        @db.VarChar(100)
+  jurisdictionCode String?        @db.VarChar(20)
+  sortOrder        Int            @default(0)
+  taxRate          Decimal        @default(0) @db.Decimal(8, 4)
+  taxAmount        Decimal        @default(0) @db.Decimal(12, 2)
+  taxableAmount    Decimal        @default(0) @db.Decimal(12, 2)
+  taxCodeId        String?        @db.Uuid
+
+  // 📊 Compliance
+  isExempt        Boolean @default(false)
+  exemptionReason String? @db.VarChar(255)
+  exemptionCertId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceTax", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToTaxes", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Tax system integration (optional)
+  taxCodeRef TaxCode? @relation("TaxCodeToInvoiceTax", fields: [tenantId, taxCodeId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, taxCodeId]) // Tax system integration
+  @@index([tenantId, jurisdictionCode]) // Jurisdiction reporting
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_taxes")
+}
+
+model InvoiceDiscount {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceDiscountStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 💼 Business Fields (Aligned with EstimateDiscount)
+  discountName          String              @db.VarChar(100)
+  discountCode          String?             @db.VarChar(50)
+  discountType          InvoiceDiscountType @default(PERCENTAGE)
+  sortOrder             Int                 @default(0)
+  discountRate          Decimal?            @db.Decimal(8, 4)
+  fixedAmount           Decimal?            @db.Decimal(12, 2)
+  discountAmount        Decimal             @default(0) @db.Decimal(12, 2)
+  maximumAmount         Decimal?            @db.Decimal(12, 2)
+  minimumPurchaseAmount Decimal?            @db.Decimal(12, 2)
+  currencyCode          String              @default("USD") @db.Char(3)
+
+  // 🎯 Discount Rules & Scope (Aligned with EstimateDiscount)
+  discountCategory InvoiceDiscountCategory @default(COMMERCIAL)
+  appliesTo        InvoiceDiscountScope    @default(SUBTOTAL)
+  isStackable      Boolean                 @default(true)
+  isTaxable        Boolean                 @default(false)
+  isActive         Boolean                 @default(true)
+
+  // 📅 Discount Validity (Aligned with EstimateDiscount)
+  effectiveDate  DateTime? @db.Timestamptz(6)
+  expirationDate DateTime? @db.Timestamptz(6)
+
+  // 📋 Business Logic
+  description    String? @db.Text
+  discountReason String? @db.VarChar(255)
+  notes          String? @db.Text
+
+  // 🔗 External Integration
+  externalDiscountRuleId String? @db.VarChar(100)
+  campaignId             String? @db.Uuid
+
+  // 📅 Terms & Conditions (Aligned with EstimateDiscount)
+  earlyPaymentDays Int? // Days for early payment discount
+  validFrom        DateTime? @db.Timestamptz(6)
+  validUntil       DateTime? @db.Timestamptz(6)
+
+  // 🎯 Business Rules (Aligned with EstimateDiscount)
+  isAutomatic      Boolean @default(false)
+  isApproved       Boolean @default(false)
+  requiresApproval Boolean @default(true)
+
+  // ✅ Approval Workflow (Member approval for discounts)
+  approvedByMemberId String?   @db.Uuid
+  approvedAt         DateTime? @db.Timestamptz(6)
+  approvalNotes      String?   @db.Text
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceDiscount", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToDiscounts", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Member approval workflow (tenant-scoped composite key)
+  approvedByMember Member? @relation("InvoiceDiscountApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, approvedByMemberId]) // Approval workflow
+  @@index([tenantId, requiresApproval]) // Pending approvals
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_discounts")
+}
+
+model InvoiceFee {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceFeeStatus @default(ACTIVE)
+  version   Int              @default(1)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?        @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 💼 Business Fields (Aligned with EstimateFee)
+  feeName      String         @db.VarChar(100)
+  feeCode      String?        @db.VarChar(50)
+  feeType      InvoiceFeeType @default(PROCESSING_FEE)
+  sortOrder    Int            @default(0)
+  feeRate      Decimal?       @db.Decimal(8, 4)
+  fixedAmount  Decimal?       @db.Decimal(12, 2)
+  feeAmount    Decimal        @default(0) @db.Decimal(12, 2)
+  baseAmount   Decimal        @default(0) @db.Decimal(12, 2)
+  currencyCode String         @default("USD") @db.Char(3)
+
+  // 🎯 Fee Rules & Business Logic (Aligned with EstimateFee)
+  calculationBase InvoiceFeeCalculationBasis @default(TOTAL_AMOUNT)
+  feeCategory     InvoiceFeeCategory         @default(OVERHEAD)
+  isAutomatic     Boolean                    @default(false)
+  isMandatory     Boolean                    @default(false)
+  isTaxable       Boolean                    @default(false)
+  isBillable      Boolean                    @default(true)
+  isActive        Boolean                    @default(true)
+
+  // 📅 Fee Validity (Aligned with EstimateFee)
+  effectiveDate  DateTime? @db.Timestamptz(6)
+  expirationDate DateTime? @db.Timestamptz(6)
+
+  // 📋 Business Logic
+  description   String? @db.Text
+  justification String? @db.VarChar(255)
+  isRecurring   Boolean @default(false)
+
+  // 🔗 External Integration
+  externalFeeRuleId String? @db.VarChar(100)
+  costCenterId      String? @db.Uuid
+
+  // ✅ Approval Workflow (Member approval for fees)
+  requiresApproval   Boolean   @default(false)
+  approvedByMemberId String?   @db.Uuid
+  approvedAt         DateTime? @db.Timestamptz(6)
+  approvalNotes      String?   @db.Text
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceFee", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToFees", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Member approval workflow (tenant-scoped composite key)
+  approvedByMember Member? @relation("InvoiceFeeApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, feeType]) // Fee type filtering
+  @@index([tenantId, approvedByMemberId]) // Approval workflow
+  @@index([tenantId, requiresApproval]) // Pending approvals
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_fees")
+}
+
+model InvoiceRetainage {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceRetainageStatus @default(WITHHELD)
+  version   Int                    @default(1)
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?              @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 💼 Retainage Business Fields
+  retainageType   InvoiceRetainageType @default(PERCENTAGE)
+  retainageRate   Decimal              @default(0) @db.Decimal(8, 4) // e.g., 10.00% = 0.1000
+  retainageAmount Decimal              @default(0) @db.Decimal(12, 2)
+  baseAmount      Decimal              @default(0) @db.Decimal(12, 2) // Amount retainage is calculated on
+
+  // 📊 Cumulative Tracking
+  cumulativeRetainage Decimal @default(0) @db.Decimal(12, 2)
+  previousRetainage   Decimal @default(0) @db.Decimal(12, 2)
+  currentRetainage    Decimal @default(0) @db.Decimal(12, 2)
+
+  // 🔓 Release Management
+  releaseType        InvoiceRetainageReleaseType? @default(NONE)
+  releasedAmount     Decimal                      @default(0) @db.Decimal(12, 2)
+  remainingRetainage Decimal                      @default(0) @db.Decimal(12, 2)
+  releaseDate        DateTime?                    @db.Timestamptz(6)
+  releaseApprovedAt  DateTime?                    @db.Timestamptz(6)
+  releaseApprovedBy  String?                      @db.Uuid
+
+  // 📋 Release Conditions
+  releaseConditions     String? @db.Text
+  releaseDocuments      String? @db.Text // JSON array of document IDs
+  complianceVerified    Boolean @default(false)
+  lienWaiverReceived    Boolean @default(false)
+  finalInspectionPassed Boolean @default(false)
+
+  // 🏗️ Construction Compliance
+  contractClause    String? @db.VarChar(100)
+  jurisdictionRules String? @db.Text
+  bondRequirements  String? @db.Text
+
+  // 👤 Member Approval (tenant-scoped composite key)
+  approvedByMemberId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceRetainage", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToRetainages", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Member approval relation
+  approvedByMember Member? @relation("InvoiceRetainageApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, retainageType]) // Type filtering
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, releaseType]) // Release tracking
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, releaseDate]) // Release scheduling
+  @@index([tenantId, complianceVerified]) // Compliance tracking
+  @@index([tenantId, approvedByMemberId]) // Approval tracking
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_retainages")
+}
+
+model InvoiceProgress {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceProgressStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 📊 Progress Billing Fields
+  billingPeriod String   @db.VarChar(50) // "2025-11", "Q1-2025", etc.
+  progressDate  DateTime @default(now()) @db.Timestamptz(6)
+
+  // 📈 Percentage Tracking
+  percentCompleteTotal   Decimal @default(0) @db.Decimal(8, 4) // Overall project %
+  percentCompletePrior   Decimal @default(0) @db.Decimal(8, 4) // Previous period %
+  percentCompleteCurrent Decimal @default(0) @db.Decimal(8, 4) // Current period %
+
+  // 💰 Earned Value Analysis
+  scheduledValue Decimal @default(0) @db.Decimal(12, 2) // Budgeted work scheduled
+  earnedValue    Decimal @default(0) @db.Decimal(12, 2) // Budgeted work performed
+  actualCost     Decimal @default(0) @db.Decimal(12, 2) // Actual cost of work
+
+  // 📊 Cumulative Billing Amounts
+  totalContractAmount Decimal @default(0) @db.Decimal(12, 2)
+  cumulativeEarned    Decimal @default(0) @db.Decimal(12, 2)
+  previouslyBilled    Decimal @default(0) @db.Decimal(12, 2)
+  currentBilling      Decimal @default(0) @db.Decimal(12, 2)
+
+  // 🏗️ AIA G702/G703 Compliance Fields
+  aiaApplicationNumber String? @db.VarChar(50) // AIA Application for Payment number
+  aiaG702Data          Json?   @db.JsonB // AIA G702 structured data
+  aiaG703Data          Json?   @db.JsonB // AIA G703 schedule of values
+
+  // 📋 Schedule of Values Integration
+  scheduleOfValues Json? @db.JsonB // Detailed breakdown by line item
+  workCompleted    Json? @db.JsonB // Work completed this period
+  materialStored   Json? @db.JsonB // Materials stored (if applicable)
+
+  // 🏗️ Construction Progress Tracking
+  weatherDelays      Int?     @db.Integer // Days delayed by weather
+  changeOrderImpact  Decimal? @db.Decimal(12, 2) // Impact of change orders
+  laborEfficiency    Decimal? @db.Decimal(8, 4) // Labor productivity factor
+  materialDeliveries Json?    @db.JsonB // Material delivery tracking
+  subcontractorWork  Json?    @db.JsonB // Subcontractor progress
+
+  // 📊 Quality Control
+  inspectionRequired Boolean   @default(false)
+  inspectionPassed   Boolean   @default(false)
+  inspectionDate     DateTime? @db.Timestamptz(6)
+  qualityScore       Decimal?  @db.Decimal(5, 2)
+  deficiencyCount    Int       @default(0)
+  punchListItems     Int       @default(0)
+
+  // ✅ Verification & Approval
+  verifiedByActorId String?   @db.Uuid
+  verifiedAt        DateTime? @db.Timestamptz(6)
+  verificationNotes String?   @db.Text
+  isApproved        Boolean   @default(false)
+  requiresApproval  Boolean   @default(true)
+
+  // 👤 Member Review (tenant-scoped composite key)
+  reviewedByMemberId String?   @db.Uuid
+  reviewedAt         DateTime? @db.Timestamptz(6)
+  reviewNotes        String?   @db.Text
+
+  // 📈 Performance Metrics
+  scheduleVariance    Decimal? @db.Decimal(12, 2) // Ahead/behind schedule impact
+  costVariance        Decimal? @db.Decimal(12, 2) // Over/under budget amount
+  costPerformance     Decimal? @db.Decimal(8, 4) // CPI (Cost Performance Index)
+  schedulePerformance Decimal? @db.Decimal(8, 4) // SPI (Schedule Performance Index)
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceProgress", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToProgresses", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Member review relation
+  reviewedByMember Member? @relation("InvoiceProgressReviewer", fields: [tenantId, reviewedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, billingPeriod]) // Period filtering
+  @@index([tenantId, progressDate]) // Date-based queries
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, aiaApplicationNumber]) // AIA tracking
+  @@index([tenantId, reviewedByMemberId]) // Review tracking
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@index([aiaG702Data], type: Gin) // AIA data queries
+  @@index([scheduleOfValues], type: Gin) // SOV queries
+  @@map("invoice_progresses")
+}
+
+model InvoiceMilestone {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceMilestoneStatus @default(PENDING)
+  version   Int                    @default(1)
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?              @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 🎯 Milestone Definition
+  milestoneName        String               @db.VarChar(255)
+  milestoneDescription String?              @db.Text
+  milestoneType        InvoiceMilestoneType @default(COMPLETION_BASED)
+  sequenceOrder        Int                  @default(1)
+
+  // 📅 Scheduling
+  targetDate           DateTime  @db.Timestamptz(6)
+  actualStartDate      DateTime? @db.Timestamptz(6)
+  actualCompletionDate DateTime? @db.Timestamptz(6)
+
+  // 💰 Financial Terms
+  milestoneAmount Decimal @default(0) @db.Decimal(12, 2)
+  percentOfTotal  Decimal @default(0) @db.Decimal(8, 4)
+  paymentTerms    String? @db.VarChar(255)
+
+  // ✅ Completion Criteria
+  completionCriteria String? @db.Text
+  deliverables       Json?   @db.JsonB // Array of deliverable requirements
+  acceptanceCriteria String? @db.Text
+
+  // 📋 Verification & Approval
+  verificationRequired Boolean   @default(true)
+  verifiedAt           DateTime? @db.Timestamptz(6)
+  verifiedByActorId    String?   @db.Uuid
+  verificationNotes    String?   @db.Text
+
+  // 📄 Deliverable Tracking
+  deliverableStatus    InvoiceMilestoneDeliverableStatus @default(NOT_STARTED)
+  deliverableCount     Int                               @default(0)
+  deliverablesPending  Int                               @default(0)
+  deliverablesComplete Int                               @default(0)
+
+  // 💳 Payment Trigger
+  paymentTrigger    InvoiceMilestonePaymentTrigger @default(COMPLETION)
+  autoCreateInvoice Boolean                        @default(false)
+  invoiceCreated    Boolean                        @default(false)
+
+  // 🎯 Risk Management
+  riskLevel       InvoiceRiskLevel @default(LOW)
+  contingencyDays Int?             @db.Integer
+  dependencies    Json?            @db.JsonB // Dependencies on other milestones
+  blockers        Json?            @db.JsonB // Current blockers
+
+  // 📊 Performance Tracking
+  originalDuration Int?     @db.Integer // Original planned duration
+  actualDuration   Int?     @db.Integer // Actual duration taken
+  effortEstimate   Decimal? @db.Decimal(10, 2) // Estimated hours
+  actualEffort     Decimal? @db.Decimal(10, 2) // Actual hours spent
+  budgetVariance   Decimal? @db.Decimal(12, 2) // Budget vs actual
+  scheduleVariance Int?     @db.Integer // Days ahead/behind
+
+  // 🔗 External References
+  sourceProjectMilestoneId String? @db.Uuid // Link to ProjectMilestone
+  sourceTaskId             String? @db.Uuid // Link to ProjectTask
+  contractClauseReference  String? @db.VarChar(255) // Contract reference
+
+  // 📋 Documentation Requirements
+  requiredDocuments     Json?   @db.JsonB // List of required documents
+  submittedDocuments    Json?   @db.JsonB // Submitted document tracking
+  documentationComplete Boolean @default(false)
+
+  // 👤 Member Verification (tenant-scoped composite key)
+  approvedByMemberId String?   @db.Uuid
+  approvedAt         DateTime? @db.Timestamptz(6)
+  approvalNotes      String?   @db.Text
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceMilestone", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToMilestones", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Member approval relation
+  approvedByMember Member? @relation("InvoiceMilestoneApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, milestoneName]) // Name search
+  @@index([tenantId, milestoneType]) // Type filtering
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, targetDate]) // Date-based queries
+  @@index([tenantId, deliverableStatus]) // Deliverable tracking
+  @@index([tenantId, paymentTrigger]) // Payment automation
+  @@index([tenantId, sequenceOrder]) // Ordering
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, sourceProjectMilestoneId]) // External references
+  @@index([tenantId, approvedByMemberId]) // Approval tracking
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@index([deliverables], type: Gin) // Deliverable queries
+  @@map("invoice_milestones")
+}
+
+model InvoicePaymentApplication {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoicePaymentApplicationStatus @default(APPLIED)
+  version   Int                             @default(1)
+  createdAt DateTime                        @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                        @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?                       @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
+
+  // 🔗 Parent Relationships (Required)
+  invoiceId String @db.Uuid
+  paymentId String @db.Uuid
+
+  // 💼 Business Fields
+  appliedAmount   Decimal  @db.Decimal(12, 2)
+  applicationDate DateTime @default(now()) @db.Timestamptz(6)
+  sequenceNumber  Int      @default(1)
+  notes           String?  @db.Text
+
+  // 📊 Allocation Details
+  allocationType  PaymentAllocationType @default(FULL_APPLICATION)
+  originalAmount  Decimal               @db.Decimal(12, 2)
+  remainingAmount Decimal               @default(0) @db.Decimal(12, 2)
+
+  // 💰 Payment Details
+  paymentMethodType PaymentMethodType @default(UNKNOWN)
+  paymentReference  String?           @db.VarChar(100) // Check number, transaction ID, etc.
+  bankReference     String?           @db.VarChar(100) // Bank confirmation number
+  exchangeRate      Decimal?          @db.Decimal(12, 6) // For multi-currency
+  processingFee     Decimal           @default(0) @db.Decimal(10, 2)
+
+  // 📊 Allocation Strategy
+  allocationMethod  PaymentAllocationMethod @default(OLDEST_FIRST)
+  allocationRules   Json?                   @db.JsonB // Complex allocation logic
+  discountTaken     Decimal                 @default(0) @db.Decimal(10, 2)
+  earlyPaymentBonus Decimal                 @default(0) @db.Decimal(10, 2)
+
+  // 🔄 Reversal Support
+  isReversed        Boolean   @default(false)
+  reversedAt        DateTime? @db.Timestamptz(6)
+  reversalReason    String?   @db.VarChar(255)
+  reversedByActorId String?   @db.Uuid
+  reversalReference String?   @db.VarChar(100)
+
+  // ✅ Reconciliation
+  reconciledAt        DateTime? @db.Timestamptz(6)
+  reconciledByActorId String?   @db.Uuid
+  reconciliationNotes String?   @db.Text
+  isReconciled        Boolean   @default(false)
+  requiresApproval    Boolean   @default(false)
+  approvedAt          DateTime? @db.Timestamptz(6)
+  approvedByActorId   String?   @db.Uuid
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoicePaymentApplication", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToPaymentApplications", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Payment integration (external module)
+  payment Payment @relation("PaymentToInvoiceApplications", fields: [tenantId, paymentId], references: [tenantId, id], onDelete: Restrict)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Invoice payment lookup
+  @@index([tenantId, paymentId]) // Payment allocation lookup
+  @@index([tenantId, applicationDate]) // Date-based reports
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, isReversed]) // Reversal tracking
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_payment_applications")
+}
+
+model InvoiceAttachment {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceAttachmentStatus @default(ACTIVE)
+  version   Int                     @default(1)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?               @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance (Enhanced)
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationships (Either invoice-level OR line-item level)
+  invoiceId  String? @db.Uuid // Header-level attachment (optional)
+  lineItemId String? @db.Uuid // Line-item scoped attachment (optional)
+
+  // 💼 Business Fields (Enhanced)
+  attachmentType   InvoiceAttachmentType @default(SUPPORTING_DOCUMENT)
+  fileName         String                @db.VarChar(255)
+  displayName      String?               @db.VarChar(255) // User-friendly name
+  originalFileName String?               @db.VarChar(255)
+  fileSize         Int?                  @db.Integer // in bytes
+  mimeType         String?               @db.VarChar(100)
+  attachmentUrl    String                @db.Text // Support longer URLs
+  storagePath      String?               @db.Text // Internal storage reference
+
+  // 📄 Document Details (Enhanced)
+  title       String?                    @db.VarChar(255)
+  description String?                    @db.Text
+  category    InvoiceAttachmentCategory? // Use enum for consistency
+  tags        String?                    @db.Text // Support more tags
+  sortOrder   Int                        @default(0) @db.Integer // Display ordering
+
+  // 🔒 Access Control (Enhanced)
+  isPublic          Boolean   @default(false)
+  isClientVisible   Boolean   @default(true) // Client can see in public link
+  requiresApproval  Boolean   @default(false)
+  isApproved        Boolean   @default(false)
+  approvedAt        DateTime? @db.Timestamptz(6)
+  approvedByActorId String?   @db.Uuid
+  approvalNotes     String?   @db.Text
+
+  // 📊 File Metadata (Enhanced)
+  checksum     String?   @db.VarChar(255) // File integrity
+  fileHash     String?   @db.VarChar(64) // SHA-256 hash
+  uploadedFrom String?   @db.VarChar(100) // Source: WEB, MOBILE, API, EMAIL
+  documentDate DateTime? @db.Timestamptz(6) // Document creation date
+  expiresAt    DateTime? @db.Timestamptz(6) // Optional expiration
+
+  // 🖼️ Image Metadata (for images)
+  imageWidth  Int?    @db.Integer
+  imageHeight Int?    @db.Integer
+  hasPreview  Boolean @default(false)
+  previewUrl  String? @db.Text
+
+  // 🔍 Content Analysis
+  isScanned      Boolean @default(false)
+  ocrText        String? @db.Text // OCR extracted text
+  contentSummary String? @db.VarChar(500) // AI-generated summary
+  languageCode   String? @db.VarChar(5) // ISO language code
+
+  // 📋 Business Context (Invoice-specific)
+  attachmentPurpose   InvoiceAttachmentPurpose? // Why this attachment exists
+  isSignatureRequired Boolean                           @default(false)
+  signatureStatus     InvoiceAttachmentSignatureStatus?
+  isMandatory         Boolean                           @default(false) // Required for invoice approval
+  complianceFlags     String?                           @db.Text // JSON array of compliance requirements
+
+  // 🔗 External References
+  externalDocumentId String? @db.VarChar(200) // External system reference
+  sourceSystemId     String? @db.VarChar(100) // Source system identifier
+  syncStatus         String? @db.VarChar(50) // Sync status with external systems
+
+  // 🔗 Relations
+  tenant Tenant @relation("TenantToInvoiceAttachment", fields: [tenantId], references: [id], onDelete: Restrict)
+
+  // Parent Relations (Either invoice-level OR line-item level, not both)
+  invoice  Invoice?         @relation("InvoiceToAttachments", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  lineItem InvoiceLineItem? @relation("InvoiceLineItemAttachments", fields: [tenantId, lineItemId], references: [tenantId, id], onDelete: Cascade)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Header-level attachment lookup
+  @@index([tenantId, lineItemId]) // Line-item attachment lookup
+  @@index([tenantId, attachmentType]) // Type filtering
+  @@index([tenantId, attachmentPurpose]) // Purpose filtering
+  @@index([tenantId, category]) // Category filtering
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([tenantId, fileName]) // File search
+  @@index([tenantId, mimeType]) // File type filtering
+  @@index([tenantId, fileSize]) // Size-based queries
+  @@index([tenantId, isPublic]) // Access control
+  @@index([tenantId, isClientVisible]) // Client visibility
+  @@index([tenantId, isApproved]) // Approval status
+  @@index([tenantId, signatureStatus]) // Signature tracking
+  @@index([tenantId, isMandatory]) // Required attachments
+  @@index([tenantId, isScanned]) // OCR processing
+  @@index([tenantId, hasPreview]) // Preview availability
+  @@index([tenantId, expiresAt]) // Expiration management
+  @@index([tenantId, documentDate]) // Document date queries
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, timezone]) // Timezone queries
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@map("invoice_attachments")
+}
+
+model InvoiceComment {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceCommentStatus @default(ACTIVE)
+  version   Int                  @default(1)
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?            @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance (Enhanced)
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 💼 Business Fields (Enhanced)
+  commentText       String                 @db.Text
+  commentTitle      String?                @db.VarChar(200) // Optional subject
+  commentType       InvoiceCommentType     @default(GENERAL)
+  commentCategory   InvoiceCommentCategory @default(GENERAL)
+  isInternal        Boolean                @default(true)
+  isClientVisible   Boolean                @default(false)
+  isSystemGenerated Boolean                @default(false)
+
+  // 🔗 Threading Support (Enhanced)
+  parentCommentId String? @db.Uuid
+  threadId        String? @db.Uuid
+  threadLevel     Int     @default(0) @db.Integer // Depth in thread
+  sortOrder       Int     @default(0) @db.Integer // Display order
+
+  // 🏷️ Priority & Status (Enhanced)
+  priority          InvoiceCommentPriority @default(NORMAL)
+  urgencyLevel      InvoiceUrgencyLevel? // More granular urgency
+  requiresResponse  Boolean                @default(false)
+  respondedAt       DateTime?              @db.Timestamptz(6)
+  responseDeadline  DateTime?              @db.Timestamptz(6)
+  isResolved        Boolean                @default(false)
+  resolvedAt        DateTime?              @db.Timestamptz(6)
+  resolvedByActorId String?                @db.Uuid
+
+  // 📅 Follow-up & Reminders (Enhanced)
+  followUpDate      DateTime? @db.Timestamptz(6)
+  reminderDate      DateTime? @db.Timestamptz(6)
+  nextReminderDate  DateTime? @db.Timestamptz(6)
+  reminderFrequency String?   @db.VarChar(50) // DAILY, WEEKLY, etc.
+  autoRemindEnabled Boolean   @default(false)
+
+  // 👥 Assignment & Collaboration
+  assignedToMemberId String?   @db.Uuid // Who should respond
+  assignedAt         DateTime? @db.Timestamptz(6)
+  estimatedEffort    Int?      @db.Integer // Hours to resolve
+  actualEffort       Int?      @db.Integer // Actual hours spent
+
+  // 🔔 Notifications & Mentions
+  mentionedActorIds      String?   @db.Text // JSON array of mentioned actor IDs
+  notificationsSent      Boolean   @default(false)
+  notificationsSentAt    DateTime? @db.Timestamptz(6)
+  emailNotificationsSent Boolean   @default(false)
+  smsNotificationsSent   Boolean   @default(false)
+
+  // 📊 Engagement & Analytics
+  viewCount     Int       @default(0) @db.Integer
+  likeCount     Int       @default(0) @db.Integer
+  reactionCount Int       @default(0) @db.Integer
+  lastViewedAt  DateTime? @db.Timestamptz(6)
+  isBookmarked  Boolean   @default(false)
+  isPinned      Boolean   @default(false)
+
+  // 🏷️ Context & Tagging
+  contextType      InvoiceCommentContextType? // What this comment relates to
+  contextReference String?                    @db.VarChar(200) // Reference to specific context
+  tags             String?                    @db.Text // JSON array of tags
+  keywords         String?                    @db.Text // Searchable keywords
+
+  // 📄 Rich Content Support
+  contentFormat   InvoiceCommentFormat @default(PLAIN_TEXT)
+  attachmentCount Int                  @default(0) @db.Integer
+  hasMedia        Boolean              @default(false)
+  wordCount       Int?                 @db.Integer
+  characterCount  Int?                 @db.Integer
+
+  // 🔒 Privacy & Compliance
+  isConfidential    Boolean   @default(false)
+  accessLevel       String?   @db.VarChar(50) // Role-based access
+  dataRetentionDays Int?      @db.Integer // Custom retention
+  isArchived        Boolean   @default(false)
+  archivedAt        DateTime? @db.Timestamptz(6)
+
+  // 📈 Workflow Integration
+  triggersWorkflow  Boolean                   @default(false)
+  workflowTriggered Boolean                   @default(false)
+  workflowId        String?                   @db.Uuid
+  actionRequired    Boolean                   @default(false)
+  actionType        InvoiceCommentActionType?
+  actionDueDate     DateTime?                 @db.Timestamptz(6)
+  actionCompletedAt DateTime?                 @db.Timestamptz(6)
+
+  // 🔗 External Integration
+  externalCommentId  String?   @db.VarChar(200) // External system reference
+  syncedToExternal   Boolean   @default(false)
+  externalSyncStatus String?   @db.VarChar(50)
+  lastSyncedAt       DateTime? @db.Timestamptz(6)
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceComment", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToComments", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Threading support
+  parentComment InvoiceComment?  @relation("CommentToReplies", fields: [tenantId, parentCommentId], references: [tenantId, id], onDelete: Cascade)
+  replies       InvoiceComment[] @relation("CommentToReplies")
+
+  // Member assignment relation
+  assignedToMember Member? @relation("InvoiceCommentAssignee", fields: [tenantId, assignedToMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, commentType]) // Type filtering
+  @@index([tenantId, commentCategory]) // Category filtering
+  @@index([tenantId, isInternal]) // Internal/external filtering
+  @@index([tenantId, isClientVisible]) // Client visibility
+  @@index([tenantId, isSystemGenerated]) // System comments
+  @@index([tenantId, parentCommentId]) // Threading
+  @@index([tenantId, threadId]) // Thread grouping
+  @@index([tenantId, threadLevel]) // Thread depth
+  @@index([tenantId, priority]) // Priority filtering
+  @@index([tenantId, urgencyLevel]) // Urgency filtering
+  @@index([tenantId, requiresResponse]) // Follow-up tracking
+  @@index([tenantId, isResolved]) // Resolution status
+  @@index([tenantId, assignedToMemberId]) // Assignment tracking
+  @@index([tenantId, responseDeadline]) // Deadline management
+  @@index([tenantId, followUpDate]) // Follow-up scheduling
+  @@index([tenantId, reminderDate]) // Reminder scheduling
+  @@index([tenantId, contextType]) // Context filtering
+  @@index([tenantId, actionRequired]) // Action item tracking
+  @@index([tenantId, actionType]) // Action type filtering
+  @@index([tenantId, actionDueDate]) // Action scheduling
+  @@index([tenantId, isBookmarked]) // Bookmark tracking
+  @@index([tenantId, isPinned]) // Pinned comments
+  @@index([tenantId, isConfidential]) // Privacy filtering
+  @@index([tenantId, isArchived]) // Archive status
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, timezone]) // Timezone queries
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@map("invoice_comments")
+}
+
+model InvoiceRevision {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceRevisionStatus @default(ACTIVE)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance (Enhanced)
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 📋 Revision Management (Enhanced)
+  revisionNumber    Int                     @db.Integer
+  revisionDate      DateTime                @default(now()) @db.Timestamptz(6)
+  revisionType      InvoiceRevisionType     @default(CONTENT_CHANGE)
+  revisionCategory  InvoiceRevisionCategory @default(GENERAL)
+  changeReason      String                  @db.VarChar(255)
+  changeDescription String?                 @db.Text
+  changeSummary     String?                 @db.VarChar(500) // Brief summary
+
+  // 📄 Snapshot Data (Enhanced)
+  snapshotData       Json     @db.JsonB // Complete invoice state before change
+  changedFields      String[] // Array of field names that changed
+  previousValues     Json?    @db.JsonB // Previous values of changed fields
+  newValues          Json?    @db.JsonB // New values of changed fields
+  fieldChangeCount   Int      @default(0) @db.Integer
+  significantChanges String[] // Array of significant field changes
+
+  // 🔍 Comparison & Analysis (Enhanced)
+  parentRevisionId       String?   @db.Uuid // Previous revision in chain
+  isBaselineRevision     Boolean   @default(false) // First revision for this invoice
+  isPublishedRevision    Boolean   @default(false) // Sent to client
+  publishedAt            DateTime? @db.Timestamptz(6)
+  supersededAt           DateTime? @db.Timestamptz(6)
+  supersededByRevisionId String?   @db.Uuid
+
+  // 💰 Financial Impact Analysis
+  financialImpact     InvoiceRevisionFinancialImpact? // Impact type
+  previousTotalAmount Decimal?                        @db.Decimal(12, 2)
+  newTotalAmount      Decimal?                        @db.Decimal(12, 2)
+  amountDifference    Decimal?                        @db.Decimal(12, 2)
+  percentageChange    Decimal?                        @db.Decimal(8, 4)
+  hasFinancialImpact  Boolean                         @default(false)
+  impactDescription   String?                         @db.Text
+
+  // ✅ Approval Workflow (Enhanced)
+  requiresApproval  Boolean   @default(false)
+  approvalThreshold Decimal?  @db.Decimal(12, 2) // Amount threshold
+  isApproved        Boolean   @default(false)
+  approvedAt        DateTime? @db.Timestamptz(6)
+  approvedByActorId String?   @db.Uuid
+  approvalNotes     String?   @db.Text
+  approvalLevel     String?   @db.VarChar(100) // Required approval level
+  rejectedAt        DateTime? @db.Timestamptz(6)
+  rejectedByActorId String?   @db.Uuid
+  rejectionReason   String?   @db.Text
+
+  // 👤 Member Workflow
+  requestedByMemberId String?   @db.Uuid // Who requested the revision
+  reviewedByMemberId  String?   @db.Uuid // Who reviewed the revision
+  reviewedAt          DateTime? @db.Timestamptz(6)
+  reviewNotes         String?   @db.Text
+
+  // 📊 Client Communication
+  clientNotificationRequired Boolean   @default(false)
+  clientNotified             Boolean   @default(false)
+  clientNotifiedAt           DateTime? @db.Timestamptz(6)
+  clientAcknowledged         Boolean   @default(false)
+  clientAcknowledgedAt       DateTime? @db.Timestamptz(6)
+  clientResponse             String?   @db.Text
+
+  // 📋 Compliance & Audit
+  complianceFlags  String[] // Array of compliance requirements
+  auditTrail       Json?     @db.JsonB // Detailed audit information
+  regulatoryImpact Boolean   @default(false)
+  legalReview      Boolean   @default(false)
+  legalReviewedAt  DateTime? @db.Timestamptz(6)
+  legalReviewedBy  String?   @db.Uuid
+
+  // 🔄 Workflow & Automation
+  triggerSource       InvoiceRevisionTriggerSource? // What triggered this revision
+  isAutomaticRevision Boolean                       @default(false)
+  workflowStatus      String?                       @db.VarChar(50)
+  nextActionRequired  String?                       @db.VarChar(200)
+  nextActionDueDate   DateTime?                     @db.Timestamptz(6)
+
+  // 📊 Analytics & Performance
+  processingTimeMs Int? @db.Integer // Time to create revision
+  diffSizeBytes    Int? @db.Integer // Size of change diff
+  complexityScore  Int? @db.Integer // Change complexity (1-10)
+  impactScore      Int? @db.Integer // Business impact score
+
+  // 🔗 External Integration
+  externalRevisionId String?   @db.VarChar(200) // External system reference
+  syncedToExternal   Boolean   @default(false)
+  externalSyncStatus String?   @db.VarChar(50)
+  lastSyncedAt       DateTime? @db.Timestamptz(6)
+
+  // 📄 Document Management
+  attachmentCount  Int     @default(0) @db.Integer
+  hasDocuments     Boolean @default(false)
+  documentVersions Json?   @db.JsonB // Track document versions
+  checksumBefore   String? @db.VarChar(64) // Checksum before change
+  checksumAfter    String? @db.VarChar(64) // Checksum after change
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceRevision", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToRevisions", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Revision chain
+  parentRevision InvoiceRevision?  @relation("RevisionChain", fields: [tenantId, parentRevisionId], references: [tenantId, id], onDelete: SetNull)
+  childRevisions InvoiceRevision[] @relation("RevisionChain")
+
+  // Member workflow relations
+  requestedByMember Member? @relation("InvoiceRevisionRequester", fields: [tenantId, requestedByMemberId], references: [tenantId, id], onDelete: SetNull)
+  reviewedByMember  Member? @relation("InvoiceRevisionReviewer", fields: [tenantId, reviewedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@unique([tenantId, invoiceId, revisionNumber]) // Unique revision per invoice
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, revisionType]) // Type filtering
+  @@index([tenantId, revisionCategory]) // Category filtering
+  @@index([tenantId, revisionDate]) // Date-based queries
+  @@index([tenantId, financialImpact]) // Financial impact filtering
+  @@index([tenantId, hasFinancialImpact]) // Financial change tracking
+  @@index([tenantId, requiresApproval]) // Approval tracking
+  @@index([tenantId, isApproved]) // Approval status
+  @@index([tenantId, isBaselineRevision]) // Baseline identification
+  @@index([tenantId, isPublishedRevision]) // Published revisions
+  @@index([tenantId, publishedAt]) // Publication timeline
+  @@index([tenantId, supersededAt]) // Supersession tracking
+  @@index([tenantId, clientNotificationRequired]) // Client notification
+  @@index([tenantId, clientNotified]) // Notification status
+  @@index([tenantId, clientAcknowledged]) // Client acknowledgment
+  @@index([tenantId, regulatoryImpact]) // Regulatory tracking
+  @@index([tenantId, legalReview]) // Legal review status
+  @@index([tenantId, isAutomaticRevision]) // Automation tracking
+  @@index([tenantId, triggerSource]) // Source tracking
+  @@index([tenantId, complexityScore]) // Complexity analysis
+  @@index([tenantId, impactScore]) // Impact analysis
+  @@index([tenantId, requestedByMemberId]) // Requester tracking
+  @@index([tenantId, reviewedByMemberId]) // Reviewer tracking
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, timezone]) // Timezone queries
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@index([snapshotData], type: Gin) // Snapshot queries
+  @@index([changedFields], type: Gin) // Field change tracking
+  @@index([previousValues], type: Gin) // Value comparison
+  @@index([newValues], type: Gin) // Value comparison
+  @@index([complianceFlags], type: Gin) // Compliance search
+  @@index([auditTrail], type: Gin) // Audit search
+  @@map("invoice_revisions")
+}
+
+model InvoiceAdjustment {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceAdjustmentStatus @default(PENDING)
+  version   Int                     @default(1)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?               @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance (Enhanced)
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       InvoiceRecordSource?
+  metadata           Json?                     @db.JsonB
+  timezone           String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 📋 Adjustment Identity & Classification
+  adjustmentNumber   String                    @db.VarChar(50) // ADJ-2025-001
+  adjustmentDate     DateTime                  @default(now()) @db.Timestamptz(6)
+  adjustmentType     InvoiceAdjustmentType     @default(LINE_ITEM_CORRECTION)
+  adjustmentCategory InvoiceAdjustmentCategory @default(BILLING_ERROR)
+  adjustmentReason   InvoiceAdjustmentReason   @default(OTHER)
+  reasonDescription  String                    @db.Text
+
+  // 💰 Financial Impact
+  adjustmentAmount Decimal                     @db.Decimal(12, 2) // Can be positive or negative
+  originalAmount   Decimal                     @db.Decimal(12, 2)
+  newAmount        Decimal                     @db.Decimal(12, 2)
+  currencyCode     String                      @default("USD") @db.Char(3)
+  impactType       InvoiceAdjustmentImpactType @default(INCREASE)
+  percentageChange Decimal?                    @db.Decimal(8, 4)
+
+  // 🎯 Affected Components
+  affectedLineItemId String?                     @db.Uuid // Specific line item affected
+  affectedTaxId      String?                     @db.Uuid // Specific tax affected
+  affectedDiscountId String?                     @db.Uuid // Specific discount affected
+  affectedFeeId      String?                     @db.Uuid // Specific fee affected
+  affectedComponent  InvoiceAdjustmentComponent? // What component was adjusted
+
+  // 📄 Documentation & Evidence
+  supportingDocuments String? @db.Text // JSON array of document IDs
+  evidenceRequired    Boolean @default(false)
+  evidenceProvided    Boolean @default(false)
+  evidenceDescription String? @db.Text
+  legalJustification  String? @db.Text
+
+  // ✅ Approval Workflow
+  requiresApproval  Boolean                         @default(true)
+  approvalThreshold Decimal?                        @db.Decimal(12, 2) // Amount requiring approval
+  approvalLevel     InvoiceAdjustmentApprovalLevel? // Required approval level
+  isApproved        Boolean                         @default(false)
+  approvedAt        DateTime?                       @db.Timestamptz(6)
+  approvedByActorId String?                         @db.Uuid
+  approvalNotes     String?                         @db.Text
+  rejectedAt        DateTime?                       @db.Timestamptz(6)
+  rejectedByActorId String?                         @db.Uuid
+  rejectionReason   String?                         @db.Text
+
+  // 👤 Member Workflow
+  requestedByMemberId String?   @db.Uuid // Who requested the adjustment
+  approvedByMemberId  String?   @db.Uuid // Who approved the adjustment
+  reviewedByMemberId  String?   @db.Uuid // Who reviewed the adjustment
+  reviewedAt          DateTime? @db.Timestamptz(6)
+  reviewNotes         String?   @db.Text
+
+  // 📊 Client Communication
+  clientNotificationRequired Boolean   @default(false)
+  clientNotified             Boolean   @default(false)
+  clientNotifiedAt           DateTime? @db.Timestamptz(6)
+  clientAcknowledged         Boolean   @default(false)
+  clientAcknowledgedAt       DateTime? @db.Timestamptz(6)
+  clientResponse             String?   @db.Text
+  requiresClientApproval     Boolean   @default(false)
+
+  // 💳 Payment & Reconciliation
+  affectsPayments           Boolean   @default(false)
+  paymentAdjustmentRequired Boolean   @default(false)
+  refundRequired            Boolean   @default(false)
+  refundAmount              Decimal?  @db.Decimal(12, 2)
+  refundProcessed           Boolean   @default(false)
+  refundProcessedAt         DateTime? @db.Timestamptz(6)
+  additionalPaymentRequired Boolean   @default(false)
+  additionalPaymentAmount   Decimal?  @db.Decimal(12, 2)
+
+  // 📋 Compliance & Audit
+  complianceFlags       String[] // Array of compliance requirements
+  regulatoryImpact      Boolean   @default(false)
+  taxImplication        Boolean   @default(false)
+  taxAdjustmentRequired Boolean   @default(false)
+  auditTrail            Json?     @db.JsonB // Detailed audit information
+  isReversible          Boolean   @default(true)
+  reversedAt            DateTime? @db.Timestamptz(6)
+  reversedByActorId     String?   @db.Uuid
+  reversal_reference    String?   @db.VarChar(100)
+
+  // 🔄 Workflow & Processing
+  processingStatus   InvoiceAdjustmentProcessingStatus @default(PENDING)
+  processedAt        DateTime?                         @db.Timestamptz(6)
+  processedByActorId String?                           @db.Uuid
+  batchId            String?                           @db.Uuid // Group adjustments in batches
+  priority           InvoiceAdjustmentPriority         @default(NORMAL)
+  urgencyLevel       InvoiceUrgencyLevel? // More granular urgency
+
+  // 📊 Analytics & Tracking
+  adjustmentSource    InvoiceAdjustmentSource? // What triggered the adjustment
+  isAutomatic         Boolean                  @default(false) // System-generated adjustment
+  errorCorrectionType String?                  @db.VarChar(100) // Type of error being corrected
+  recurrence          Boolean                  @default(false) // Part of recurring adjustment
+  relatedAdjustmentId String?                  @db.Uuid // Link to related adjustments
+
+  // 🔗 External Integration
+  externalAdjustmentId String?   @db.VarChar(200) // External system reference
+  syncedToAccounting   Boolean   @default(false) // Synced to accounting system
+  syncedToPayments     Boolean   @default(false) // Synced to payment system
+  externalSyncStatus   String?   @db.VarChar(50)
+  lastSyncedAt         DateTime? @db.Timestamptz(6)
+
+  // 📄 Revision Tracking
+  revisionCount            Int       @default(0) @db.Integer
+  lastRevisionAt           DateTime? @db.Timestamptz(6)
+  isLatestRevision         Boolean   @default(true)
+  supersededAt             DateTime? @db.Timestamptz(6)
+  supersededByAdjustmentId String?   @db.Uuid
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceAdjustment", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToAdjustments", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // Member workflow relations
+  requestedByMember Member? @relation("InvoiceAdjustmentRequester", fields: [tenantId, requestedByMemberId], references: [tenantId, id], onDelete: SetNull)
+  approvedByMember  Member? @relation("InvoiceAdjustmentApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+  reviewedByMember  Member? @relation("InvoiceAdjustmentReviewer", fields: [tenantId, reviewedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // Related adjustments
+  relatedAdjustment      InvoiceAdjustment?  @relation("AdjustmentRelations", fields: [tenantId, relatedAdjustmentId], references: [tenantId, id], onDelete: SetNull)
+  relatedAdjustments     InvoiceAdjustment[] @relation("AdjustmentRelations")
+  supersededByAdjustment InvoiceAdjustment?  @relation("AdjustmentSupersession", fields: [tenantId, supersededByAdjustmentId], references: [tenantId, id], onDelete: SetNull)
+  supersededAdjustments  InvoiceAdjustment[] @relation("AdjustmentSupersession")
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@unique([tenantId, adjustmentNumber]) // Unique adjustment number per tenant
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, adjustmentType]) // Type filtering
+  @@index([tenantId, adjustmentCategory]) // Category filtering
+  @@index([tenantId, adjustmentReason]) // Reason filtering
+  @@index([tenantId, impactType]) // Impact type filtering
+  @@index([tenantId, adjustmentDate]) // Date-based queries
+  @@index([tenantId, adjustmentAmount]) // Amount-based queries
+  @@index([tenantId, affectedComponent]) // Component filtering
+  @@index([tenantId, affectedLineItemId]) // Line item impact
+  @@index([tenantId, requiresApproval]) // Approval workflow
+  @@index([tenantId, approvalLevel]) // Approval level tracking
+  @@index([tenantId, isApproved]) // Approval status
+  @@index([tenantId, processingStatus]) // Processing workflow
+  @@index([tenantId, priority]) // Priority filtering
+  @@index([tenantId, urgencyLevel]) // Urgency filtering
+  @@index([tenantId, clientNotificationRequired]) // Client notification
+  @@index([tenantId, clientNotified]) // Notification tracking
+  @@index([tenantId, affectsPayments]) // Payment impact
+  @@index([tenantId, refundRequired]) // Refund tracking
+  @@index([tenantId, regulatoryImpact]) // Regulatory tracking
+  @@index([tenantId, taxImplication]) // Tax impact
+  @@index([tenantId, isReversible]) // Reversal capability
+  @@index([tenantId, isAutomatic]) // Automation tracking
+  @@index([tenantId, adjustmentSource]) // Source tracking
+  @@index([tenantId, batchId]) // Batch processing
+  @@index([tenantId, requestedByMemberId]) // Requester tracking
+  @@index([tenantId, approvedByMemberId]) // Approver tracking
+  @@index([tenantId, reviewedByMemberId]) // Reviewer tracking
+  @@index([tenantId, relatedAdjustmentId]) // Related adjustments
+  @@index([tenantId, syncedToAccounting]) // Accounting sync
+  @@index([tenantId, syncedToPayments]) // Payment sync
+  @@index([tenantId, isLatestRevision]) // Revision tracking
+  @@index([tenantId, deletedAt]) // Soft delete filtering
+  @@index([createdAt], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId]) // Governance
+  @@index([tenantId, dataClassification]) // Data governance
+  @@index([tenantId, timezone]) // Timezone queries
+  @@index([metadata], type: Gin) // JSON metadata search
+  @@index([complianceFlags], type: Gin) // Compliance search
+  @@index([auditTrail], type: Gin) // Audit search
+  @@map("invoice_adjustments")
+}
+
+model InvoiceCredit {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceCreditStatus @default(PENDING)
+  version   Int                 @default(1)
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime            @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?           @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 📋 Credit Memo Details
+  creditMemoNumber String            @db.VarChar(50) // CM-2025-001
+  creditDate       DateTime          @default(now()) @db.Timestamptz(6)
+  creditType       InvoiceCreditType @default(BILLING_ERROR)
+
+  // 💰 Financial Details
+  creditAmount    Decimal @db.Decimal(12, 2)
+  originalAmount  Decimal @db.Decimal(12, 2)
+  remainingAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  // 📄 Credit Reason & Documentation
+  creditReason        InvoiceCreditReason @default(OTHER)
+  reasonDescription   String              @db.Text
+  supportingDocuments String?             @db.Text // JSON array of document IDs
+
+  // 💳 Refund Management
+  refundMethod      InvoiceCreditRefundMethod @default(ACCOUNT_CREDIT)
+  refundProcessed   Boolean                   @default(false)
+  refundProcessedAt DateTime?                 @db.Timestamptz(6)
+  refundReference   String?                   @db.VarChar(100)
+
+  // ✅ Approval Workflow
+  requiresApproval  Boolean   @default(true)
+  approvalThreshold Decimal?  @db.Decimal(12, 2)
+  approvedAt        DateTime? @db.Timestamptz(6)
+  approvedByActorId String?   @db.Uuid
+  approvalNotes     String?   @db.Text
+
+  // 👤 Customer Communication
+  customerNotified Boolean   @default(false)
+  notificationDate DateTime? @db.Timestamptz(6)
+  customerAccepted Boolean?
+  customerResponse String?   @db.Text
+
+  // 👤 Member Approval (tenant-scoped composite key)
+  approvedByMemberId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant           Tenant  @relation("TenantToInvoiceCredit", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice          Invoice @relation("InvoiceToCredits", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  approvedByMember Member? @relation("InvoiceCreditApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@unique([tenantId, creditMemoNumber]) // Unique credit memo number per tenant
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, creditType]) // Type filtering
+  @@index([tenantId, creditDate]) // Date-based queries
+  @@index([tenantId, refundMethod]) // Refund processing
+  @@index([tenantId, refundProcessed]) // Refund tracking
+  @@index([tenantId, requiresApproval]) // Approval tracking
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, approvedByMemberId]) // Approval tracking
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_credits")
+}
+
+model InvoiceDebit {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceDebitStatus @default(PENDING)
+  version   Int                @default(1)
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?          @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 📋 Debit Memo Details
+  debitMemoNumber String           @db.VarChar(50) // DM-2025-001
+  debitDate       DateTime         @default(now()) @db.Timestamptz(6)
+  debitType       InvoiceDebitType @default(ADDITIONAL_CHARGES)
+
+  // 💰 Financial Details
+  debitAmount    Decimal @db.Decimal(12, 2)
+  originalAmount Decimal @db.Decimal(12, 2)
+  newTotalAmount Decimal @db.Decimal(12, 2)
+
+  // 📄 Debit Reason & Documentation
+  debitReason         InvoiceDebitReason @default(OTHER)
+  reasonDescription   String             @db.Text
+  supportingDocuments String?            @db.Text // JSON array of document IDs
+
+  // ✅ Approval Workflow
+  requiresApproval  Boolean   @default(true)
+  approvalThreshold Decimal?  @db.Decimal(12, 2)
+  approvedAt        DateTime? @db.Timestamptz(6)
+  approvedByActorId String?   @db.Uuid
+  approvalNotes     String?   @db.Text
+
+  // 👥 Customer Communication
+  customerNotified Boolean   @default(false)
+  notificationDate DateTime? @db.Timestamptz(6)
+  customerAccepted Boolean?
+  customerResponse String?   @db.Text
+
+  // 💳 Payment Integration
+  paymentDueDate    DateTime? @db.Timestamptz(6)
+  paymentReceived   Boolean   @default(false)
+  paymentReceivedAt DateTime? @db.Timestamptz(6)
+  paymentAmount     Decimal?  @db.Decimal(12, 2)
+
+  // 👤 Member Approval (tenant-scoped composite key)
+  approvedByMemberId String? @db.Uuid
+
+  // 🔗 Relations
+  tenant           Tenant  @relation("TenantToInvoiceDebit", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice          Invoice @relation("InvoiceToDebits", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+  approvedByMember Member? @relation("InvoiceDebitApprover", fields: [tenantId, approvedByMemberId], references: [tenantId, id], onDelete: SetNull)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@unique([tenantId, debitMemoNumber]) // Unique debit memo number per tenant
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, debitType]) // Type filtering
+  @@index([tenantId, debitDate]) // Date-based queries
+  @@index([tenantId, paymentDueDate]) // Payment tracking
+  @@index([tenantId, paymentReceived]) // Payment status
+  @@index([tenantId, requiresApproval]) // Approval tracking
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, approvedByMemberId]) // Approval tracking
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_debits")
+}
+
+model InvoiceHistory {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle (Simplified for audit records)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 📋 Event Details
+  eventType        InvoiceHistoryEventType @default(OTHER)
+  eventTimestamp   DateTime                @default(now()) @db.Timestamptz(6)
+  eventDescription String                  @db.VarChar(255)
+  eventDetails     String?                 @db.Text
+
+  // 📄 Context Information
+  beforeState   Json? @db.JsonB // State before the event
+  afterState    Json? @db.JsonB // State after the event
+  changedFields Json? @db.JsonB // Array of field names that changed
+
+  // 🌐 System Context
+  userAgent String? @db.VarChar(500)
+  ipAddress String? @db.VarChar(45) // IPv6 support
+  sessionId String? @db.Uuid
+  requestId String? @db.Uuid
+
+  // 🔗 Entity References (optional)
+  relatedEntityType String? @db.VarChar(50) // Payment, Reminder, etc.
+  relatedEntityId   String? @db.Uuid
+
+  // 📊 Business Impact
+  impactLevel    String? @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
+  businessImpact String? @db.Text
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceHistory", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToHistories", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup - most common query
+  @@index([tenantId, eventType]) // Event type filtering
+  @@index([tenantId, eventTimestamp]) // Time-based queries
+  @@index([tenantId, createdByActorId]) // Actor-based filtering
+  @@index([tenantId, relatedEntityType, relatedEntityId]) // Related entity lookup
+  @@index([tenantId, impactLevel]) // Business impact queries
+  @@index([tenantId, deletedAt])
+  @@index([eventTimestamp], type: Brin) // Temporal clustering
+  @@index([tenantId, auditCorrelationId])
+  @@index([beforeState], type: Gin) // State search
+  @@index([afterState], type: Gin) // State search
+  @@index([changedFields], type: Gin) // Field change tracking
+  @@map("invoice_history")
+}
+
+model InvoicePublicLink {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoicePublicLinkStatus @default(ACTIVE)
+  version   Int                     @default(1)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?               @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(CONFIDENTIAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 🔐 Security & Access
+  secureToken String                      @db.VarChar(255) // Cryptographically secure token
+  accessType  InvoicePublicLinkAccessType @default(VIEW_AND_PAY)
+  expiresAt   DateTime?                   @db.Timestamptz(6)
+  maxUses     Int? // Optional usage limit
+  currentUses Int                         @default(0)
+
+  // 🌐 Public URL Configuration
+  publicUrl  String  @db.VarChar(2048)
+  shortUrl   String? @db.VarChar(255)
+  customSlug String? @db.VarChar(100)
+
+  // 📊 Analytics & Tracking
+  viewCount      Int       @default(0)
+  paymentCount   Int       @default(0)
+  downloadCount  Int       @default(0)
+  lastViewedAt   DateTime? @db.Timestamptz(6)
+  lastPaymentAt  DateTime? @db.Timestamptz(6)
+  lastDownloadAt DateTime? @db.Timestamptz(6)
+
+  // 💳 Payment Options
+  allowOnlinePayment  Boolean @default(true)
+  allowPartialPayment Boolean @default(true)
+  allowDownloadPDF    Boolean @default(true)
+  requireContactInfo  Boolean @default(false)
+
+  // 🎨 Customization
+  brandingEnabled Boolean @default(true)
+  customMessage   String? @db.Text
+  customCSS       String? @db.Text
+
+  // 🔒 Security Settings
+  passwordProtected Boolean @default(false)
+  passwordHash      String? @db.VarChar(255)
+  ipRestrictions    Json?   @db.JsonB // Array of allowed IP addresses/ranges
+  requireSSL        Boolean @default(true)
+
+  // 📱 Mobile Optimization
+  mobileOptimized  Boolean @default(true)
+  responsiveDesign Boolean @default(true)
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoicePublicLink", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToPublicLinks", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@unique([secureToken]) // Global unique token
+  @@unique([tenantId, customSlug]) // Unique custom slug per tenant
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, expiresAt]) // Expiration cleanup
+  @@index([tenantId, lastViewedAt]) // Recent activity
+  @@index([tenantId, allowOnlinePayment]) // Payment enabled links
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@map("invoice_public_links")
+}
+
+model InvoiceReminder {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    InvoiceReminderStatus @default(SCHEDULED)
+  version   Int                   @default(1)
+  createdAt DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?             @db.Timestamptz(6)
+
+  // 👤 Actor Attribution (Pattern A - IDs only)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String?                   @db.Uuid
+  dataClassification InvoiceDataClassification @default(INTERNAL)
+  retentionPolicy    RetentionPolicy?
+  recordSource       String?                   @db.VarChar(50)
+  metadata           Json?                     @db.JsonB
+
+  // 🔗 Parent Relationship (Required)
+  invoiceId String @db.Uuid
+
+  // 📋 Reminder Configuration
+  reminderType   InvoiceReminderType           @default(PAYMENT_DUE)
+  deliveryMethod InvoiceReminderDeliveryMethod @default(EMAIL)
+  scheduledAt    DateTime                      @db.Timestamptz(6)
+  sequenceNumber Int                           @default(1) // 1st, 2nd, 3rd reminder, etc.
+
+  // 📧 Content & Messaging
+  emailTemplateId String? @db.Uuid
+  smsTemplateId   String? @db.Uuid
+  customSubject   String? @db.VarChar(255)
+  customMessage   String? @db.Text
+
+  // 📊 Delivery Tracking
+  sentAt      DateTime? @db.Timestamptz(6)
+  deliveredAt DateTime? @db.Timestamptz(6)
+  openedAt    DateTime? @db.Timestamptz(6)
+  clickedAt   DateTime? @db.Timestamptz(6)
+
+  // 🔗 External Message References
+  emailMessageId String? @db.Uuid
+  smsMessageId   String? @db.Uuid
+  phoneCallId    String? @db.Uuid
+
+  // 📈 Effectiveness Tracking
+  responseReceived  Boolean   @default(false)
+  responseDate      DateTime? @db.Timestamptz(6)
+  paymentReceived   Boolean   @default(false)
+  paymentReceivedAt DateTime? @db.Timestamptz(6)
+
+  // 🔄 Retry Logic
+  maxRetries     Int       @default(3)
+  currentRetries Int       @default(0)
+  nextRetryAt    DateTime? @db.Timestamptz(6)
+
+  // ❌ Failure Handling
+  failureReason String? @db.VarChar(255)
+  errorDetails  Json?   @db.JsonB
+
+  // 🎯 Targeting & Personalization
+  recipientEmail String? @db.VarChar(255)
+  recipientPhone String? @db.VarChar(20)
+  recipientName  String? @db.VarChar(255)
+
+  // 🔗 Relations
+  tenant  Tenant  @relation("TenantToInvoiceReminder", fields: [tenantId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation("InvoiceToReminders", fields: [tenantId, invoiceId], references: [tenantId, id], onDelete: Cascade)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, id])
+  @@index([tenantId, invoiceId]) // Parent lookup
+  @@index([tenantId, status]) // Status filtering
+  @@index([tenantId, reminderType]) // Type filtering
+  @@index([tenantId, scheduledAt]) // Scheduling engine - CRITICAL
+  @@index([tenantId, deliveryMethod]) // Delivery channel filtering
+  @@index([tenantId, sequenceNumber]) // Reminder sequence
+  @@index([tenantId, sentAt]) // Delivery tracking
+  @@index([tenantId, paymentReceived]) // Success tracking
+  @@index([tenantId, nextRetryAt]) // Retry processing
+  @@index([tenantId, deletedAt])
+  @@index([scheduledAt], type: Brin) // Temporal clustering for cron jobs
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([metadata], type: Gin)
+  @@index([errorDetails], type: Gin) // Error analysis
+  @@map("invoice_reminders")
+}
+
+// 📊 INVOICE MODULE ENUMS
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  VIEWED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  COLLECTIONS
+  VOIDED
+  WRITTEN_OFF
+  CLOSED
+}
+
+enum InvoicePaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERPAID
+  REFUNDED
+  CREDITED
+}
+
+enum InvoiceCollectionStatus {
+  CURRENT
+  OVERDUE_30
+  OVERDUE_60
+  OVERDUE_90
+  OVERDUE_120
+  COLLECTIONS
+  WRITTEN_OFF
+}
+
+enum InvoiceBillingType {
+  STANDARD
+  PROGRESS
+  MILESTONE
+  RECURRING
+  TIME_AND_MATERIALS
+  RETAINAGE_RELEASE
+  FINAL
+}
+
+enum InvoiceDataClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+enum InvoiceLineItemStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceTaxStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceTaxType {
+  SALES_TAX
+  USE_TAX
+  VAT
+  GST
+  EXCISE_TAX
+  PROPERTY_TAX
+  OTHER
+}
+
+enum InvoiceDiscountStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceDiscountType {
+  AMOUNT
+  PERCENTAGE
+  EARLY_PAYMENT
+  VOLUME
+  PROMOTIONAL
+  LOYALTY
+}
+
+enum InvoiceFeeStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum InvoiceFeeType {
+  LATE_FEE
+  PROCESSING_FEE
+  CONVENIENCE_FEE
+  EXPEDITE_FEE
+  ADMINISTRATIVE_FEE
+  FINANCE_CHARGE
+  COLLECTION_FEE
+  OTHER
+}
+
+enum InvoiceFeeCalculationBasis {
+  TOTAL_AMOUNT
+  SUBTOTAL_AMOUNT
+  OVERDUE_AMOUNT
+  FIXED_AMOUNT
+  DAILY_RATE
+}
+
+// === Payment Application Enums ===
+enum InvoicePaymentApplicationStatus {
+  APPLIED
+  REVERSED
+  PENDING
+  FAILED
+  CANCELLED
+}
+
+enum PaymentAllocationType {
+  FULL_APPLICATION
+  PARTIAL_APPLICATION
+  OVERPAYMENT
+  WRITE_OFF_APPLICATION
+  CREDIT_APPLICATION
+}
+
+// === Attachment Enums ===
+enum InvoiceAttachmentStatus {
+  ACTIVE
+  ARCHIVED
+  PENDING_APPROVAL
+  REJECTED
+  DELETED
+}
+
+enum InvoiceAttachmentType {
+  INVOICE_PDF
+  SUPPORTING_DOCUMENT
+  RECEIPT
+  PHOTO
+  SIGNATURE
+  CONTRACT
+  PURCHASE_ORDER
+  DELIVERY_CONFIRMATION
+  TIME_RECORD
+  EXPENSE_RECEIPT
+  OTHER
+}
+
+// === Comment Enums ===
+enum InvoiceCommentStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+  PENDING
+  RESOLVED
+}
+
+enum InvoiceCommentType {
+  GENERAL
+  PAYMENT_INQUIRY
+  BILLING_QUESTION
+  DISPUTE
+  APPROVAL_NOTE
+  COLLECTIONS_NOTE
+  INTERNAL_NOTE
+  CLIENT_COMMUNICATION
+  CHANGE_REQUEST
+  FOLLOW_UP
+}
+
+enum InvoiceCommentPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+// === Retainage Enums ===
+enum InvoiceRetainageStatus {
+  WITHHELD
+  PARTIALLY_RELEASED
+  FULLY_RELEASED
+  PENDING_RELEASE
+  CANCELLED
+}
+
+enum InvoiceRetainageType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  TIERED
+}
+
+enum InvoiceRetainageReleaseType {
+  NONE
+  PARTIAL_RELEASE
+  FINAL_RELEASE
+  EARLY_RELEASE
+  COMPLIANCE_RELEASE
+}
+
+// === Progress Enums ===
+enum InvoiceProgressStatus {
+  ACTIVE
+  COMPLETED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+// === Milestone Enums ===
+enum InvoiceMilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum InvoiceMilestoneType {
+  COMPLETION_BASED
+  DATE_BASED
+  DELIVERABLE_BASED
+  APPROVAL_BASED
+  PAYMENT_BASED
+}
+
+enum InvoiceMilestoneDeliverableStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PENDING_REVIEW
+  COMPLETED
+  REJECTED
+}
+
+enum InvoiceMilestonePaymentTrigger {
+  COMPLETION
+  APPROVAL
+  DELIVERABLE_ACCEPTANCE
+  DATE_REACHED
+  MANUAL_TRIGGER
+}
+
+// === Revision Enums ===
+enum InvoiceRevisionStatus {
+  ACTIVE
+  ARCHIVED
+  SUPERSEDED
+  DELETED
+}
+
+enum InvoiceRevisionType {
+  CONTENT_CHANGE
+  PRICING_CHANGE
+  TAX_CHANGE
+  DISCOUNT_CHANGE
+  FEE_CHANGE
+  TERMS_CHANGE
+  CUSTOMER_CHANGE
+  APPROVAL_CHANGE
+  CORRECTION
+  ENHANCEMENT
+}
+
+// === Adjustment Enums ===
+enum InvoiceAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+  REVERSED
+  CANCELLED
+}
+
+enum InvoiceAdjustmentType {
+  BILLING_CORRECTION
+  PRICING_ADJUSTMENT
+  TAX_CORRECTION
+  DISCOUNT_ADJUSTMENT
+  FEE_ADJUSTMENT
+  QUANTITY_CORRECTION
+  LINE_ITEM_CORRECTION
+  TERMS_ADJUSTMENT
+  ACCOUNT_CORRECTION
+  OTHER
+}
+
+enum InvoiceAdjustmentReason {
+  BILLING_ERROR
+  PRICING_ERROR
+  TAX_CALCULATION_ERROR
+  QUANTITY_ERROR
+  CUSTOMER_REQUEST
+  SYSTEM_ERROR
+  DATA_ENTRY_ERROR
+  POLICY_CHANGE
+  REGULATORY_COMPLIANCE
+  GOODWILL_ADJUSTMENT
+  OTHER
+}
+
+// === Credit Enums ===
+enum InvoiceCreditStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ISSUED
+  APPLIED
+  REFUNDED
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceCreditType {
+  BILLING_ERROR
+  PRICING_ERROR
+  PRODUCT_RETURN
+  SERVICE_CANCELLATION
+  GOODWILL_CREDIT
+  PROMOTIONAL_CREDIT
+  SETTLEMENT_CREDIT
+  COMPLIANCE_CREDIT
+  OVERPAYMENT_CREDIT
+  OTHER
+}
+
+enum InvoiceCreditReason {
+  CUSTOMER_RETURN
+  DEFECTIVE_PRODUCT
+  SERVICE_NOT_RENDERED
+  BILLING_DISPUTE
+  PRICING_ERROR
+  TAX_ERROR
+  DUPLICATE_BILLING
+  QUALITY_ISSUE
+  DELIVERY_ISSUE
+  CUSTOMER_SATISFACTION
+  OTHER
+}
+
+enum InvoiceCreditRefundMethod {
+  ACCOUNT_CREDIT
+  CASH_REFUND
+  CHECK_REFUND
+  CREDIT_CARD_REFUND
+  ACH_REFUND
+  WIRE_TRANSFER
+  OFFSET_FUTURE_INVOICES
+  NO_REFUND
+}
+
+// === Debit Enums ===
+enum InvoiceDebitStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+  WRITTEN_OFF
+}
+
+enum InvoiceDebitType {
+  ADDITIONAL_CHARGES
+  LATE_FEE
+  INTEREST_CHARGE
+  COLLECTION_FEE
+  RESTOCKING_FEE
+  CHANGE_ORDER
+  EXTRA_WORK
+  PENALTY_CHARGE
+  ADMINISTRATIVE_FEE
+  OTHER
+}
+
+enum InvoiceDebitReason {
+  LATE_PAYMENT
+  ADDITIONAL_WORK_PERFORMED
+  CHANGE_ORDER_APPROVED
+  RESTOCKING_REQUIRED
+  COLLECTION_COSTS
+  ADMINISTRATIVE_COSTS
+  PENALTY_ASSESSMENT
+  CONTRACT_VIOLATION
+  SCOPE_EXPANSION
+  OTHER
+}
+
+// === History Enums ===
+enum InvoiceHistoryEventType {
+  INVOICE_CREATED
+  INVOICE_UPDATED
+  INVOICE_SENT
+  INVOICE_VIEWED
+  PAYMENT_RECEIVED
+  PAYMENT_APPLIED
+  REMINDER_SENT
+  STATUS_CHANGED
+  APPROVAL_REQUESTED
+  APPROVED
+  REJECTED
+  VOIDED
+  WRITTEN_OFF
+  ADJUSTMENT_APPLIED
+  CREDIT_ISSUED
+  DEBIT_ISSUED
+  REVISION_CREATED
+  DOCUMENT_ATTACHED
+  COMMENT_ADDED
+  DISPUTE_RAISED
+  DISPUTE_RESOLVED
+  COLLECTION_ACTION
+  OTHER
+}
+
+// === Public Link Enums ===
+enum InvoicePublicLinkStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+  REVOKED
+  SUSPENDED
+}
+
+enum InvoicePublicLinkAccessType {
+  VIEW_ONLY
+  VIEW_AND_PAY
+  VIEW_AND_DOWNLOAD
+  FULL_ACCESS
+}
+
+// === Attachment Enums ===
+enum InvoiceAttachmentCategory {
+  INVOICE_PDF
+  SUPPORTING_DOCUMENT
+  RECEIPT
+  PHOTO
+  DRAWING
+  CONTRACT
+  CORRESPONDENCE
+  APPROVAL
+  SIGNATURE
+  COMPLIANCE
+  OTHER
+}
+
+enum InvoiceAttachmentPurpose {
+  BILLING_SUPPORT
+  COMPLIANCE_REQUIREMENT
+  CUSTOMER_REQUEST
+  APPROVAL_DOCUMENTATION
+  PAYMENT_PROOF
+  QUALITY_ASSURANCE
+  LEGAL_REQUIREMENT
+  AUDIT_TRAIL
+  REFERENCE_MATERIAL
+  OTHER
+}
+
+enum InvoiceAttachmentSignatureStatus {
+  NOT_REQUIRED
+  PENDING
+  SIGNED
+  REJECTED
+  EXPIRED
+}
+
+// === Comment Enums ===
+enum InvoiceCommentCategory {
+  GENERAL
+  FINANCIAL
+  TECHNICAL
+  LEGAL
+  COMPLIANCE
+  CUSTOMER_SERVICE
+  APPROVAL
+  PAYMENT
+  DISPUTE
+  COLLECTION
+  OTHER
+}
+
+enum InvoiceUrgencyLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum InvoiceCommentContextType {
+  INVOICE_HEADER
+  LINE_ITEM
+  TAX_CALCULATION
+  DISCOUNT_APPLICATION
+  PAYMENT_APPLICATION
+  APPROVAL_PROCESS
+  CLIENT_COMMUNICATION
+  OTHER
+}
+
+enum InvoiceCommentFormat {
+  PLAIN_TEXT
+  MARKDOWN
+  HTML
+  RICH_TEXT
+}
+
+enum InvoiceCommentActionType {
+  FOLLOW_UP
+  APPROVE
+  REJECT
+  REVIEW
+  INVESTIGATE
+  CONTACT_CLIENT
+  PROCESS_PAYMENT
+  ESCALATE
+  OTHER
+}
+
+// === Revision Enums ===
+enum InvoiceRevisionCategory {
+  GENERAL
+  FINANCIAL
+  LEGAL
+  COMPLIANCE
+  CORRECTION
+  ENHANCEMENT
+  CLIENT_REQUEST
+  REGULATORY
+  OTHER
+}
+
+enum InvoiceRevisionFinancialImpact {
+  NO_IMPACT
+  INCREASE
+  DECREASE
+  RESTRUCTURE
+  CORRECTION
+}
+
+enum InvoiceRevisionTriggerSource {
+  MANUAL_REQUEST
+  CLIENT_FEEDBACK
+  APPROVAL_REJECTION
+  COMPLIANCE_REQUIREMENT
+  ERROR_CORRECTION
+  REGULATORY_CHANGE
+  SYSTEM_UPDATE
+  INTEGRATION_SYNC
+  OTHER
+}
+
+// === Additional Adjustment Enums ===
+enum InvoiceAdjustmentCategory {
+  BILLING_ERROR
+  CALCULATION_ERROR
+  DATA_ENTRY_ERROR
+  SYSTEM_ERROR
+  COMPLIANCE_CORRECTION
+  CLIENT_REQUEST
+  REGULATORY_ADJUSTMENT
+  CURRENCY_ADJUSTMENT
+  OTHER
+}
+
+enum InvoiceAdjustmentImpactType {
+  INCREASE
+  DECREASE
+  CORRECTION
+  RESTRUCTURE
+  CANCELLATION
+}
+
+enum InvoiceAdjustmentComponent {
+  INVOICE_HEADER
+  LINE_ITEM
+  TAX
+  DISCOUNT
+  FEE
+  SUBTOTAL
+  TOTAL
+  PAYMENT_TERMS
+  OTHER
+}
+
+enum InvoiceAdjustmentApprovalLevel {
+  AUTOMATIC
+  SUPERVISOR
+  MANAGER
+  DIRECTOR
+  CFO
+  BOARD
+}
+
+enum InvoiceAdjustmentProcessingStatus {
+  PENDING
+  IN_PROGRESS
+  PROCESSED
+  FAILED
+  CANCELLED
+  ON_HOLD
+}
+
+enum InvoiceAdjustmentPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum InvoiceAdjustmentSource {
+  MANUAL_REQUEST
+  CLIENT_DISPUTE
+  AUDIT_FINDING
+  SYSTEM_DETECTION
+  COMPLIANCE_CHECK
+  PAYMENT_RECONCILIATION
+  TAX_AUTHORITY
+  REGULATORY_REQUIREMENT
+  ERROR_CORRECTION
+  OTHER
+}
+
+// === Reminder Enums ===
+enum InvoiceReminderStatus {
+  SCHEDULED
+  SENT
+  DELIVERED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceReminderType {
+  PAYMENT_DUE_SOON
+  PAYMENT_DUE
+  OVERDUE
+  SECOND_NOTICE
+  FINAL_NOTICE
+  COLLECTIONS
+  THANK_YOU
+  CUSTOM
+}
+
+enum InvoiceReminderDeliveryMethod {
+  EMAIL
+  SMS
+  PHONE_CALL
+  MAIL
+  BOTH_EMAIL_SMS
+  MULTI_CHANNEL
+}
+
+// === Additional Required Enums ===
+enum InvoiceRecordSource {
+  API
+  IMPORT
+  SYSTEM
+  MANUAL
+  MIGRATION
+}
+
+enum InvoiceUnitOfMeasure {
+  // Length/Distance
+  FEET
+  INCHES
+  YARDS
+  METERS
+  CENTIMETERS
+  MILLIMETERS
+
+  // Area
+  SQUARE_FEET
+  SQUARE_YARDS
+  SQUARE_METERS
+
+  // Volume
+  CUBIC_FEET
+  CUBIC_YARDS
+  CUBIC_METERS
+  GALLONS
+  LITERS
+
+  // Weight
+  POUNDS
+  KILOGRAMS
+  TONS
+
+  // Count/Quantity
+  EACH
+  PIECES
+  PAIRS
+  SETS
+  LOTS
+
+  // Time
+  HOURS
+  DAYS
+  WEEKS
+  MONTHS
+
+  // Construction specific
+  LINEAR_FEET
+  BOARD_FEET
+  ROLLS
+  SHEETS
+  BAGS
+}
+
+// === Additional Business Rule Enums ===
+enum InvoiceDiscountCategory {
+  COMMERCIAL
+  VOLUME
+  EARLY_PAYMENT
+  LOYALTY
+  PROMOTIONAL
+  COMPETITIVE
+  EMPLOYEE
+  SEASONAL
+  CLEARANCE
+  OTHER
+}
+
+enum InvoiceDiscountScope {
+  LINE_ITEMS
+  SUBTOTAL
+  CATEGORY
+  QUANTITY
+  ORDER_TOTAL
+  SHIPPING
+}
+
+enum InvoiceFeeCategory {
+  OVERHEAD
+  CONTINGENCY
+  PROFIT_MARGIN
+  PROCESSING_FEE
+  SERVICE_CHARGE
+  HANDLING_FEE
+  ADMINISTRATIVE
+  INSURANCE
+  PERMITS
+  COMPLIANCE
+  SUPERVISION
+  EQUIPMENT_RENTAL
+  OTHER
+}
+
+/// Risk levels for milestone and payment assessment
+enum InvoiceRiskLevel {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+  CRITICAL
+}
+
+/// Payment allocation methods for multi-invoice payments
+enum PaymentAllocationMethod {
+  OLDEST_FIRST
+  NEWEST_FIRST
+  PROPORTIONAL
+  MANUAL_ALLOCATION
+  HIGHEST_AMOUNT_FIRST
+  BY_DUE_DATE
+  CUSTOM_RULES
+}
+
+/// Payment method types for payment applications
+enum PaymentMethodType {
+  CASH
+  CHECK
+  CREDIT_CARD
+  DEBIT_CARD
+  ACH
+  WIRE_TRANSFER
+  MONEY_ORDER
+  CASHIERS_CHECK
+  ESCROW
+  CRYPTOCURRENCY
+  UNKNOWN
+}

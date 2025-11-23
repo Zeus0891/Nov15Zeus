@@ -1,0 +1,488 @@
+// This file is auto-generated. Do not edit manually.
+// Module: identitysecurity.prisma
+// Generated from Modules_Structure.md and models.generated.prisma
+
+model IdentityProvider {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("identity_provider")
+}
+
+model TenantIdentityProvider {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToTenantIdentityProvider", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("TenantIdentityProviderCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("TenantIdentityProviderUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("TenantIdentityProviderDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+  @@map("tenant_identity_provider")
+}
+
+model AuthFactor {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("auth_factor")
+}
+
+model AuthFactorChallenge {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("auth_factor_challenge")
+}
+
+model PasswordResetToken {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("password_reset_token")
+}
+
+model AccountLockout {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("account_lockout")
+}
+
+model SecurityEvent {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("security_event")
+}
+
+model SSOSession {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("ssosession")
+}
+
+model RecoveryCode {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("recovery_code")
+}
+
+model UserDevice {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("user_device")
+}
+
+model UserDeviceHistory {
+  // 🆔 Identity
+  id String @id @default(uuid(7)) @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("PUBLIC") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?
+
+  // 🔎 Observability (OPTIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+
+  // Enable ONLY if you use these fields:
+  // @@index([hashToken])
+  // @@index([recordSource])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (no tenant)
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([auditCorrelationId])
+  @@index([dataClassification])
+  @@map("user_device_history")
+}

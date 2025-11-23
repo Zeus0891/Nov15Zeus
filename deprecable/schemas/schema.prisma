@@ -1,0 +1,11 @@
+// Nov13ERP - Main Prisma Schema Configuration
+// This file contains the datasource and generator configuration for the multi-file schema
+// All model definitions are now organized in separate files in the /schemas directory
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
