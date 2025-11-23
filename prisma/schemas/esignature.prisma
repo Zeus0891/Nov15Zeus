@@ -1,21 +1,25 @@
-// This file is auto-generated. Do not edit manually.
 // Module: esignature.prisma
-// Generated from Modules_Structure.md and models.generated.prisma
+// Auto-generated from schema_generated.prisma
+// Tables: ESignatureEnvelope, ESignaturePublicLink, ESignatureDocument, ESignatureRecipient, ESignatureRecipientAction, ESignatureField, ESignatureAuditTrail, ESignatureWorkflowStep, ESignatureAttachment, ESignatureNotification, ESignatureHistoryEvent
 
 model ESignatureEnvelope {
-  // 🆔 Identity, Tenant and Global
+  // 🆔 Identity, Tenant & Global Business Identifier
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
-  globalId String @db.Uuid // referencia a entidad BG
+
+  /// globalId: Global business identifier shared across Estimate/Project/Invoice/CO/etc.
+  /// Not a foreign key. Not a reference to a GLOBAL module.
+  /// Used for cross-module traceability, PublicLinkEngine analytics, and Portal visibility.
+  globalId String @db.Uuid
 
   // 📊 Lifecycle
   status    String    @default("ACTIVE")
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
@@ -24,7 +28,7 @@ model ESignatureEnvelope {
   auditCorrelationId String? @db.Uuid
   dataClassification String  @default("CONFIDENTIAL") @db.VarChar(50)
 
-  // 🔎 Observability (OPTIONAL)
+  // 🔎 Observability (OPCIONAL)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
@@ -36,20 +40,13 @@ model ESignatureEnvelope {
   // 🔗 Required relations
   // tenant Tenant @relation("TenantToESignatureEnvelope", fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // Relation to the Global entity (adjust the real BG model)
-  // global <YourGlobalModel> @relation(fields: [globalId], references: [id], onDelete: Restrict)
+  // NOTA: globalId NO es FK. Si en algún caso necesitas un FK real, crea otro campo
+  // por ejemplo: contractId, projectId, etc.
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("ESignatureEnvelopeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
   // updatedByActor Actor? @relation("ESignatureEnvelopeUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("ESignatureEnvelopeDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // 🔗 Opposite relations - Estimate module
-  estimates Estimate[] @relation("EstimateESignatureEnvelope")
-  publicLinks EstimatePublicLink[] @relation("PublicLinkESignature")
-
-  // 🔗 Opposite relations - Invoice module  
-  invoices Invoice[] @relation("InvoiceESignature")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
@@ -58,15 +55,81 @@ model ESignatureEnvelope {
   // @@index([metadata], type: Gin)
 
   // 🗂️ Indexes & constraints
-  @@unique([tenantId, id]) // Required for foreign key references
-  @@unique([tenantId, globalId]) // un override por globalId en cada tenant
+  @@unique([tenantId, globalId])
+  @@unique([tenantId, id])
   @@index([globalId])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_envelope")
+
+  @@map("e_signature_envelope")
+}
+
+model ESignaturePublicLink {
+  // 🆔 Identity, Tenant & Global Business Identifier
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  /// globalId: Global business identifier shared across Estimate/Project/Invoice/CO/etc.
+  /// Not a foreign key. Not a reference to a GLOBAL module.
+  /// Used for cross-module traceability, PublicLinkEngine analytics, and Portal visibility.
+  globalId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (solo UUIDs)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid
+  dataClassification String  @default("CONFIDENTIAL") @db.VarChar(50)
+
+  // 🔎 Observability (OPCIONAL)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToESignaturePublicLink", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // NOTA: globalId NO es FK. Si en algún caso necesitas un FK real, crea otro campo
+  // por ejemplo: contractId, projectId, etc.
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ESignaturePublicLinkCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ESignaturePublicLinkUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ESignaturePublicLinkDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints
+  @@unique([tenantId, globalId])
+  @@unique([tenantId, id])
+  @@index([globalId])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("e_signature_public_link")
 }
 
 model ESignatureDocument {
@@ -75,29 +138,29 @@ model ESignatureDocument {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -121,7 +184,8 @@ model ESignatureDocument {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_document")
+
+  @@map("e_signature_document")
 }
 
 model ESignatureRecipient {
@@ -130,29 +194,29 @@ model ESignatureRecipient {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -176,7 +240,64 @@ model ESignatureRecipient {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_recipient")
+
+  @@map("e_signature_recipient")
+}
+
+model ESignatureRecipientAction {
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
+
+  // 📊 Lifecycle
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
+
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
+  createdByActorId String? @db.Uuid
+  updatedByActorId String? @db.Uuid
+  deletedByActorId String? @db.Uuid
+
+  // 🧠 Governance
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
+
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToESignatureRecipientAction", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ESignatureRecipientActionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ESignatureRecipientActionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ESignatureRecipientActionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
+  @@index([createdAt], type: Brin)
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("e_signature_recipient_action")
 }
 
 model ESignatureField {
@@ -185,29 +306,29 @@ model ESignatureField {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -231,7 +352,8 @@ model ESignatureField {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_field")
+
+  @@map("e_signature_field")
 }
 
 model ESignatureAuditTrail {
@@ -240,29 +362,29 @@ model ESignatureAuditTrail {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -286,7 +408,8 @@ model ESignatureAuditTrail {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_audit_trail")
+
+  @@map("e_signature_audit_trail")
 }
 
 model ESignatureWorkflowStep {
@@ -295,29 +418,29 @@ model ESignatureWorkflowStep {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -341,7 +464,8 @@ model ESignatureWorkflowStep {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_workflow_step")
+
+  @@map("e_signature_workflow_step")
 }
 
 model ESignatureAttachment {
@@ -350,29 +474,29 @@ model ESignatureAttachment {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -396,7 +520,8 @@ model ESignatureAttachment {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_attachment")
+
+  @@map("e_signature_attachment")
 }
 
 model ESignatureNotification {
@@ -405,29 +530,29 @@ model ESignatureNotification {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -451,7 +576,8 @@ model ESignatureNotification {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_notification")
+
+  @@map("e_signature_notification")
 }
 
 model ESignatureHistoryEvent {
@@ -460,29 +586,29 @@ model ESignatureHistoryEvent {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -506,5 +632,7 @@ model ESignatureHistoryEvent {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("esignature_history_event")
+
+  @@map("e_signature_history_event")
 }
+

@@ -1,134 +1,173 @@
-// This file is auto-generated. Do not edit manually.
 // Module: aicore.prisma
-// Generated from Modules_Structure.md and models.generated.prisma
+// Auto-generated from schema_generated.prisma
+// Tables: AIModel, AIModelVersion, AIPromptTemplate, AIAction, AIActionRun, AIPlaybook, AIPlaybookStep, AIEmbedding, AIJob, AIJobArtifact
 
 model AIModel {
-  // 🆔 Identity
-  id String @id @default(uuid(7)) @db.Uuid
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("PUBLIC") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255)
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToAIModel", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("AIModelCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("AIModelUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("AIModelDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
   // Enable ONLY if you use these fields:
-  // @@index([hashToken])
-  // @@index([recordSource])
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
   // @@index([metadata], type: Gin)
 
-  // 🗂️ Indexes & constraints (no tenant)
-  @@index([status])
-  @@index([deletedAt])
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
-  @@index([auditCorrelationId])
-  @@index([dataClassification])
-  @@map("aimodel")
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("ai_model")
 }
 
 model AIModelVersion {
-  // 🆔 Identity
-  id String @id @default(uuid(7)) @db.Uuid
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("PUBLIC") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255)
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToAIModelVersion", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("AIModelVersionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("AIModelVersionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("AIModelVersionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
   // Enable ONLY if you use these fields:
-  // @@index([hashToken])
-  // @@index([recordSource])
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
   // @@index([metadata], type: Gin)
 
-  // 🗂️ Indexes & constraints (no tenant)
-  @@index([status])
-  @@index([deletedAt])
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
-  @@index([auditCorrelationId])
-  @@index([dataClassification])
-  @@map("aimodel_version")
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("ai_model_version")
 }
 
 model AIPromptTemplate {
-  // 🆔 Identity
-  id String @id @default(uuid(7)) @db.Uuid
+  // 🆔 Identity & Tenant
+  id       String @id @default(uuid(7)) @db.Uuid
+  tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only if it's a critical global entity)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("PUBLIC") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
+  dataClassification String  @default("INTERNAL") @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255)
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToAIPromptTemplate", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("AIPromptTemplateCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("AIPromptTemplateUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("AIPromptTemplateDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
 
   // Enable ONLY if you use these fields:
-  // @@index([hashToken])
-  // @@index([recordSource])
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
   // @@index([metadata], type: Gin)
 
-  // 🗂️ Indexes & constraints (no tenant)
-  @@index([status])
-  @@index([deletedAt])
+  // 🗂️ Indexes & constraints (tenant-first)
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
-  @@index([auditCorrelationId])
-  @@index([dataClassification])
-  @@map("aiprompt_template")
+  @@index([tenantId, auditCorrelationId])
+  @@index([tenantId, dataClassification])
+
+  @@map("ai_prompt_template")
 }
 
 model AIAction {
@@ -137,29 +176,29 @@ model AIAction {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -183,7 +222,8 @@ model AIAction {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("aiaction")
+
+  @@map("ai_action")
 }
 
 model AIActionRun {
@@ -192,29 +232,29 @@ model AIActionRun {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -238,7 +278,8 @@ model AIActionRun {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("aiaction_run")
+
+  @@map("ai_action_run")
 }
 
 model AIPlaybook {
@@ -247,29 +288,29 @@ model AIPlaybook {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -293,7 +334,8 @@ model AIPlaybook {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("aiplaybook")
+
+  @@map("ai_playbook")
 }
 
 model AIPlaybookStep {
@@ -302,29 +344,29 @@ model AIPlaybookStep {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -348,7 +390,8 @@ model AIPlaybookStep {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("aiplaybook_step")
+
+  @@map("ai_playbook_step")
 }
 
 model AIEmbedding {
@@ -357,29 +400,29 @@ model AIEmbedding {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -403,7 +446,8 @@ model AIEmbedding {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("aiembedding")
+
+  @@map("ai_embedding")
 }
 
 model AIJob {
@@ -412,29 +456,29 @@ model AIJob {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -458,7 +502,8 @@ model AIJob {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("aijob")
+
+  @@map("ai_job")
 }
 
 model AIJobArtifact {
@@ -467,29 +512,29 @@ model AIJobArtifact {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -513,5 +558,7 @@ model AIJobArtifact {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@map("aijob_artifact")
+
+  @@map("ai_job_artifact")
 }
+

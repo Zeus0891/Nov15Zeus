@@ -1,6 +1,6 @@
-// This file is auto-generated. Do not edit manually.
 // Module: hrcore.prisma
-// Generated from Modules_Structure.md and models.generated.prisma
+// Auto-generated from schema_generated.prisma
+// Tables: Employee, EmployeeAddress, EmployeeContact, EmployeePosition, EmployeeDepartment, EmployeeCompensation, EmployeeStatus, EmployeeSkill, EmployeeDocument, EmployeeHistoryEvent
 
 model Employee {
   // 🆔 Identity & Tenant
@@ -8,36 +8,33 @@ model Employee {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
   // tenant Tenant @relation("TenantToEmployee", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 🔗 Cross-Module Relations
-  projectTeamMembers ProjectTeamMember[] @relation("EmployeeToProjectTeam")
 
   // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
   // createdByActor Actor? @relation("EmployeeCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
@@ -57,6 +54,7 @@ model Employee {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee")
 }
 
@@ -66,29 +64,29 @@ model EmployeeAddress {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -112,6 +110,7 @@ model EmployeeAddress {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_address")
 }
 
@@ -121,29 +120,29 @@ model EmployeeContact {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -167,6 +166,7 @@ model EmployeeContact {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_contact")
 }
 
@@ -176,29 +176,29 @@ model EmployeePosition {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -222,6 +222,7 @@ model EmployeePosition {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_position")
 }
 
@@ -231,29 +232,29 @@ model EmployeeDepartment {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -277,6 +278,7 @@ model EmployeeDepartment {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_department")
 }
 
@@ -286,29 +288,29 @@ model EmployeeCompensation {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -332,6 +334,7 @@ model EmployeeCompensation {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_compensation")
 }
 
@@ -341,29 +344,29 @@ model EmployeeStatus {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -387,6 +390,7 @@ model EmployeeStatus {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_status")
 }
 
@@ -396,29 +400,29 @@ model EmployeeSkill {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -442,6 +446,7 @@ model EmployeeSkill {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_skill")
 }
 
@@ -451,29 +456,29 @@ model EmployeeDocument {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -497,6 +502,7 @@ model EmployeeDocument {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_document")
 }
 
@@ -506,29 +512,29 @@ model EmployeeHistoryEvent {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -552,5 +558,7 @@ model EmployeeHistoryEvent {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("employee_history_event")
 }
+

@@ -1,6 +1,6 @@
-// This file is auto-generated. Do not edit manually.
 // Module: membership.prisma
-// Generated from Modules_Structure.md and models.generated.prisma
+// Auto-generated from schema_generated.prisma
+// Tables: Member, MemberSettings, MemberInvitation
 
 model Member {
   // 🆔 Identity & Tenant
@@ -8,29 +8,29 @@ model Member {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -40,64 +40,6 @@ model Member {
   // createdByActor Actor? @relation("MemberCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
   // updatedByActor Actor? @relation("MemberUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
   // deletedByActor Actor? @relation("MemberDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // 🔗 Opposite relations - Estimate module
-  // Business workflow relations (approval chains)
-  ownedEstimates         Estimate[]             @relation("EstimateOwner")
-  approvedDiscounts      EstimateDiscount[]     @relation("EstimateDiscountApprover")
-  approvedFees           EstimateFee[]          @relation("EstimateFeeApprover")
-  assignedComments       EstimateComment[]      @relation("EstimateCommentAssignee")
-  initiatedHistoryEvents EstimateHistoryEvent[] @relation("HistoryEventInitiator")
-
-  // 🔗 Opposite relations - Invoice module
-  // Business workflow relations (ownership & approval chains)
-  ownedInvoices               Invoice[]           @relation("InvoiceOwner")
-  approvedInvoiceDiscounts    InvoiceDiscount[]   @relation("InvoiceDiscountApprover")
-  approvedInvoiceFees         InvoiceFee[]        @relation("InvoiceFeeApprover")
-  approvedInvoiceRetainages   InvoiceRetainage[]  @relation("InvoiceRetainageApprover")
-  reviewedInvoiceProgresses   InvoiceProgress[]   @relation("InvoiceProgressReviewer")
-  approvedInvoiceMilestones   InvoiceMilestone[]  @relation("InvoiceMilestoneApprover")
-  assignedInvoiceComments     InvoiceComment[]    @relation("InvoiceCommentAssignee")
-  requestedInvoiceRevisions   InvoiceRevision[]   @relation("InvoiceRevisionRequester")
-  reviewedInvoiceRevisions    InvoiceRevision[]   @relation("InvoiceRevisionReviewer")
-  requestedInvoiceAdjustments InvoiceAdjustment[] @relation("InvoiceAdjustmentRequester")
-  approvedInvoiceAdjustments  InvoiceAdjustment[] @relation("InvoiceAdjustmentApprover")
-  reviewedInvoiceAdjustments  InvoiceAdjustment[] @relation("InvoiceAdjustmentReviewer")
-  approvedInvoiceCredits      InvoiceCredit[]     @relation("InvoiceCreditApprover")
-  approvedInvoiceDebits       InvoiceDebit[]      @relation("InvoiceDebitApprover")
-
-  // 🔗 Opposite relations - Project module
-  // Business workflow relations (management & ownership)
-  managedProjects         Project[]               @relation("ProjectManager")
-  superintendedProjects   Project[]               @relation("ProjectSuperintendent")
-  managedProjectPhases    ProjectPhase[]          @relation("ProjectPhaseManager")
-  approvedMilestones      ProjectMilestone[]      @relation("ProjectMilestoneApprover")
-  // Project relations
-  projectTeamAssignments ProjectTeamMember[] @relation("MemberToProjectTeam")
-  taskAssignments        ProjectTaskAssignment[] @relation("MemberTaskAssignments")
-
-  // Project Documents Relations (Pattern A - IDs only audit)
-  projectDocumentsCreated       ProjectDocument[] @relation("ProjectDocumentCreator")
-  projectDocumentsUpdated       ProjectDocument[] @relation("ProjectDocumentUpdater")
-  projectDocumentsUploaded      ProjectDocument[] @relation("ProjectDocumentUploader")
-  projectDocumentsReviewed      ProjectDocument[] @relation("ProjectDocumentReviewer")
-  projectDocumentsApproved      ProjectDocument[] @relation("ProjectDocumentApprover")
-  projectDocumentsArchived      ProjectDocument[] @relation("ProjectDocumentArchiver")
-  projectDocumentsLastViewed    ProjectDocument[] @relation("ProjectDocumentLastViewer")
-  projectDocumentsLastDownloaded ProjectDocument[] @relation("ProjectDocumentLastDownloader")
-
-  // Project Attachments Relations (Pattern A - IDs only audit)
-  projectAttachmentsReviewed       ProjectAttachment[] @relation("ProjectAttachmentReviewer")
-  projectAttachmentsApproved       ProjectAttachment[] @relation("ProjectAttachmentApprover")
-  projectAttachmentsLastViewed     ProjectAttachment[] @relation("ProjectAttachmentLastViewer")
-  projectAttachmentsLastDownloaded ProjectAttachment[] @relation("ProjectAttachmentLastDownloader")
-
-  // Project History Events Relations (Pattern A - IDs only audit)
-  projectHistoryEventsTriggered       ProjectHistoryEvent[] @relation("ProjectHistoryEventTrigger")
-  projectHistoryEventsApproved        ProjectHistoryEvent[] @relation("ProjectHistoryEventApprover")
-  projectHistoryEventsFollowUpAssigned ProjectHistoryEvent[] @relation("ProjectHistoryEventFollowUp")
-  approvedProjectBudgets  ProjectBudget[]         @relation("ProjectBudgetApprover")
-  approvedBudgetLineItems ProjectBudgetLineItem[] @relation("ProjectBudgetLineItemApprover")
 
   // Enable ONLY if you use these fields:
   // @@index([tenantId, hashToken])
@@ -112,6 +54,7 @@ model Member {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("member")
 }
 
@@ -121,29 +64,29 @@ model MemberSettings {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -167,6 +110,7 @@ model MemberSettings {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("member_settings")
 }
 
@@ -176,29 +120,29 @@ model MemberInvitation {
   tenantId String @db.Uuid
 
   // 📊 Lifecycle
-  status    String    @default("ACTIVE")
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
   version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
   // traceId      String? @db.VarChar(64)
   // spanId       String? @db.VarChar(32)
   // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
   // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
   // timezone     String? @db.VarChar(50)
 
   // 🔗 Required relations
@@ -222,170 +166,10 @@ model MemberInvitation {
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
+
   @@map("member_invitation")
 }
 
-model MemberExternalLink {
-  // 🆔 Identity & Tenant
-  id       String @id @default(uuid(7)) @db.Uuid
-  tenantId String @db.Uuid
 
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
 
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
-  createdByActorId String? @db.Uuid
-  updatedByActorId String? @db.Uuid
-  deletedByActorId String? @db.Uuid
 
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
-
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToMemberExternalLink", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("MemberExternalLinkCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("MemberExternalLinkUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("MemberExternalLinkDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
-  @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("member_external_link")
-}
-
-model MemberDocument {
-  // 🆔 Identity & Tenant
-  id       String @id @default(uuid(7)) @db.Uuid
-  tenantId String @db.Uuid
-
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
-
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
-  createdByActorId String? @db.Uuid
-  updatedByActorId String? @db.Uuid
-  deletedByActorId String? @db.Uuid
-
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
-
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToMemberDocument", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("MemberDocumentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("MemberDocumentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("MemberDocumentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
-  @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("member_document")
-}
-
-model MemberHistoryEvent {
-  // 🆔 Identity & Tenant
-  id       String @id @default(uuid(7)) @db.Uuid
-  tenantId String @db.Uuid
-
-  // 📊 Lifecycle
-  status    String    @default("ACTIVE")
-  version   Int       @default(1)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
-
-  // 👤 Minimal audit (UUIDs; Actor relations only for CRITICAL PARENT entities)
-  createdByActorId String? @db.Uuid
-  updatedByActorId String? @db.Uuid
-  deletedByActorId String? @db.Uuid
-
-  // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
-  dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  // retentionPolicy    RetentionPolicy?  // descomenta si tu módulo lo usa
-
-  // 🔎 Observability (OPTIONAL: enable only if it adds real value)
-  // traceId      String? @db.VarChar(64)
-  // spanId       String? @db.VarChar(32)
-  // authContext  String? @db.Text
-  // hashToken    String? @db.VarChar(255) // add per-tenant index if you query it
-  // metadata     Json?   @db.JsonB
-  // recordSource String? @db.VarChar(50)  // API, IMPORT, SYSTEM
-  // timezone     String? @db.VarChar(50)
-
-  // 🔗 Required relations
-  // tenant Tenant @relation("TenantToMemberHistoryEvent", fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
-  // createdByActor Actor? @relation("MemberHistoryEventCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
-  // updatedByActor Actor? @relation("MemberHistoryEventUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
-  // deletedByActor Actor? @relation("MemberHistoryEventDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
-
-  // Enable ONLY if you use these fields:
-  // @@index([tenantId, hashToken])
-  // @@index([tenantId, recordSource])
-  // @@index([tenantId, timezone])
-  // @@index([metadata], type: Gin)
-
-  // 🗂️ Indexes & constraints (tenant-first)
-  @@unique([tenantId, id])
-  @@index([tenantId, status])
-  @@index([tenantId, deletedAt])
-  @@index([createdAt], type: Brin)
-  @@index([tenantId, auditCorrelationId])
-  @@index([tenantId, dataClassification])
-  @@map("member_history_event")
-}

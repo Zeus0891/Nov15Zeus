@@ -1,212 +1,328 @@
----
-agent: agent
----
-# RBAC + RLS Architecture Audit & ERP-Aligned Blueprint
-You are acting as a **Senior Enterprise Architect**.
-Your task is to audit and analyze several RBAC + RLS reference files that are stored inside:
+# MODULES_CLEAN_V10 – Fix List
 
-```
-/RBAC&RLSDocumentation/
-```
+## 1. System statistics header is out of sync
 
-These include (but are not limited to):
+Your per-module `Tables (N)` totals currently sum to:
 
-* `RBAC.schema.v7.yml`
-* `rbac-generator-v7.ts`
-* `rbac.ts`
-* `permissions.ts`
-* `roles.ts`
-* `withRLS.ts`
-* `withRLS-examples.md`
-* `summary.md`
-* `cleanup-rbac-data.ts`
-* `seed-rbac-v7.ts`
+* GLOBAL modules (1–5): **5 modules / 24 tables** ✅
+* HYBRID modules (6–22): **17 modules / 198 tables**
+* TENANT modules (23–64): **42 modules / 412 tables**
+* **TOTAL**: 64 modules / **634** tables
 
-**IMPORTANT:**
-These files **belong to a completely different project**.
-They MUST be used **strictly as architectural REFERENCE ONLY.**
-Do NOT reuse their implementation.
-Do NOT assume they belong to the BeeSmart Pro ERP.
-Use them only for inspiration and patterns.
+But the header still says `189` HYBRID tables, `415` TENANT tables, and `628` total.
 
----
+### ✅ Action: Update the “System Statistics” block
 
-## ✔ Your real job:
+Replace this block:
 
-Generate a brand new **Enterprise-level RBAC + RLS Architecture Documentation (.md file)** fully aligned with the **BeeSmart Pro ERP** platform, using **only** the documentation that exists inside our ERP under:
+```md
+### System Statistics
 
-```
-/docs/modules/AccessControl/
-/docs/modules/CRM_Module/
-/docs/modules/estimate/
-/docs/modules/expenses/
-/docs/modules/Inventory/
-/docs/modules/invoice/
-/docs/modules/projects/
+- **GLOBAL modules**: 5
+- **HYBRID modules**: 17
+- **TENANT modules (internal)**: 42
+- **TOTAL**: 64 modules
+
+- **GLOBAL tables**: 24
+- **HYBRID tables**: 189
+- **TENANT tables**: 415
+- **TOTAL TABLES**: 628
 ```
 
-This includes:
+With this corrected version:
 
-### **AccessControl**
+```md
+### System Statistics
 
-```
-docs/modules/AccessControl/ACCESS_CONTROL_ARCHITECTURE_DIAGRAM.md
-docs/modules/AccessControl/ACCESS_CONTROL_FLOW_v1_0.md
-```
+- **GLOBAL modules**: 5
+- **HYBRID modules**: 17
+- **TENANT modules (internal)**: 42
+- **TOTAL**: 64 modules
 
-### **CRM Module**
-
-```
-docs/modules/CRM_Module/CRM_ARCHITECTURE_DIAGRAM.md
-docs/modules/CRM_Module/CRM_FLOW.md
-```
-
-### **Estimate Module**
-
-```
-docs/modules/estimate/ESTIMATE_ARCHITECTURE_DIAGRAM_v8.md
-docs/modules/estimate/Estimate_Flow.v8.md
-docs/modules/estimate/Estimate_Module_Documentation.md
+- **GLOBAL tables**: 24
+- **HYBRID tables**: 198
+- **TENANT tables**: 412
+- **TOTAL TABLES**: 634
 ```
 
-### **Expenses Module**
-
-```
-docs/modules/expenses/EXPENSE_ARCHITECTURE_DIAGRAM.md
-docs/modules/expenses/EXPENSE_FLOW.md
-docs/modules/expenses/EXPENSE_MODULE_SUMMARY.md
-```
-
-### **Inventory Module**
-
-```
-docs/modules/Inventory/INVENTORY_ARCHITECTURE_DIAGRAM.md
-docs/modules/Inventory/INVENTORY_FLOW.md
-```
-
-### **Invoice Module**
-
-```
-docs/modules/invoice/Invoice_Architecture_Diagram_v8.0.md
-docs/modules/invoice/Invoice_Flow.v8.0.md
-docs/modules/invoice/Invoice_Module_Updates.md
-```
-
-### **Projects Module**
-
-```
-docs/modules/projects/PROJECT_ARCHITECTURE_DIAGRAM.md
-docs/modules/projects/PROJECT_FLOW.md
-docs/modules/projects/Documentation_Progress/*
-```
-
-These files form the **true source of business, architectural, and security requirements** for the BeeSmart Pro ERP.
+> Note: These counts assume “HYBRID modules” = modules **6–22** only. If you later decide to treat `CRMCOMMUNICATION` (26) as conceptually HYBRID, you’ll need to bump HYBRID modules to 18 and adjust table counts again (see next section).
 
 ---
 
-## ✔ What you must deliver:
+## 2. Module 26 – CRMCOMMUNICATION classification (HYBRID vs TENANT)
 
-Produce a single markdown document:
+**Location:** `## 26. MODULE CRMCOMMUNICATION`
 
-### **RBAC_RLS_ENTERPRISE_BLUEPRINT_v1.0.md**
+Current state:
 
-The document must be **Senior Enterprise Architect level**, and must include:
+* `**Scope**: TENANT`
+* Rationale section title: `### 🎯 CRITICAL RATIONALE (Why HYBRID)`
+* Has a **HYBRID TABLES (2)** section with:
 
-### 1. **Audit Summary**
+  * `CRMEmail` (with mandatory `globalId`)
+  * `CRMEmailPublicLink` (token-based external access)
+* Placed under the “🏢 TENANT MODULES” section (not under “HYBRID MODULES”).
 
-Audit the reference RBAC/RLS files under `/RBAC&RLSDocumentation/`
-Explain which patterns are valuable
-Explain which patterns should NOT be reused
-Explain the architectural lessons extracted
+So conceptually it behaves **exactly like the other HYBRID modules** (it exposes a public-link surface with `globalId`), but in your taxonomy and stats it’s grouped as TENANT-only.
 
-### 2. **ERP-Aligned RBAC Blueprint**
+You have two consistent options:
 
-Define a clean, modern RBAC schema aligned to the BeeSmart Pro ERP modules.
-Include:
+### Option A – Treat CRMCOMMUNICATION as conceptually HYBRID
 
-* Role model (Internal, External, Hybrid)
-* Role hierarchy
-* AccessScope model
-* Permission domains reflecting ERP modules
-* Standardized permission taxonomy (create, read, update, delete, approve, reject, convert, send, pay, adjust, etc.)
-* Examples of permission usage across modules
+If you want it aligned with the other public-link + globalId modules:
 
-### 3. **ERP-Aligned RLS Strategy**
+1. **Keep** `Scope: TENANT` (RLS is still tenant-based, which matches your pattern).
+2. **Re-classify conceptually as HYBRID**:
 
-Design a new RLS model aligned with:
+   * Move module 26 under the **HYBRID MODULES** section in the document, or
+   * Add a short note in the module saying it is part of the HYBRID family of modules.
+3. **Update system statistics** if you include it in the HYBRID count:
 
-* Tenant
-* Identity
-* Actor
-* Membership
-* AccessControl
-* 1:1:1 Traceability flows (Estimate → Project → Invoice)
+   * HYBRID modules: **18**
+   * HYBRID tables: **198 + 11 = 209**
+   * TENANT modules: **41**
+   * TENANT tables: **412 − 11 = 401**
+   * TOTAL tables: **24 + 209 + 401 = 634**
 
-RLS must match your ERP’s real multi-tenant database model.
+   In that case, update the stats block instead to:
 
-### 4. **Critical Module Examples**
+   ```md
+   - **GLOBAL modules**: 5
+   - **HYBRID modules**: 18
+   - **TENANT modules (internal)**: 41
+   - **TOTAL**: 64 modules
 
-Explain how the RBAC+RLS framework applies to:
+   - **GLOBAL tables**: 24
+   - **HYBRID tables**: 209
+   - **TENANT tables**: 401
+   - **TOTAL TABLES**: 634
+   ```
 
-* Estimate
-* Invoice
-* Projects
-* Inventory
-* Expenses
-* CRM
-* AccessControl
-* Identity & Membership
+### Option B – Keep CRMCOMMUNICATION as pure TENANT
 
-Each module should include **usage patterns**, e.g.:
+If you intentionally want **all CRM communications internal-only** and not a public-link surface:
 
-* estimate:approve
-* estimate:convert-to-project
-* invoice:send-client
-* invoice:apply-payment
-* project:update-status
-* inventory:investigate-loss
-* expense:approve
-* crm:read-contact
+* Remove or refactor:
 
-### 5. **Best Practices + Enterprise Patterns**
+  * The `HYBRID TABLES (2)` label.
+  * `CRMEmailPublicLink` as a public access pattern (or at least remove the `globalId` / public-link semantics).
+* Change the rationale heading to: `### 🎯 CRITICAL RATIONALE (Why TENANT)`
+* Ensure the description explicitly states that any external email exposure is handled via `EMAILENGINE` and `SMSCALLS` HYBRID modules, and this module is only for **internal CRM context**.
 
-Explain best practices for:
-
-* Permission enforcement
-* Multi-tenant data isolation
-* Cross-resource access policies
-* Role assignment workflows (internal/external)
-* Integration with the ERP AccessControl module
-* Audit logging strategy
-* Governance & compliance
-
-### 6. **Future-facing RBAC Generator Plan**
-
-Outline a conceptual design for:
-
-* `rbac-generator-v1.0.ts`
-
-This should describe:
-
-* How new permissions would be generated from a schema
-* How roles, permissions, and mappings would be produced
-* How seeds would be created
-* How middleware would be derived
-* How documentation would be auto-synced
-
-Do NOT generate actual code.
-Provide a **clear enterprise blueprint**.
+Right now, the text says “Why HYBRID” and defines `CRMEmailPublicLink`, but the module is counted as TENANT in the stats. Pick either Option A or Option B and make the doc self-consistent.
 
 ---
 
-## ✔ Critical rules
+## 3. Stale module-number references in mermaid diagrams
 
-* Only use `/RBAC&RLSDocumentation/` as **reference**, not as implementation.
-* Build the new blueprint based **strictly** on the ERP documentation inside `docs/modules/…`.
-* The output must be enterprise-level, clean, modern, and aligned to the BeeSmart Pro architecture.
-* Focus on correctness, modularity, maintainability, and multi-tenant security.
-* Produce a **single .md file**, not multiple outputs.
+Several diagrams still reference **old module numbers** from previous versions. Here are the exact lines and the corrections.
+
+### 3.1 INVENTORYCORE (Module 47) – Output references
+
+**Location:** `## 47. MODULE INVENTORYCORE` → mermaid block “Proceso de Datos de Inventario (Core)”
+
+Current lines:
+
+```mermaid
+        F --> G[InventoryTransactions (45)];
+        F --> H[InventoryControl (46)];
+```
+
+**Fix:**
+
+```mermaid
+        F --> G[InventoryTransactions (48)];
+        F --> H[InventoryControl (49)];
+```
 
 ---
 
-# End of Prompt
+### 3.2 INVENTORYTRANSACTIONS (Module 48) – Input and GL links
+
+**Location:** `## 48. MODULE INVENTORYTRANSACTIONS` → mermaid block “Flujo de Transacciones de Inventario”
+
+Current lines:
+
+```mermaid
+        A[InventoryItem (44)] --> B[InventoryTransaction (48)];
+...
+        F --> G[GLJournal (35)];
+```
+
+**Fix:**
+
+```mermaid
+        A[InventoryItem (47)] --> B[InventoryTransaction (48)];
+...
+        F --> G[GLJournal (38)];
+```
+
+* `InventoryItem` lives in `INVENTORYCORE` (Module 47).
+* `GLJournal` lives in `GENERALLEDGER` (Module 38).
+
+---
+
+### 3.3 INVENTORYCONTROL (Module 49) – Project reference
+
+**Location:** `## 49. MODULE INVENTORYCONTROL` → mermaid block “Flujo de Control y Auditoría de Inventario”
+
+Current line:
+
+```mermaid
+        D --> E[Proyectos (Módulo 3)];
+```
+
+`PROJECTSCORE` is module **8**, not 3.
+
+**Fix:**
+
+```mermaid
+        D --> E[Proyectos (Módulo 8)];
+```
+
+---
+
+### 3.4 ROOMMODEL (Module 56) – Links to Estimate and JobCosting
+
+**Location:** `## 56. MODULE ROOMMODEL` → mermaid block “Pipeline RoomModel → Costeo”
+
+Current lines:
+
+```mermaid
+        G --> H[EstimateLineItem (1)];
+        G --> I[JobCostBudget (47)];
+...
+        I[JobCostBudget (47)] --> J[JobCosting Module];
+```
+
+Correct modules:
+
+* `ESTIMATE` is module **6**.
+* `JOBCOSTING` is module **50**.
+
+**Fix:**
+
+```mermaid
+        G --> H[EstimateLineItem (6)];
+        G --> I[JobCostBudget (50)];
+...
+        I[JobCostBudget (50)] --> J[JobCosting Module];
+```
+
+---
+
+### 3.5 ROOMSCANNER (Module 57) – Link back to RoomModel
+
+**Location:** `## 57. MODULE ROOMSCANNER` → mermaid block “Pipeline de Escaneo a Modelo”
+
+Current line:
+
+```mermaid
+        I[RoomModel (53)] --> J[RoomModelHistoryEvent];
+```
+
+`ROOMMODEL` is module **56**, not 53.
+
+**Fix:**
+
+```mermaid
+        I[RoomModel (56)] --> J[RoomModelHistoryEvent];
+```
+
+---
+
+### 3.6 SCHEDULINGENGINE (Module 60) – Reference to SchedulingCore
+
+**Location:** `## 60. MODULE SCHEDULINGENGINE` → mermaid block “Optimización de Programación”
+
+Current line:
+
+```mermaid
+        B[ScheduleCore (56)] --> C[ScheduleOptimizationRun];
+```
+
+`SCHEDULINGCORE` is module **59**.
+
+**Fix:**
+
+```mermaid
+        B[ScheduleCore (59)] --> C[ScheduleOptimizationRun];
+```
+
+---
+
+### 3.7 WEATHERIMPACTALERTS (Module 63) – Reference to WeatherIntelligenceCore
+
+**Location:** `## 63. MODULE WEATHERIMPACTALERTS` → mermaid block “Motor de Impacto Climático”
+
+Current line:
+
+```mermaid
+        A[WeatherIntelligenceCore (59)] --> B{WeatherImpactRule};
+```
+
+`WEATHERINTELLIGENCECORE` is module **62**.
+
+**Fix:**
+
+```mermaid
+        A[WeatherIntelligenceCore (62)] --> B{WeatherImpactRule};
+```
+
+---
+
+### 3.8 TASKS (Module 61) – Reference to NOTIFICATIONS
+
+**Location:** `## 61. MODULE TASKS` → mermaid block “Flujo de Tareas Generales”
+
+Current line:
+
+```mermaid
+        F[Notifications Module (46)] --> G[Internal Channels];
+```
+
+`NOTIFICATIONS` is module **52**.
+
+**Fix:**
+
+```mermaid
+        F[Notifications Module (52)] --> G[Internal Channels];
+```
+
+---
+
+### 3.9 WEATHERIMPACTALERTS (Module 63) – ProjectLocation reference
+
+**Location:** `## 63. MODULE WEATHERIMPACTALERTS` → mermaid block “Motor de Impacto Climático”
+
+Current line:
+
+```mermaid
+        C[ProjectLocation (50)] --> D[WeatherProjectForecast];
+```
+
+`ProjectLocation` lives in `PROJECTSCORE` (Module **8**), not module 50.
+
+**Fix:**
+
+```mermaid
+        C[ProjectLocation (8)] --> D[WeatherProjectForecast];
+```
+
+---
+
+## 4. Everything else
+
+* All modules from **1 to 64** exist and are uniquely numbered.
+* File names and module names are consistent (`Module: x.prisma` matches headings).
+* Every HYBRID-style module (6–22) correctly follows the pattern:
+
+  * Core entity with mandatory `globalId`.
+  * `<Entity>PublicLink` mirroring `globalId` and describing external token access.
+* Tenant-only modules consistently use `tenantId`-scoped, RLS-safe data and do not expose public-link tables, except for `CRMCOMMUNICATION` (handled in section 2).
+
+Once you:
+
+1. Fix the statistics block,
+2. Decide and fix the classification of `CRMCOMMUNICATION` (Option A or B),
+3. Update the stale module numbers in the diagrams,

@@ -1,124 +1,60 @@
-// This file is auto-generated. Do not edit manually.
 // Module: projectRisk.prisma
-// Generated from Modules_Structure.md and models.generated.prisma
+// Auto-generated from schema_generated.prisma
+// Tables: ProjectRisk, ProjectIssue, ProjectDecision, ProjectDailyLog, ProjectDailyLogLabor, ProjectDailyLogEquipment, ProjectDailyLogMaterial, ProjectDailyLogPhoto, ProjectProgress, ProjectNote
 
 model ProjectRisk {
   // 🆔 Identity & Tenant
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  projectId String @db.Uuid
-  project   Project @relation("ProjectToRisks", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📊 Risk Identification
-  riskTitle       String  @db.VarChar(255)
-  riskDescription String  @db.Text
-  riskCategory    String  @db.VarChar(100) // TECHNICAL, SCHEDULE, BUDGET, RESOURCE, QUALITY, SAFETY, EXTERNAL
-  riskType        String  @db.VarChar(100) // THREAT, OPPORTUNITY, ISSUE, CONSTRAINT
-  riskSource      String? @db.VarChar(100) // INTERNAL, EXTERNAL, CLIENT, VENDOR, REGULATORY
-
-  // 🎯 Risk Assessment
-  probability     Decimal @default(0) @db.Decimal(5, 2) // 0-100% likelihood
-  impact          Decimal @default(0) @db.Decimal(5, 2) // 0-100% impact severity
-  riskScore       Decimal @default(0) @db.Decimal(8, 4) // Calculated: probability * impact
-  riskLevel       String  @default("MEDIUM") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL
-
-  // 💰 Financial Impact
-  costImpact      Decimal? @db.Decimal(12, 2) // Potential cost impact
-  scheduleImpact  Int?     @default(0) // Days of potential delay
-  qualityImpact   String?  @db.VarChar(100) // Quality degradation description
-
-  // 📅 Timeline & Triggers
-  identifiedDate  DateTime @db.Timestamptz(6)
-  targetDate      DateTime? @db.Timestamptz(6) // When risk might occur
-  reviewDate      DateTime? @db.Timestamptz(6) // Next review date
-  lastReviewDate  DateTime? @db.Timestamptz(6)
-
-  // 🛡️ Mitigation Strategy
-  mitigationPlan    String? @db.Text
-  mitigationType    String  @default("MITIGATE") @db.VarChar(50) // AVOID, MITIGATE, TRANSFER, ACCEPT
-  mitigationStatus  String  @default("PLANNED") @db.VarChar(50) // PLANNED, IN_PROGRESS, COMPLETED, DEFERRED
-  mitigationCost    Decimal @default(0) @db.Decimal(12, 2)
-
-  // 📊 Response Planning
-  contingencyPlan   String? @db.Text
-  fallbackPlan      String? @db.Text
-  triggerConditions String? @db.Text // Conditions that activate the risk
-  earlyWarningSignals Json? @db.JsonB // Array of warning indicators
-
-  // 👥 Ownership & Responsibility
-  riskOwner         String? @db.Uuid // Member responsible for monitoring
-  assignedTo        String? @db.Uuid // Member assigned to mitigation
-  escalationLevel   Int     @default(0) // Escalation hierarchy level
-
-  // 🔄 Status Tracking
-  riskStatus        String  @default("OPEN") @db.VarChar(50) // OPEN, MONITORING, MITIGATED, CLOSED, REALIZED
-  realizationDate   DateTime? @db.Timestamptz(6) // When risk became an issue
-  closureDate       DateTime? @db.Timestamptz(6)
-  closureReason     String? @db.Text
-
-  // 📈 Progress Tracking
-  mitigationProgress Decimal @default(0) @db.Decimal(5, 2) // 0-100% completion
-  effectivenessScore Decimal? @db.Decimal(5, 2) // How effective was mitigation
-  lessonsLearned     String? @db.Text
-
-  // 🔗 Dependencies & Links
-  relatedTaskIds    Json?   @db.JsonB // Array of related task IDs
-  relatedRiskIds    Json?   @db.JsonB // Array of related risk IDs
-  linkedIssueId     String? @db.Uuid // If risk becomes an issue
-  linkedChangeOrderId String? @db.Uuid // Associated change order
-
-  // 📋 Communication & Reporting
-  requiresReporting Boolean @default(true)
-  reportingFrequency String? @db.VarChar(50) // DAILY, WEEKLY, MONTHLY
-  stakeholderAlert  Boolean @default(false)
-  clientNotification Boolean @default(false)
-
-  // 🔍 Analysis & Metrics
-  trends            Json?   @db.JsonB // Historical trend data
-  assumptions       String? @db.Text
-  constraints       String? @db.Text
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectRisk", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectRiskCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectRiskUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectRiskDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@index([tenantId, projectId])
-  @@index([tenantId, riskCategory])
-  @@index([tenantId, riskLevel])
-  @@index([tenantId, riskStatus])
-  @@index([tenantId, probability])
-  @@index([tenantId, riskScore])
-  @@index([tenantId, targetDate])
-  @@index([tenantId, reviewDate])
-  @@index([tenantId, riskOwner])
-  @@index([tenantId, assignedTo])
-  @@index([tenantId, mitigationStatus])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_risk")
 }
 
@@ -127,133 +63,54 @@ model ProjectIssue {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  projectId String @db.Uuid
-  project   Project @relation("ProjectToIssues", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📊 Issue Identification
-  issueTitle       String  @db.VarChar(255)
-  issueDescription String  @db.Text
-  issueType        String  @db.VarChar(100) // DEFECT, CHANGE_REQUEST, QUESTION, ENHANCEMENT, BUG
-  issueCategory    String  @db.VarChar(100) // TECHNICAL, SCHEDULE, BUDGET, QUALITY, SAFETY, COMMUNICATION
-  issueSource      String? @db.VarChar(100) // CLIENT, TEAM, VENDOR, INSPECTION, TESTING
-
-  // 🚨 Severity & Priority Assessment
-  severity         String  @default("MEDIUM") @db.VarChar(20) // LOW, MEDIUM, HIGH, CRITICAL, BLOCKER
-  priority         String  @default("NORMAL") @db.VarChar(20) // LOW, NORMAL, HIGH, URGENT, IMMEDIATE
-  urgency          String  @default("MEDIUM") @db.VarChar(20) // LOW, MEDIUM, HIGH
-  businessImpact   String? @db.Text // Impact on business objectives
-
-  // 💰 Impact Assessment
-  costImpact       Decimal? @db.Decimal(12, 2) // Financial impact
-  scheduleImpact   Int?     @default(0) // Days of delay
-  qualityImpact    String?  @db.VarChar(100) // Quality degradation
-  safetyImpact     Boolean  @default(false) // Safety implications
-  clientImpact     Boolean  @default(false) // Affects client deliverables
-
-  // 📅 Timeline Management
-  reportedDate     DateTime @db.Timestamptz(6)
-  discoveredDate   DateTime? @db.Timestamptz(6) // When issue was first discovered
-  dueDate          DateTime? @db.Timestamptz(6) // Resolution deadline
-  targetResolutionDate DateTime? @db.Timestamptz(6)
-  actualResolutionDate DateTime? @db.Timestamptz(6)
-
-  // 👥 Assignment & Ownership
-  reportedBy       String? @db.Uuid // Who reported the issue
-  assignedTo       String? @db.Uuid // Who is responsible for resolution
-  verifiedBy       String? @db.Uuid // Who verified the resolution
-  approvedBy       String? @db.Uuid // Who approved the resolution
-
-  // 🔄 Status & Resolution
-  issueStatus      String  @default("OPEN") @db.VarChar(50) // OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED, DEFERRED
-  resolutionPlan   String? @db.Text
-  resolutionDescription String? @db.Text
-  resolutionType   String? @db.VarChar(100) // FIXED, WORKAROUND, DUPLICATE, NOT_REPRODUCIBLE, WONT_FIX
-
-  // 📊 Progress Tracking
-  resolutionProgress Decimal @default(0) @db.Decimal(5, 2) // 0-100% completion
-  effortEstimate   Decimal? @db.Decimal(10, 2) // Estimated hours to resolve
-  actualEffort     Decimal @default(0) @db.Decimal(10, 2) // Actual hours spent
-
-  // 🔗 Dependencies & Links
-  relatedTaskIds   Json?   @db.JsonB // Array of related task IDs
-  relatedIssueIds  Json?   @db.JsonB // Array of related issue IDs
-  parentIssueId    String? @db.Uuid // Parent issue if this is sub-issue
-  sourceRiskId     String? @db.Uuid // Risk that materialized into this issue
-  linkedChangeOrderId String? @db.Uuid // Associated change order
-
-  // 📋 Communication & Escalation
-  escalationLevel  Int     @default(0) // Current escalation level
-  escalationPath   Json?   @db.JsonB // Escalation hierarchy
-  requiresClientNotification Boolean @default(false)
-  clientNotified   Boolean @default(false)
-  clientApprovalRequired Boolean @default(false)
-
-  // 🔍 Root Cause Analysis
-  rootCause        String? @db.Text
-  contributingFactors Json? @db.JsonB // Array of contributing factors
-  preventiveActions String? @db.Text
-  lessonsLearned   String? @db.Text
-
-  // 📈 Quality & Verification
-  verificationCriteria String? @db.Text
-  testingRequired  Boolean @default(false)
-  testingCompleted Boolean @default(false)
-  verificationStatus String @default("PENDING") @db.VarChar(50) // PENDING, VERIFIED, FAILED
-
-  // 📎 Documentation
-  attachmentCount  Int     @default(0)
-  hasScreenshots   Boolean @default(false)
-  hasLogFiles      Boolean @default(false)
-  documentationLinks Json? @db.JsonB // Array of related document links
-
-  // 🎯 SLA & Performance
-  slaTarget        Int?    // Target resolution time in hours
-  slaStatus        String  @default("ON_TRACK") @db.VarChar(50) // ON_TRACK, AT_RISK, BREACHED
-  responseTime     Int?    // Hours to first response
-  resolutionTime   Int?    // Hours to resolution
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectIssue", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectIssueCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectIssueUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectIssueDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@index([tenantId, projectId])
-  @@index([tenantId, issueType])
-  @@index([tenantId, issueCategory])
-  @@index([tenantId, severity])
-  @@index([tenantId, priority])
-  @@index([tenantId, issueStatus])
-  @@index([tenantId, reportedBy])
-  @@index([tenantId, assignedTo])
-  @@index([tenantId, dueDate])
-  @@index([tenantId, escalationLevel])
-  @@index([tenantId, slaStatus])
-  @@index([tenantId, clientImpact])
-  @@index([tenantId, safetyImpact])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_issue")
 }
 
@@ -262,143 +119,54 @@ model ProjectDecision {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  projectId String @db.Uuid
-  project   Project @relation("ProjectToDecisions", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📊 Decision Identification
-  decisionTitle       String  @db.VarChar(255)
-  decisionDescription String  @db.Text
-  decisionType        String  @db.VarChar(100) // TECHNICAL, COMMERCIAL, STRATEGIC, OPERATIONAL, SCOPE
-  decisionCategory    String  @db.VarChar(100) // DESIGN, PROCUREMENT, RESOURCE, SCHEDULE, BUDGET
-  decisionScope       String  @db.VarChar(100) // PROJECT, PHASE, TASK, ORGANIZATIONAL
-
-  // 🎯 Decision Context
-  background          String? @db.Text // Background information
-  problemStatement    String? @db.Text // Problem being addressed
-  objectives          Json?   @db.JsonB // Array of objectives
-  constraints         Json?   @db.JsonB // Array of constraints
-  assumptions         Json?   @db.JsonB // Array of assumptions
-
-  // 🔍 Analysis & Alternatives
-  alternativesConsidered Json? @db.JsonB // Array of alternatives analyzed
-  evaluationCriteria  Json?   @db.JsonB // Criteria used for evaluation
-  riskAssessment      String? @db.Text
-  benefitAnalysis     String? @db.Text
-  costAnalysis        String? @db.Text
-
-  // ✅ Decision Details
-  selectedOption      String  @db.Text // Chosen alternative
-  rationale           String  @db.Text // Why this option was chosen
-  expectedOutcomes    Json?   @db.JsonB // Expected results
-  successCriteria     String? @db.Text
-
-  // 💰 Impact Assessment
-  costImpact          Decimal? @db.Decimal(12, 2)
-  scheduleImpact      Int?     @default(0) // Days impact
-  resourceImpact      String?  @db.Text
-  qualityImpact       String?  @db.Text
-  riskImpact          String?  @db.Text
-
-  // 📅 Timeline Management
-  decisionDate        DateTime @db.Timestamptz(6)
-  implementationDate  DateTime? @db.Timestamptz(6)
-  reviewDate          DateTime? @db.Timestamptz(6)
-  expiryDate          DateTime? @db.Timestamptz(6) // When decision expires
-
-  // 👥 Decision Making Process
-  decisionMaker       String? @db.Uuid // Primary decision maker
-  stakeholders        Json?   @db.JsonB // Array of stakeholder IDs
-  consultedParties    Json?   @db.JsonB // Parties consulted
-  informedParties     Json?   @db.JsonB // Parties informed
-
-  // 🔄 Approval & Authorization
-  requiresApproval    Boolean @default(false)
-  approvalStatus      String  @default("APPROVED") @db.VarChar(50) // PENDING, APPROVED, REJECTED, CONDITIONAL
-  approvedBy          String? @db.Uuid
-  approvedAt          DateTime? @db.Timestamptz(6)
-  approvalConditions  String? @db.Text
-
-  // 📊 Implementation Tracking
-  implementationStatus String @default("PENDING") @db.VarChar(50) // PENDING, IN_PROGRESS, COMPLETED, DEFERRED, CANCELLED
-  implementationPlan  String? @db.Text
-  implementationProgress Decimal @default(0) @db.Decimal(5, 2) // 0-100%
-  implementationNotes String? @db.Text
-
-  // 🔗 Dependencies & Links
-  relatedDecisionIds  Json?   @db.JsonB // Array of related decision IDs
-  dependentTaskIds    Json?   @db.JsonB // Tasks affected by this decision
-  triggeredByIssueId  String? @db.Uuid // Issue that triggered decision
-  linkedChangeOrderId String? @db.Uuid // Associated change order
-
-  // 📋 Communication & Documentation
-  communicationPlan   String? @db.Text
-  documentationLinks  Json?   @db.JsonB // Related documents
-  meetingNotes        String? @db.Text
-  presentationMaterials Json? @db.JsonB
-
-  // 🎯 Priority & Urgency
-  priority            String  @default("NORMAL") @db.VarChar(20) // LOW, NORMAL, HIGH, URGENT, CRITICAL
-  urgency             String  @default("MEDIUM") @db.VarChar(20) // LOW, MEDIUM, HIGH
-  businessCriticality String  @default("MEDIUM") @db.VarChar(20) // LOW, MEDIUM, HIGH
-
-  // 📈 Monitoring & Review
-  monitoringRequired  Boolean @default(false)
-  reviewFrequency     String? @db.VarChar(50) // WEEKLY, MONTHLY, QUARTERLY
-  kpiMetrics          Json?   @db.JsonB // Key performance indicators
-  reviewNotes         String? @db.Text
-
-  // 🔄 Change Management
-  isReversible        Boolean @default(true)
-  reversalPlan        String? @db.Text
-  changeImpact        String? @db.Text
-  rollbackCriteria    String? @db.Text
-
-  // 📊 Effectiveness Tracking
-  actualOutcomes      String? @db.Text
-  lessonsLearned      String? @db.Text
-  effectivenessScore  Decimal? @db.Decimal(5, 2) // 0-100%
-  wouldDecideAgain    Boolean? // Retrospective assessment
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectDecision", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectDecisionCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectDecisionUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectDecisionDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@index([tenantId, projectId])
-  @@index([tenantId, decisionType])
-  @@index([tenantId, decisionCategory])
-  @@index([tenantId, decisionMaker])
-  @@index([tenantId, approvalStatus])
-  @@index([tenantId, implementationStatus])
-  @@index([tenantId, priority])
-  @@index([tenantId, decisionDate])
-  @@index([tenantId, implementationDate])
-  @@index([tenantId, reviewDate])
-  @@index([tenantId, requiresApproval])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_decision")
 }
 
@@ -407,150 +175,54 @@ model ProjectDailyLog {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  projectId String @db.Uuid
-  project   Project @relation("ProjectToDailyLogs", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📅 Log Details
-  logDate           DateTime @db.Date // The date this log represents
-  shift             String   @default("DAY") @db.VarChar(20) // DAY, NIGHT, SWING
-  loggedBy          String?  @db.Uuid // Superintendent/foreman logging
-  submittedAt       DateTime? @db.Timestamptz(6)
-  approvedBy        String?  @db.Uuid
-  approvedAt        DateTime? @db.Timestamptz(6)
-
-  // 🌤️ Weather Conditions
-  weatherCondition  String?  @db.VarChar(100) // SUNNY, CLOUDY, RAINY, SNOW, FOG
-  temperature       Decimal? @db.Decimal(5, 2) // Temperature in Celsius/Fahrenheit
-  temperatureUnit   String?  @default("F") @db.VarChar(2) // F or C
-  humidity          Decimal? @db.Decimal(5, 2) // Humidity percentage
-  windSpeed         Decimal? @db.Decimal(5, 2) // Wind speed
-  windDirection     String?  @db.VarChar(20) // N, NE, E, SE, S, SW, W, NW
-  precipitation     Decimal? @db.Decimal(5, 2) // Rainfall/snowfall amount
-  weatherImpact     String?  @db.Text // How weather affected work
-
-  // 📊 Overall Progress
-  overallProgress   Decimal  @default(0) @db.Decimal(5, 2) // Daily progress percentage
-  accomplishments   String?  @db.Text // What was accomplished today
-  plannedActivities String?  @db.Text // What was planned for today
-  nextDayPlan       String?  @db.Text // Plan for next day
-
-  // 👥 Team & Attendance
-  totalCrewSize     Int      @default(0) // Total crew size
-  presentCount      Int      @default(0) // People present
-  absentCount       Int      @default(0) // People absent
-  newHires          Int      @default(0) // New team members
-  contractors       Int      @default(0) // Contractor personnel
-  visitors          Int      @default(0) // Visitors on site
-
-  // ⏰ Work Hours
-  workStartTime     DateTime? @db.Timestamptz(6)
-  workEndTime       DateTime? @db.Timestamptz(6)
-  breakDuration     Int?     @default(0) // Break time in minutes
-  overtimeHours     Decimal  @default(0) @db.Decimal(5, 2)
-  totalLaborHours   Decimal  @default(0) @db.Decimal(8, 2)
-
-  // 🚧 Work Activities
-  primaryActivities Json?    @db.JsonB // Array of main activities
-  completedTasks    Json?    @db.JsonB // Array of completed task IDs
-  inProgressTasks   Json?    @db.JsonB // Array of in-progress task IDs
-  delayedTasks      Json?    @db.JsonB // Array of delayed task IDs
-
-  // 🛡️ Safety & Incidents
-  safetyMeeting     Boolean  @default(false) // Safety meeting conducted
-  safetyTopics      Json?    @db.JsonB // Array of safety topics covered
-  safetyIncidents   Int      @default(0) // Number of safety incidents
-  nearMisses        Int      @default(0) // Number of near misses
-  firstAidCases     Int      @default(0) // First aid cases
-  safetyViolations  Int      @default(0) // Safety violations observed
-  safetyNotes       String?  @db.Text
-
-  // 🚨 Issues & Problems
-  issuesReported    Int      @default(0) // Number of issues reported
-  majorIssues       String?  @db.Text // Description of major issues
-  delaysEncountered String?  @db.Text // Delays and reasons
-  equipmentProblems String?  @db.Text // Equipment issues
-  materialIssues    String?  @db.Text // Material shortages/problems
-
-  // 📦 Deliveries & Shipments
-  deliveriesReceived Int     @default(0) // Number of deliveries
-  deliveryDetails   Json?    @db.JsonB // Array of delivery information
-  shipmentsSent     Int      @default(0) // Number of shipments
-  inspectionsCompleted Int   @default(0) // Inspections completed
-
-  // 🔍 Quality Control
-  qualityChecks     Int      @default(0) // Number of quality checks
-  qualityIssues     Int      @default(0) // Quality issues found
-  reworkRequired    Boolean  @default(false) // Rework needed
-  qualityNotes      String?  @db.Text
-
-  // 💰 Cost Tracking
-  dailyLaborCost    Decimal  @default(0) @db.Decimal(12, 2)
-  dailyMaterialCost Decimal  @default(0) @db.Decimal(12, 2)
-  dailyEquipmentCost Decimal @default(0) @db.Decimal(12, 2)
-  dailyOtherCost    Decimal  @default(0) @db.Decimal(12, 2)
-  totalDailyCost    Decimal  @default(0) @db.Decimal(12, 2)
-
-  // 📷 Documentation
-  photoCount        Int      @default(0) // Number of photos taken
-  videoCount        Int      @default(0) // Number of videos
-  documentCount     Int      @default(0) // Number of documents
-
-  // 🔗 Child Relations
-  laborEntries      ProjectDailyLogLabor[]     @relation("DailyLogToLabor")
-  equipmentEntries  ProjectDailyLogEquipment[] @relation("DailyLogToEquipment")
-  materialEntries   ProjectDailyLogMaterial[]  @relation("DailyLogToMaterial")
-  photos            ProjectDailyLogPhoto[]     @relation("DailyLogToPhoto")
-
-  // 📋 Communication
-  clientContact     Boolean  @default(false) // Client contacted today
-  clientNotes       String?  @db.Text // Client communication notes
-  vendorMeetings    Boolean  @default(false) // Vendor meetings held
-  permitActivity    String?  @db.Text // Permit-related activities
-
-  // 📊 Metrics & KPIs
-  productivityIndex Decimal? @db.Decimal(5, 2) // Productivity measure
-  efficiencyRating  Decimal? @db.Decimal(5, 2) // Efficiency rating
-  scheduleAdherence Decimal? @db.Decimal(5, 2) // % adherence to schedule
-
   // 📊 Lifecycle
-  status    String   @default("DRAFT") @db.VarChar(50) // DRAFT, SUBMITTED, APPROVED, FINALIZED
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectDailyLog", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectDailyLogCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectDailyLogUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectDailyLogDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@unique([tenantId, projectId, logDate, shift]) // One log per project per date per shift
-  @@index([tenantId, projectId])
-  @@index([tenantId, logDate])
-  @@index([tenantId, shift])
-  @@index([tenantId, loggedBy])
-  @@index([tenantId, approvedBy])
-  @@index([tenantId, weatherCondition])
-  @@index([tenantId, safetyIncidents])
-  @@index([tenantId, issuesReported])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
-  @@index([logDate], type: Brin)
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_daily_log")
 }
 
@@ -559,112 +231,54 @@ model ProjectDailyLogLabor {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  dailyLogId String @db.Uuid
-  dailyLog   ProjectDailyLog @relation("DailyLogToLabor", fields: [tenantId, dailyLogId], references: [tenantId, id], onDelete: Cascade)
-
-  // 👤 Worker Information
-  workerId      String? @db.Uuid // Employee ID
-  workerName    String  @db.VarChar(255) // Worker name
-  workerRole    String  @db.VarChar(100) // FOREMAN, LABORER, ELECTRICIAN, CARPENTER, etc.
-  tradeSkill    String? @db.VarChar(100) // Specific trade/skill
-  experienceLevel String @default("STANDARD") @db.VarChar(50) // APPRENTICE, JOURNEYMAN, MASTER, FOREMAN
-
-  // ⏰ Time Tracking
-  startTime     DateTime? @db.Timestamptz(6) // Work start time
-  endTime       DateTime? @db.Timestamptz(6) // Work end time
-  regularHours  Decimal   @default(0) @db.Decimal(5, 2) // Regular hours worked
-  overtimeHours Decimal   @default(0) @db.Decimal(5, 2) // Overtime hours
-  doubleTimeHours Decimal @default(0) @db.Decimal(5, 2) // Double time hours
-  totalHours    Decimal   @default(0) @db.Decimal(5, 2) // Total hours
-
-  // 🎯 Task Assignment
-  taskId        String? @db.Uuid // Assigned project task
-  taskDescription String? @db.Text // What work was performed
-  workLocation  String? @db.VarChar(255) // Where work was performed
-  costCode      String? @db.VarChar(100) // Cost code for accounting
-
-  // 💰 Cost Information
-  hourlyRate    Decimal @default(0) @db.Decimal(8, 2) // Worker hourly rate
-  overtimeRate  Decimal @default(0) @db.Decimal(8, 2) // Overtime rate
-  doubleTimeRate Decimal @default(0) @db.Decimal(8, 2) // Double time rate
-  totalLaborCost Decimal @default(0) @db.Decimal(10, 2) // Total cost for this worker
-
-  // 📈 Productivity Metrics
-  unitsProduced   Decimal? @db.Decimal(10, 4) // Units of work completed
-  unitOfMeasure   String?  @db.VarChar(50) // SQ FT, LINEAR FT, EACH, etc.
-  productivityRate Decimal? @db.Decimal(8, 4) // Units per hour
-  efficiencyRating Decimal? @db.Decimal(5, 2) // Efficiency percentage
-
-  // ✅ Attendance & Status
-  attendanceStatus String @default("PRESENT") @db.VarChar(50) // PRESENT, ABSENT, LATE, LEFT_EARLY
-  lateArrival     Boolean @default(false)
-  earlyDeparture  Boolean @default(false)
-  absentReason    String? @db.VarChar(255)
-
-  // 🛡️ Safety & Training
-  safetyTraining  Boolean @default(false) // Safety training completed
-  ppeCompliance   Boolean @default(true) // PPE properly worn
-  safetyViolation Boolean @default(false) // Safety violation occurred
-  injuryOccurred  Boolean @default(false) // Injury during work
-
-  // 🔧 Equipment & Tools
-  equipmentUsed   Json?   @db.JsonB // Array of equipment/tools used
-  equipmentIssues String? @db.Text // Equipment problems encountered
-  toolsProvided   Boolean @default(true) // Tools provided by company
-
-  // 📊 Performance Notes
-  performanceNotes String? @db.Text // Supervisor notes on performance
-  qualityRating   Decimal? @db.Decimal(3, 1) // Quality rating 1-10
-  reworkRequired  Boolean @default(false) // Work needs to be redone
-  commendation    String? @db.Text // Positive feedback
-
-  // 🌤️ Weather Impact
-  weatherDelay    Boolean @default(false) // Work delayed by weather
-  weatherImpact   String? @db.Text // How weather affected work
-  indoorWork      Boolean @default(false) // Work performed indoors
-
-  // 📋 Break & Meal Times
-  breakDuration   Int     @default(0) // Break time in minutes
-  mealDuration    Int     @default(0) // Meal time in minutes
-  unpaidBreaks    Int     @default(0) // Unpaid break time
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectDailyLogLabor", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectDailyLogLaborCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectDailyLogLaborUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectDailyLogLaborDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@unique([tenantId, dailyLogId, workerId]) // One entry per worker per day
-  @@index([tenantId, dailyLogId])
-  @@index([tenantId, workerId])
-  @@index([tenantId, workerRole])
-  @@index([tenantId, taskId])
-  @@index([tenantId, attendanceStatus])
-  @@index([tenantId, safetyViolation])
-  @@index([tenantId, injuryOccurred])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_daily_log_labor")
 }
 
@@ -673,129 +287,54 @@ model ProjectDailyLogEquipment {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  dailyLogId String @db.Uuid
-  dailyLog   ProjectDailyLog @relation("DailyLogToEquipment", fields: [tenantId, dailyLogId], references: [tenantId, id], onDelete: Cascade)
-
-  // 🚜 Equipment Information
-  equipmentId     String? @db.Uuid // Equipment asset ID
-  equipmentName   String  @db.VarChar(255) // Equipment name/description
-  equipmentType   String  @db.VarChar(100) // EXCAVATOR, CRANE, TRUCK, GENERATOR, etc.
-  equipmentNumber String? @db.VarChar(100) // Equipment/fleet number
-  manufacturer    String? @db.VarChar(100) // Equipment manufacturer
-  model           String? @db.VarChar(100) // Equipment model
-
-  // ⏰ Usage Tracking
-  startTime       DateTime? @db.Timestamptz(6) // Equipment start time
-  endTime         DateTime? @db.Timestamptz(6) // Equipment end time
-  operatingHours  Decimal   @default(0) @db.Decimal(6, 2) // Hours operated
-  idleHours       Decimal   @default(0) @db.Decimal(6, 2) // Hours idle but running
-  downtimeHours   Decimal   @default(0) @db.Decimal(6, 2) // Hours down/broken
-  totalHours      Decimal   @default(0) @db.Decimal(6, 2) // Total time on site
-
-  // 👤 Operator Information
-  operatorId      String? @db.Uuid // Operator/driver ID
-  operatorName    String? @db.VarChar(255) // Operator name
-  operatorLicense String? @db.VarChar(100) // License/certification number
-  operatorRating  Decimal? @db.Decimal(3, 1) // Operator skill rating 1-10
-
-  // 🎯 Work Assignment
-  taskId          String? @db.Uuid // Assigned project task
-  taskDescription String? @db.Text // Work performed
-  workLocation    String? @db.VarChar(255) // Where equipment was used
-  costCode        String? @db.VarChar(100) // Cost code for accounting
-
-  // 💰 Cost Information
-  hourlyRate      Decimal @default(0) @db.Decimal(8, 2) // Equipment hourly rate
-  totalCost       Decimal @default(0) @db.Decimal(10, 2) // Total daily cost
-  fuelCost        Decimal @default(0) @db.Decimal(8, 2) // Fuel cost for day
-  maintenanceCost Decimal @default(0) @db.Decimal(8, 2) // Maintenance cost
-
-  // ⛽ Fuel & Consumption
-  fuelType        String? @db.VarChar(50) // DIESEL, GASOLINE, ELECTRIC, HYBRID
-  startingFuel    Decimal? @db.Decimal(6, 2) // Fuel level at start
-  endingFuel      Decimal? @db.Decimal(6, 2) // Fuel level at end
-  fuelAdded       Decimal @default(0) @db.Decimal(6, 2) // Fuel added during day
-  fuelConsumed    Decimal @default(0) @db.Decimal(6, 2) // Total fuel consumed
-  fuelEfficiency  Decimal? @db.Decimal(6, 4) // Fuel efficiency metric
-
-  // 📈 Productivity Metrics
-  unitsProduced   Decimal? @db.Decimal(10, 4) // Units of work completed
-  unitOfMeasure   String?  @db.VarChar(50) // CU YD, TON, LOADS, etc.
-  productivityRate Decimal? @db.Decimal(8, 4) // Units per hour
-  efficiencyRating Decimal? @db.Decimal(5, 2) // Efficiency percentage
-
-  // 🔧 Maintenance & Condition
-  maintenancePerformed Boolean @default(false) // Maintenance done today
-  maintenanceType     String? @db.VarChar(100) // PREVENTIVE, CORRECTIVE, EMERGENCY
-  maintenanceNotes    String? @db.Text // Maintenance activities
-  odometerReading     Int?    // Odometer/hour meter reading
-  equipmentCondition  String  @default("GOOD") @db.VarChar(50) // EXCELLENT, GOOD, FAIR, POOR
-
-  // 🚨 Issues & Problems
-  equipmentDown       Boolean @default(false) // Equipment broke down
-  downtimeReason      String? @db.Text // Reason for downtime
-  repairRequired      Boolean @default(false) // Repair needed
-  safetyIssues        String? @db.Text // Safety issues with equipment
-
-  // 📍 Location & Movement
-  startLocation       String? @db.VarChar(255) // Starting location
-  endLocation         String? @db.VarChar(255) // Ending location
-  transportRequired   Boolean @default(false) // Equipment transported
-  transportCost       Decimal @default(0) @db.Decimal(8, 2) // Transport cost
-
-  // 🌤️ Weather Impact
-  weatherDelay        Boolean @default(false) // Weather affected operation
-  weatherImpact       String? @db.Text // How weather affected equipment
-
-  // 📋 Inspection & Safety
-  preOperationCheck   Boolean @default(false) // Pre-op inspection done
-  postOperationCheck  Boolean @default(false) // Post-op inspection done
-  safetyCompliance    Boolean @default(true) // Safety protocols followed
-  inspectionNotes     String? @db.Text // Inspection findings
-
-  // 📊 Performance Tracking
-  utilizationRate     Decimal? @db.Decimal(5, 2) // % of time productively used
-  performanceNotes    String? @db.Text // Performance observations
-  recommendedActions  String? @db.Text // Recommended actions
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectDailyLogEquipment", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectDailyLogEquipmentCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectDailyLogEquipmentUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectDailyLogEquipmentDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@unique([tenantId, dailyLogId, equipmentId]) // One entry per equipment per day
-  @@index([tenantId, dailyLogId])
-  @@index([tenantId, equipmentId])
-  @@index([tenantId, equipmentType])
-  @@index([tenantId, operatorId])
-  @@index([tenantId, taskId])
-  @@index([tenantId, equipmentDown])
-  @@index([tenantId, maintenancePerformed])
-  @@index([tenantId, equipmentCondition])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_daily_log_equipment")
 }
 
@@ -804,134 +343,54 @@ model ProjectDailyLogMaterial {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  dailyLogId String @db.Uuid
-  dailyLog   ProjectDailyLog @relation("DailyLogToMaterial", fields: [tenantId, dailyLogId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📦 Material Information
-  materialId      String? @db.Uuid // Inventory item ID
-  materialName    String  @db.VarChar(255) // Material name/description
-  materialType    String  @db.VarChar(100) // CONCRETE, STEEL, LUMBER, ELECTRICAL, etc.
-  materialCode    String? @db.VarChar(100) // SKU/part number
-  specification   String? @db.VarChar(255) // Technical specifications
-  grade           String? @db.VarChar(100) // Material grade/quality
-
-  // 📏 Quantity Tracking
-  unitOfMeasure   String  @db.VarChar(50) // CU YD, TONS, SQ FT, LINEAR FT, EACH
-  quantityDelivered Decimal @default(0) @db.Decimal(12, 4) // Quantity delivered
-  quantityUsed    Decimal @default(0) @db.Decimal(12, 4) // Quantity consumed
-  quantityWasted  Decimal @default(0) @db.Decimal(12, 4) // Quantity wasted
-  quantityReturned Decimal @default(0) @db.Decimal(12, 4) // Quantity returned
-  quantityRemaining Decimal @default(0) @db.Decimal(12, 4) // Quantity left over
-
-  // 🎯 Work Assignment
-  taskId          String? @db.Uuid // Assigned project task
-  taskDescription String? @db.Text // Where material was used
-  workLocation    String? @db.VarChar(255) // Specific location used
-  costCode        String? @db.VarChar(100) // Cost code for accounting
-
-  // 💰 Cost Information
-  unitCost        Decimal @default(0) @db.Decimal(10, 4) // Cost per unit
-  totalCost       Decimal @default(0) @db.Decimal(12, 2) // Total material cost
-  laborCost       Decimal @default(0) @db.Decimal(10, 2) // Associated labor cost
-  equipmentCost   Decimal @default(0) @db.Decimal(10, 2) // Equipment cost for handling
-
-  // 🚚 Delivery Information
-  deliveryDate    DateTime? @db.Timestamptz(6) // When delivered
-  deliveryTime    DateTime? @db.Timestamptz(6) // Delivery time
-  supplierName    String?   @db.VarChar(255) // Supplier/vendor
-  deliveryTicket  String?   @db.VarChar(100) // Delivery ticket number
-  driverName      String?   @db.VarChar(255) // Delivery driver
-  truckNumber     String?   @db.VarChar(100) // Delivery truck
-
-  // ✅ Quality Control
-  qualityCheck    Boolean @default(false) // Quality inspection done
-  qualityStatus   String  @default("ACCEPTABLE") @db.VarChar(50) // ACCEPTABLE, REJECTED, CONDITIONAL
-  qualityNotes    String? @db.Text // Quality inspection notes
-  testResults     Json?   @db.JsonB // Test result data
-  certificateNumber String? @db.VarChar(100) // Quality certificate
-
-  // 📋 Inspection & Acceptance
-  inspectedBy     String? @db.Uuid // Who inspected material
-  acceptedBy      String? @db.Uuid // Who accepted delivery
-  inspectionDate  DateTime? @db.Timestamptz(6)
-  rejectionReason String? @db.Text // If rejected, why
-
-  // 📍 Storage & Location
-  storageLocation String? @db.VarChar(255) // Where material is stored
-  storageConditions String? @db.Text // Storage requirements met
-  requiresProtection Boolean @default(false) // Needs weather protection
-
-  // ♻️ Waste & Environmental
-  wasteReason     String? @db.Text // Why material was wasted
-  recycled        Boolean @default(false) // Material recycled
-  disposalMethod  String? @db.VarChar(100) // How waste was disposed
-  environmentalImpact String? @db.Text // Environmental considerations
-
-  // 🌤️ Weather Impact
-  weatherAffected Boolean @default(false) // Weather affected material
-  weatherDamage   String? @db.Text // Weather damage description
-  protectionUsed  Boolean @default(false) // Weather protection used
-
-  // 📊 Performance Metrics
-  installationRate Decimal? @db.Decimal(8, 4) // Installation rate per hour
-  wastePercentage  Decimal? @db.Decimal(5, 2) // Waste as % of delivered
-  efficiencyRating Decimal? @db.Decimal(5, 2) // Usage efficiency
-
-  // 🔧 Installation & Usage
-  installationMethod String? @db.VarChar(255) // How material was installed
-  toolsRequired   Json?   @db.JsonB // Array of tools/equipment needed
-  skillLevel      String? @db.VarChar(50) // Skill level required
-  installationNotes String? @db.Text // Installation observations
-
-  // 📈 Productivity Impact
-  delaysCaused    Boolean @default(false) // Material caused delays
-  delayReason     String? @db.Text // Reason for delays
-  productivityImpact Decimal? @db.Decimal(5, 2) // Impact on productivity
-
-  // 🚨 Issues & Problems
-  materialDefects Boolean @default(false) // Defects found
-  defectDescription String? @db.Text // Defect details
-  supplierIssues  String? @db.Text // Issues with supplier
-  replacementNeeded Boolean @default(false) // Replacement required
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectDailyLogMaterial", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectDailyLogMaterialCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectDailyLogMaterialUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectDailyLogMaterialDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@index([tenantId, dailyLogId])
-  @@index([tenantId, materialId])
-  @@index([tenantId, materialType])
-  @@index([tenantId, taskId])
-  @@index([tenantId, supplierName])
-  @@index([tenantId, qualityStatus])
-  @@index([tenantId, deliveryDate])
-  @@index([tenantId, materialDefects])
-  @@index([tenantId, weatherAffected])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_daily_log_material")
 }
 
@@ -940,144 +399,54 @@ model ProjectDailyLogPhoto {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  dailyLogId String @db.Uuid
-  dailyLog   ProjectDailyLog @relation("DailyLogToPhoto", fields: [tenantId, dailyLogId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📷 Photo Information
-  fileName        String  @db.VarChar(255) // Original filename
-  filePath        String  @db.VarChar(500) // Storage path/URL
-  fileSize        Int?    // File size in bytes
-  mimeType        String? @db.VarChar(100) // image/jpeg, image/png, etc.
-  thumbnailPath   String? @db.VarChar(500) // Thumbnail image path
-
-  // 📏 Photo Metadata
-  photoTitle      String? @db.VarChar(255) // User-defined title
-  description     String? @db.Text // Photo description
-  photoType       String  @default("PROGRESS") @db.VarChar(50) // PROGRESS, SAFETY, QUALITY, DELIVERY
-  category        String? @db.VarChar(100) // More specific categorization
-  tags            Json?   @db.JsonB // Searchable tags array
-
-  // 📍 Location Information
-  gpsLatitude     Decimal? @db.Decimal(10, 8) // GPS coordinates
-  gpsLongitude    Decimal? @db.Decimal(11, 8) // GPS coordinates
-  gpsAccuracy     Decimal? @db.Decimal(6, 2) // GPS accuracy in meters
-  locationName    String?  @db.VarChar(255) // Named location
-  workArea        String?  @db.VarChar(255) // Specific work area
-  floor           String?  @db.VarChar(50) // Floor/level
-  room            String?  @db.VarChar(100) // Room/space
-
-  // ⏰ Timing Information
-  photoTakenAt    DateTime @db.Timestamptz(6) // When photo was taken
-  timeOfDay       String?  @db.VarChar(20) // MORNING, AFTERNOON, EVENING
-  shift           String?  @db.VarChar(50) // Which work shift
-
-  // 🎯 Work Context
-  taskId          String? @db.Uuid // Related project task
-  phaseId         String? @db.Uuid // Related project phase
-  milestoneId     String? @db.Uuid // Related milestone
-  workActivity    String? @db.VarChar(255) // What work is shown
-
-  // 👤 Photographer Information
-  photographerId  String? @db.Uuid // Who took the photo
-  photographerName String? @db.VarChar(255) // Photographer name
-  photographerRole String? @db.VarChar(100) // Role on project
-  cameraDevice    String? @db.VarChar(255) // Camera/device used
-
-  // 🌤️ Environmental Context
-  weatherCondition String? @db.VarChar(100) // Weather when taken
-  lightingCondition String? @db.VarChar(100) // NATURAL, ARTIFICIAL, MIXED
-  visibility       String? @db.VarChar(50) // EXCELLENT, GOOD, POOR
-
-  // 🔍 Quality & Technical
-  imageWidth      Int?    // Image width in pixels
-  imageHeight     Int?    // Image height in pixels
-  resolution      String? @db.VarChar(50) // Resolution/DPI info
-  orientation     String? @db.VarChar(20) // LANDSCAPE, PORTRAIT
-  qualityRating   Decimal? @db.Decimal(3, 1) // Quality rating 1-10
-
-  // 🔍 Analysis & Recognition
-  aiAnalyzed      Boolean @default(false) // AI analysis performed
-  aiConfidence    Decimal? @db.Decimal(5, 4) // AI confidence score
-  detectedObjects Json?   @db.JsonB // AI-detected objects
-  safetyIssues    Json?   @db.JsonB // AI-detected safety issues
-  qualityIssues   Json?   @db.JsonB // AI-detected quality issues
-
-  // 📊 Progress Documentation
-  beforePhoto     Boolean @default(false) // Before work photo
-  afterPhoto      Boolean @default(false) // After work photo
-  progressStatus  String? @db.VarChar(100) // Progress shown
-  percentComplete Decimal? @db.Decimal(5, 2) // Work completion %
-
-  // 🚨 Issue Documentation
-  showsIssue      Boolean @default(false) // Documents an issue
-  issueType       String? @db.VarChar(100) // SAFETY, QUALITY, DAMAGE
-  issueSeverity   String? @db.VarChar(50) // LOW, MEDIUM, HIGH, CRITICAL
-  requiresAction  Boolean @default(false) // Action required
-
-  // ✅ Approval & Review
-  needsReview     Boolean @default(false) // Photo needs review
-  reviewedBy      String? @db.Uuid // Who reviewed
-  reviewedAt      DateTime? @db.Timestamptz(6) // When reviewed
-  approved        Boolean @default(true) // Photo approved
-  approvalNotes   String? @db.Text // Review/approval notes
-
-  // 📚 Compliance & Documentation
-  complianceType  String? @db.VarChar(100) // Compliance requirement
-  regulatory      Boolean @default(false) // Required by regulation
-  clientVisible   Boolean @default(true) // Visible to client
-  contractRequired Boolean @default(false) // Required by contract
-
-  // 🔗 Cross-References
-  relatedPhotoId  String? @db.Uuid // Related photo (before/after)
-  sequenceNumber  Int?    // Sequence in photo series
-  photoSeries     String? @db.VarChar(100) // Photo series identifier
-
-  // 💰 Cost & Business
-  billablePhoto   Boolean @default(false) // Billable to client
-  costCenter      String? @db.VarChar(100) // Cost center/code
-  laborHours      Decimal? @db.Decimal(4, 2) // Time to take photo
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectDailyLogPhoto", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectDailyLogPhotoCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectDailyLogPhotoUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectDailyLogPhotoDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@index([tenantId, dailyLogId])
-  @@index([tenantId, photoType])
-  @@index([tenantId, taskId])
-  @@index([tenantId, phaseId])
-  @@index([tenantId, photographerId])
-  @@index([tenantId, photoTakenAt])
-  @@index([tenantId, showsIssue])
-  @@index([tenantId, needsReview])
-  @@index([tenantId, approved])
-  @@index([tenantId, clientVisible])
-  @@index([tenantId, gpsLatitude, gpsLongitude])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
-  @@index([tags], type: Gin)
+
   @@map("project_daily_log_photo")
 }
 
@@ -1086,168 +455,54 @@ model ProjectProgress {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  projectId String @db.Uuid
-  project   Project @relation("ProjectToProgress", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📋 Progress Report Information
-  reportDate      DateTime @db.Timestamptz(6) // Progress report date
-  reportPeriod    String   @db.VarChar(50) // DAILY, WEEKLY, MONTHLY
-  reportType      String   @default("REGULAR") @db.VarChar(50) // REGULAR, MILESTONE, PHASE_GATE
-  reportTitle     String?  @db.VarChar(255) // Progress report title
-  reportSummary   String?  @db.Text // Executive summary
-
-  // 📈 Overall Progress Metrics
-  overallPercent  Decimal @default(0) @db.Decimal(5, 2) // Overall completion %
-  schedulePercent Decimal @default(0) @db.Decimal(5, 2) // Schedule progress %
-  budgetPercent   Decimal @default(0) @db.Decimal(5, 2) // Budget consumed %
-  qualityScore    Decimal? @db.Decimal(4, 1) // Quality score 1-100
-
-  // 📊 Earned Value Management (EVM)
-  plannedValue    Decimal @default(0) @db.Decimal(12, 2) // PV - Budgeted cost of scheduled work
-  earnedValue     Decimal @default(0) @db.Decimal(12, 2) // EV - Budgeted cost of completed work
-  actualCost      Decimal @default(0) @db.Decimal(12, 2) // AC - Actual cost of completed work
-
-  // EVM Performance Indices
-  schedulePerformanceIndex Decimal? @db.Decimal(6, 4) // SPI = EV / PV
-  costPerformanceIndex     Decimal? @db.Decimal(6, 4) // CPI = EV / AC
-  scheduleVariance         Decimal? @db.Decimal(12, 2) // SV = EV - PV
-  costVariance             Decimal? @db.Decimal(12, 2) // CV = EV - AC
-
-  // EVM Forecasting
-  budgetAtCompletion       Decimal? @db.Decimal(12, 2) // BAC - Total project budget
-  estimateAtCompletion     Decimal? @db.Decimal(12, 2) // EAC = BAC / CPI
-  estimateToComplete       Decimal? @db.Decimal(12, 2) // ETC = EAC - AC
-  varianceAtCompletion     Decimal? @db.Decimal(12, 2) // VAC = BAC - EAC
-  toCompletePerformanceIndex Decimal? @db.Decimal(6, 4) // TCPI
-
-  // 📏 Quantities & Units
-  totalQuantityPlanned   Decimal? @db.Decimal(12, 4) // Total planned quantity
-  totalQuantityCompleted Decimal? @db.Decimal(12, 4) // Total completed quantity
-  quantityVariance       Decimal? @db.Decimal(12, 4) // Quantity variance
-  quantityUnitOfMeasure  String?  @db.VarChar(50) // Unit of measure
-
-  // 🎯 Phase & Milestone Progress
-  totalPhases         Int @default(0) // Total number of phases
-  completedPhases     Int @default(0) // Phases completed
-  phasesInProgress    Int @default(0) // Phases in progress
-  totalMilestones     Int @default(0) // Total milestones
-  completedMilestones Int @default(0) // Milestones completed
-  milestonesAtRisk    Int @default(0) // Milestones at risk
-
-  // 📅 Schedule Performance
-  baselineStartDate   DateTime? @db.Timestamptz(6) // Original start date
-  baselineEndDate     DateTime? @db.Timestamptz(6) // Original end date
-  currentStartDate    DateTime? @db.Timestamptz(6) // Current start date
-  currentEndDate      DateTime? @db.Timestamptz(6) // Current end date
-  forecastEndDate     DateTime? @db.Timestamptz(6) // Forecasted end date
-  scheduleDrift       Int?      // Days behind/ahead schedule
-  criticalPathDays    Int?      // Critical path duration
-
-  // 💰 Financial Progress
-  originalBudget      Decimal @default(0) @db.Decimal(12, 2) // Original approved budget
-  currentBudget       Decimal @default(0) @db.Decimal(12, 2) // Current approved budget
-  budgetConsumed      Decimal @default(0) @db.Decimal(12, 2) // Budget spent to date
-  committedCosts      Decimal @default(0) @db.Decimal(12, 2) // Committed but not spent
-  forecastAtCompletion Decimal @default(0) @db.Decimal(12, 2) // Final cost forecast
-  contingencyUsed     Decimal @default(0) @db.Decimal(12, 2) // Contingency consumed
-  changeOrderValue    Decimal @default(0) @db.Decimal(12, 2) // Approved change orders
-
-  // 👥 Resource Performance
-  plannedLaborHours   Decimal? @db.Decimal(10, 2) // Planned labor hours
-  actualLaborHours    Decimal? @db.Decimal(10, 2) // Actual labor hours
-  laborEfficiency     Decimal? @db.Decimal(5, 2) // Labor efficiency %
-  averageCrewSize     Decimal? @db.Decimal(4, 1) // Average crew size
-  peakCrewSize        Int?     // Peak crew size
-  equipmentUtilization Decimal? @db.Decimal(5, 2) // Equipment utilization %
-
-  // ✅ Quality Metrics
-  qualityChecksPlanned    Int @default(0) // Quality checks planned
-  qualityChecksCompleted  Int @default(0) // Quality checks completed
-  qualityIssuesFound      Int @default(0) // Quality issues identified
-  qualityIssuesResolved   Int @default(0) // Quality issues resolved
-  reworkPercentage        Decimal? @db.Decimal(5, 2) // Rework as % of work
-  clientSatisfactionScore Decimal? @db.Decimal(4, 1) // Client satisfaction
-
-  // 🚨 Risk & Issues
-  totalRisks          Int @default(0) // Total risks identified
-  activeRisks         Int @default(0) // Active risks
-  mitigatedRisks      Int @default(0) // Mitigated risks
-  totalIssues         Int @default(0) // Total issues
-  openIssues          Int @default(0) // Open issues
-  resolvedIssues      Int @default(0) // Resolved issues
-  criticalIssues      Int @default(0) // Critical issues
-
-  // 🛡️ Safety Performance
-  safetyIncidents     Int @default(0) // Safety incidents
-  nearMisses          Int @default(0) // Near miss reports
-  safetyTrainingHours Decimal? @db.Decimal(6, 2) // Safety training hours
-  recordableDays      Int @default(0) // Days without recordable incident
-  lostTimeIncidents   Int @default(0) // Lost time incidents
-
-  // 🌤️ Weather & External Factors
-  weatherDelays       Int @default(0) // Weather delay days
-  weatherImpact       String? @db.Text // Weather impact description
-  externalDelays      Int @default(0) // External delay days
-  permitDelays        Int @default(0) // Permit-related delays
-
-  // 📊 Performance Trends
-  productivityTrend   String? @db.VarChar(50) // IMPROVING, DECLINING, STABLE
-  costTrend          String? @db.VarChar(50) // IMPROVING, DECLINING, STABLE
-  scheduleTrend      String? @db.VarChar(50) // IMPROVING, DECLINING, STABLE
-  qualityTrend       String? @db.VarChar(50) // IMPROVING, DECLINING, STABLE
-
-  // 📝 Progress Notes
-  accomplishments     String? @db.Text // Key accomplishments
-  upcomingWork       String? @db.Text // Planned upcoming work
-  challenges         String? @db.Text // Current challenges
-  recommendations    String? @db.Text // Recommendations
-  nextReportDate     DateTime? @db.Timestamptz(6) // Next progress report due
-
-  // 👤 Reporting Team
-  reportedBy         String? @db.Uuid // Who created report
-  reviewedBy         String? @db.Uuid // Who reviewed report
-  approvedBy         String? @db.Uuid // Who approved report
-  reviewedAt         DateTime? @db.Timestamptz(6)
-  approvedAt         DateTime? @db.Timestamptz(6)
-
   // 📊 Lifecycle
-  status    String   @default("DRAFT") @db.VarChar(50) // DRAFT, SUBMITTED, APPROVED
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🗂️ Indexes & Constraints
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
+
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectProgress", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectProgressCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectProgressUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectProgressDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@unique([tenantId, projectId, reportDate]) // One report per project per date
-  @@index([tenantId, projectId])
-  @@index([tenantId, reportDate])
-  @@index([tenantId, reportType])
-  @@index([tenantId, overallPercent])
-  @@index([tenantId, schedulePerformanceIndex])
-  @@index([tenantId, costPerformanceIndex])
-  @@index([tenantId, openIssues])
-  @@index([tenantId, criticalIssues])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
+
   @@map("project_progress")
 }
 
@@ -1256,167 +511,54 @@ model ProjectNote {
   id       String @id @default(uuid(7)) @db.Uuid
   tenantId String @db.Uuid
 
-  // 🔗 Parent Relations (REQUIRED)
-  projectId String @db.Uuid
-  project   Project @relation("ProjectToNotes", fields: [tenantId, projectId], references: [tenantId, id], onDelete: Cascade)
-
-  // 📋 Note Information
-  noteTitle       String? @db.VarChar(255) // Note title/subject
-  noteContent     String  @db.Text // Main note content
-  noteType        String  @default("GENERAL") @db.VarChar(50) // GENERAL, ASSUMPTION, EXCLUSION, CLARIFICATION
-  category        String? @db.VarChar(100) // Additional categorization
-  priority        String  @default("NORMAL") @db.VarChar(50) // LOW, NORMAL, HIGH, URGENT
-  urgency         String? @db.VarChar(50) // Time sensitivity
-
-  // 🔗 Context & Relationships
-  taskId          String? @db.Uuid // Related project task
-  phaseId         String? @db.Uuid // Related project phase
-  milestoneId     String? @db.Uuid // Related milestone
-  riskId          String? @db.Uuid // Related risk
-  issueId         String? @db.Uuid // Related issue
-  decisionId      String? @db.Uuid // Related decision
-
-  // 📝 Threading & Conversations
-  parentNoteId    String? @db.Uuid // Parent note for threading
-  threadId        String? @db.Uuid // Thread identifier
-  isThreadStart   Boolean @default(true) // Starts a new thread
-  replyToNoteId   String? @db.Uuid // Direct reply to note
-  threadPosition  Int?    // Position in thread
-
-  // 👤 Author & Attribution
-  authorId        String? @db.Uuid // Note author
-  authorName      String? @db.VarChar(255) // Author name
-  authorRole      String? @db.VarChar(100) // Author role on project
-  onBehalfOf      String? @db.VarChar(255) // If created on behalf of someone
-
-  // 🔍 Visibility & Access Control
-  visibility      String  @default("TEAM") @db.VarChar(50) // PRIVATE, TEAM, CLIENT, PUBLIC
-  isPrivate       Boolean @default(false) // Private to author
-  isConfidential  Boolean @default(false) // Confidential note
-  clientVisible   Boolean @default(false) // Visible to client
-  restrictedAccess Boolean @default(false) // Restricted access
-  accessList      Json?   @db.JsonB // Array of allowed user IDs
-
-  // 🔔 Mentions & Notifications
-  mentions        Json?   @db.JsonB // Array of mentioned user IDs
-  notificationsSent Boolean @default(false) // Notifications sent
-  requiresResponse Boolean @default(false) // Requires response
-  responseBy      DateTime? @db.Timestamptz(6) // Response due date
-
-  // 📎 Status & Workflow
-  noteStatus      String  @default("ACTIVE") @db.VarChar(50) // DRAFT, ACTIVE, RESOLVED, ARCHIVED
-  workflowState   String? @db.VarChar(50) // Custom workflow state
-  requiresApproval Boolean @default(false) // Needs approval
-  approvedBy      String? @db.Uuid // Who approved
-  approvedAt      DateTime? @db.Timestamptz(6) // When approved
-  approvalNotes   String? @db.Text // Approval comments
-
-  // 📝 Rich Text & Formatting
-  contentFormat   String  @default("PLAIN_TEXT") @db.VarChar(50) // PLAIN_TEXT, MARKDOWN, HTML
-  hasFormatting   Boolean @default(false) // Contains formatting
-  wordCount       Int?    // Word count
-  characterCount  Int?    // Character count
-  readingTime     Int?    // Estimated reading time (minutes)
-
-  // 📎 Tags & Labels
-  tags            Json?   @db.JsonB // Searchable tags array
-  labels          Json?   @db.JsonB // Organizational labels
-  keywords        String? @db.Text // Searchable keywords
-
-  // 📅 Scheduling & Timing
-  scheduledDate   DateTime? @db.Timestamptz(6) // Scheduled publication
-  effectiveDate   DateTime? @db.Timestamptz(6) // When note becomes effective
-  expirationDate  DateTime? @db.Timestamptz(6) // When note expires
-  reminderDate    DateTime? @db.Timestamptz(6) // Reminder date
-
-  // 📄 Source & Documentation
-  sourceType      String? @db.VarChar(100) // MEETING, EMAIL, PHONE, SITE_VISIT
-  sourceReference String? @db.VarChar(255) // Reference to source
-  meetingDate     DateTime? @db.Timestamptz(6) // If from meeting
-  attendees       Json?   @db.JsonB // Meeting attendees
-
-  // 🔄 Revisions & History
-  revisionNumber  Int     @default(1) // Note revision
-  isLatestRevision Boolean @default(true) // Latest version flag
-  originalNoteId  String? @db.Uuid // Original note if revised
-  revisionReason  String? @db.Text // Why revised
-
-  // 📊 Engagement Metrics
-  viewCount       Int @default(0) // Times viewed
-  likeCount       Int @default(0) // Likes/upvotes
-  replyCount      Int @default(0) // Number of replies
-  lastViewedAt    DateTime? @db.Timestamptz(6) // Last view time
-
-  // 🔗 Attachments & Links
-  hasAttachments  Boolean @default(false) // Has file attachments
-  attachmentCount Int     @default(0) // Number of attachments
-  hasLinks        Boolean @default(false) // Contains external links
-  linkCount       Int     @default(0) // Number of links
-
-  // ✅ Resolution & Follow-up
-  isResolved      Boolean @default(false) // Note resolved
-  resolvedBy      String? @db.Uuid // Who resolved
-  resolvedAt      DateTime? @db.Timestamptz(6) // When resolved
-  resolution      String? @db.Text // Resolution details
-  followUpRequired Boolean @default(false) // Needs follow-up
-  followUpDate    DateTime? @db.Timestamptz(6) // Follow-up due
-  followUpWith    String? @db.Uuid // Follow-up assigned to
-
-  // 💰 Business Impact
-  impactLevel     String? @db.VarChar(50) // NONE, LOW, MEDIUM, HIGH, CRITICAL
-  costImpact      Decimal? @db.Decimal(10, 2) // Financial impact
-  scheduleImpact  Int?     // Schedule impact (days)
-  actionRequired  Boolean @default(false) // Action required
-
   // 📊 Lifecycle
-  status    String   @default("ACTIVE") @db.VarChar(50)
-  version   Int      @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
+  status    String    @default("ACTIVE")  // usa un enum si lo necesitas
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())     @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt          @db.Timestamptz(6)
+  deletedAt DateTime?                      @db.Timestamptz(6)
 
-  // 👤 Actor Attribution (Pattern A - IDs Only)
+  // 👤 Minimal audit (solo UUIDs; relaciones a Actor SOLO en entidades PARENT críticas)
   createdByActorId String? @db.Uuid
   updatedByActorId String? @db.Uuid
   deletedByActorId String? @db.Uuid
 
   // 🧠 Governance
-  auditCorrelationId String? @db.Uuid
+  auditCorrelationId String? @db.Uuid               // para correlacionar flujos multi-módulo
   dataClassification String  @default("INTERNAL") @db.VarChar(50)
-  retentionPolicy    String? @db.VarChar(50)
-  metadata           Json?   @db.JsonB
-  recordSource       String? @db.VarChar(50)
-  timezone           String? @db.VarChar(50)
+  // retentionPolicy    RetentionPolicy?            // descomenta si tu módulo lo usa
 
-  // 🔗 Self-referencing relations for threading
-  parentNote ProjectNote? @relation("NoteThread", fields: [tenantId, parentNoteId], references: [tenantId, id], onDelete: Cascade)
-  childNotes ProjectNote[] @relation("NoteThread")
-  replyToNote ProjectNote? @relation("NoteReply", fields: [tenantId, replyToNoteId], references: [tenantId, id], onDelete: Cascade)
-  replies    ProjectNote[] @relation("NoteReply")
+  // 🔎 Observability (OPCIONAL: descomenta SOLO si agrega valor real)
+  // traceId      String? @db.VarChar(64)
+  // spanId       String? @db.VarChar(32)
+  // authContext  String? @db.Text
+  // hashToken    String? @db.VarChar(255)          // añade índice por tenant si lo consultas
+  // metadata     Json?   @db.JsonB
+  // recordSource String? @db.VarChar(50)           // API, IMPORT, SYSTEM
+  // timezone     String? @db.VarChar(50)
 
-  // 🗂️ Indexes & Constraints
+  // 🔗 Required relations
+  // tenant Tenant @relation("TenantToProjectNote", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 👥 Actor relations (ENABLE ONLY for CRITICAL PARENT entities)
+  // createdByActor Actor? @relation("ProjectNoteCreatedByActor", fields: [createdByActorId], references: [id], onDelete: SetNull)
+  // updatedByActor Actor? @relation("ProjectNoteUpdatedByActor", fields: [updatedByActorId], references: [id], onDelete: SetNull)
+  // deletedByActor Actor? @relation("ProjectNoteDeletedByActor", fields: [deletedByActorId], references: [id], onDelete: SetNull)
+
+  // Enable ONLY if you use these fields:
+  // @@index([tenantId, hashToken])
+  // @@index([tenantId, recordSource])
+  // @@index([tenantId, timezone])
+  // @@index([metadata], type: Gin)
+
+  // 🗂️ Indexes & constraints (tenant-first)
   @@unique([tenantId, id])
-  @@index([tenantId, projectId])
-  @@index([tenantId, noteType])
-  @@index([tenantId, priority])
-  @@index([tenantId, taskId])
-  @@index([tenantId, phaseId])
-  @@index([tenantId, authorId])
-  @@index([tenantId, visibility])
-  @@index([tenantId, clientVisible])
-  @@index([tenantId, noteStatus])
-  @@index([tenantId, requiresApproval])
-  @@index([tenantId, parentNoteId])
-  @@index([tenantId, threadId])
-  @@index([tenantId, isResolved])
-  @@index([tenantId, followUpRequired])
-  @@index([tenantId, scheduledDate])
   @@index([tenantId, status])
   @@index([tenantId, deletedAt])
   @@index([createdAt], type: Brin)
   @@index([tenantId, auditCorrelationId])
   @@index([tenantId, dataClassification])
-  @@index([metadata], type: Gin)
-  @@index([tags], type: Gin)
+
   @@map("project_note")
 }
+
