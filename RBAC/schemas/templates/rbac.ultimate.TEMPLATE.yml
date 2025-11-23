@@ -1,0 +1,330 @@
+# ========================================================================
+#  🏛️ BeeSmart Pro ERP — RBAC / RLS SCHEMA V10 (Authoritative)
+#  PHASE 1 INTERNAL MEMBERS — OFFICIAL TEMPLATE
+#
+#  This file defines the authoritative RBAC schema structure.
+#  All permissions and grants remain EMPTY for population later.
+#
+#  LAYERS EXPLAINED:
+#    • RBAC  = roles + permission_catalog + role_grants
+#    • RLS   = enforced in Postgres policies using app.* helpers
+#    • ABAC  = future: attribute-based (TenantSettings, flags, context)
+#    • ReBAC = future: relationship-based (who relates to what)
+#
+#  DO NOT deviate from this structure. DO NOT add platform/system roles.
+#  Fully aligned with:
+#     • RLS helpers in schema "app"
+#     • TenantSettings gating
+#     • 5 internal roles
+#     • domain:action:subaction naming
+# ========================================================================
+
+rbac_version: "10"
+generated_date: "TBD"
+compatibility: "BeeSmart Pro ERP"
+phase: "PHASE_1_INTERNAL_MEMBERS"
+source_document: "rbac_permissions_master.md"
+description: "Authoritative RBAC + RLS schema structure for BeeSmart ERP with empty permissions (Phase 1 Internal Members)."
+conventions_aligned: true
+
+# ========================================================================
+# SECURITY CONTEXT
+#  ✅ This section DOCUMENTS how RBAC, RLS, ABAC, ReBAC interact conceptualmente.
+#  No ejecuta nada por sí mismo, pero sirve como contrato para el generador
+#  y para las policies SQL.
+# ========================================================================
+security_configuration:
+  role_hierarchy_convention: "0_is_highest"
+  hierarchy_range: "0-10"
+  phase_1_roles: 5
+  role_inheritance: "none"
+
+  permission_strategy: "explicit_minimal_catalog"
+  naming_convention: "domain:action:subaction"
+  naming_examples:
+    - "estimate:create"
+    - "project:read:team"
+    - "task:update:status"
+
+  # 🚦 SECURITY LAYERS:
+  #   • RBAC  = requirePermission('domain:action:subaction') desde backend
+  #   • RLS   = policies en Postgres usando app.current_tenant_id(), app.is_*
+  #   • ABAC  = (fase futura) TenantSettings + atributos de usuario/contexto
+  #   • ReBAC = (fase futura) relaciones Member/Project/Account en AccessPolicy
+  security_layers:
+    - "RBAC (static role permissions: permission_catalog + role_grants)"
+    - "TenantSettings (runtime flags for PM elevated permissions: ABAC hook)"
+    - "RLS (strict multi-tenant isolation via app.current_tenant_id())"
+    - "Future: AccessPolicies for ABAC/ReBAC (Phase 2+)"
+
+  design_principles:
+    - "ADMIN = tenant owner created during signup"
+    - "Strict tenant isolation (no cross-tenant access)"
+    - "No system/platform roles in Phase 1"
+    - "No wildcard permissions"
+    - "Explicit permissions only"
+    - "Future-ready for AccessPolicy engine (Phase 2+)"
+
+  compliance:
+    - "SOC2_TYPE_II"
+    - "GDPR"
+    - "MULTI_TENANT_ISOLATED"
+
+# ========================================================================
+# DOMAINS — Must match real ERP modules EXACTLY
+#  🔐 RBAC: cada domain es el prefijo de permissions (domain:action:subaction).
+#  🔐 RLS: cada domain apunta a módulos .prisma con tenantId y policies.
+# ========================================================================
+domains:
+  # GLOBAL / PLATFORM CONTEXT (principalmente RBAC sobre tablas globales)
+  - { key: "tenant",        module: "tenant.prisma" }
+  - { key: "accesscontrol", module: "accessControlTenant.prisma" }
+  - { key: "identity",      module: "identityCore.prisma, identityAuthN.prisma, identityAuthZ.prisma" }
+  - { key: "membership",    module: "membership.prisma" }
+
+  # CORE BUSINESS (TENANT CONTEXT — RLS OBLIGATORIO)
+  - { key: "estimate",      module: "estimate.prisma" }
+  - { key: "invoice",       module: "invoice.prisma" }
+  - {
+      key: "project",
+      module: "projectsCore.prisma, projectTaskScheduling.prisma, projectRisk.prisma"
+    }
+  - { key: "task",          module: "tasks.prisma" }
+  - { key: "expenses",      module: "expensecore.prisma" }
+
+  - {
+      key: "inventory",
+      module: "inventoryCore.prisma, inventoryTransactions.prisma, inventoryControl.prisma"
+    }
+  - {
+      key: "scheduling",
+      module: "schedulingCore.prisma, schedulingEngine.prisma"
+    }
+  - { key: "time",          module: "timeattendance.prisma" }
+  - { key: "payroll",       module: "payroll.prisma" }
+
+  - {
+      key: "crm",
+      module: "crmcore.prisma, crmcommunication.prisma, crmrelationships.prisma, customerportal.prisma"
+    }
+  - {
+      key: "documents",
+      module: "documentscore.prisma, esignature.prisma, aidocument.prisma"
+    }
+
+  - { key: "changeorder",   module: "changeorder.prisma" }
+  - {
+      key: "ai",
+      module: "aicore.prisma, aiinsights.prisma"
+    }
+  - {
+      key: "analytics",
+      module: "analytics.prisma, dashboards.prisma"
+    }
+
+# ========================================================================
+# ACTIONS — Standardized Vocabulary
+#  ✅ RBAC: segunda parte del permiso (domain:ACTION:subaction)
+# ========================================================================
+actions:
+  - "create"
+  - "read"
+  - "list"
+  - "update"
+  - "delete"
+  - "approve"
+  - "send"
+  - "assign"
+  - "upload"
+  - "comment"
+  - "writeoff"
+  - "adjust"
+  - "investigate"
+  - "run"
+  - "correct"
+  - "ask"
+  - "assist"
+  - "generate"
+
+# ========================================================================
+# SUBACTIONS — Granular Access Slices
+#  ✅ RBAC: tercera parte del permiso (domain:action:SUBACTION)
+#  ✅ ABAC / ReBAC hooks futuros:
+#     Ej: project:read:team + AccessPolicy = "solo proyectos donde soy PM"
+# ========================================================================
+subactions:
+  - "own"
+  - "assigned"
+  - "project"
+  - "delivery"
+  - "delivery_info"
+  - "delivery_items"
+  - "team"
+  - "schedule"
+  - "financial"
+  - "profit"
+  - "own_entry"
+  - "tenant"
+  - "tenant_users"
+  - "tenant_members"
+  - "tenant_roles"
+  - "tenant_kpis"
+
+# ========================================================================
+# ROLES — PHASE 1 INTERNAL MEMBERS ONLY
+#  ✅ RBAC CORE: definición de roles lógicos (no son roles de Postgres).
+#  Se usan por:
+#    • JWT (claim roles)
+#    • app.is_admin(), app.is_project_manager(), etc.
+# ========================================================================
+roles:
+  - code: "ADMIN"
+    hierarchy: 0
+    display_name: "Administrator"
+    description: "Tenant owner created automatically during signup; full control of business data ONLY within their tenant."
+    role_type: "INTERNAL"
+    creation_context:
+      created_when: "During tenant signup"
+      tenant_linkage: "One ADMIN owns the tenant they created"
+    exclusions:
+      - "No system or global admin powers"
+      - "No cross-tenant access"
+
+  - code: "PROJECT_MANAGER"
+    hierarchy: 2
+    display_name: "Project Manager"
+    description: "Scoped manager for own/assigned projects, tasks, estimates, and invoices."
+    role_type: "INTERNAL"
+    critical_permissions_note: "Elevated approvals/financials gated by TenantSettings (ABAC hook)."
+
+  - code: "WORKER"
+    hierarchy: 8
+    display_name: "Worker"
+    description: "Executes assigned tasks and tracks personal work."
+    role_type: "INTERNAL"
+
+  - code: "DRIVER"
+    hierarchy: 9
+    display_name: "Driver"
+    description: "Access limited to delivery assignments and own data."
+    role_type: "INTERNAL"
+
+  - code: "VIEWER"
+    hierarchy: 10
+    display_name: "Viewer"
+    description: "Read-only sandbox tenant role."
+    role_type: "INTERNAL"
+
+# ========================================================================
+# PERMISSION CATALOG — EMPTY (Populate Later)
+#  ✅ RBAC CORE: define el catálogo de permisos válidos.
+#  Cada entrada será un string "domain:action:subaction".
+#  Ejemplo futuro:
+#    estimate:
+#      - "estimate:create"
+#      - "estimate:read:own"
+# ========================================================================
+permission_catalog:
+  tenant: []
+  accesscontrol: []
+  identity: []
+  membership: []
+  estimate: []
+  invoice: []
+  project: []
+  task: []
+  expenses: []
+  inventory: []
+  scheduling: []
+  time: []
+  payroll: []
+  crm: []
+  documents: []
+  changeorder: []
+  ai: []
+  analytics: []
+
+# ========================================================================
+# ROLE GRANTS — EMPTY (Populate After Permission Catalog)
+#  ✅ RBAC CORE: mapping rol => lista de permisos.
+#  Es lo que usa requirePermission(ctx, 'domain:action:subaction').
+# ========================================================================
+role_grants:
+  ADMIN:
+    permissions: []
+  PROJECT_MANAGER:
+    permissions: []
+    # ABAC hook: algunas permissions de PM se activan sólo si TenantSettings lo permite.
+    critical_permissions_gated_by: []
+  WORKER:
+    permissions: []
+  DRIVER:
+    permissions: []
+  VIEWER:
+    permissions: []
+
+# ========================================================================
+# CRITICAL PERMISSIONS — EMPTY (Populated Only When Needed)
+#  🔮 ABAC / ReBAC HOOKS A FUTURO:
+#    Aquí definiremos grupos de permisos "sensibles" que,
+#    además de RBAC, requieren condiciones adicionales:
+#    - TenantSettings
+#    - relaciones (ReBAC: p.ej., soy PM del proyecto)
+# ========================================================================
+critical_permissions:
+  PROJECT_MANAGER_ELEVATED:
+    approvals: []
+    deletes: []
+    financial_visibility: []
+
+# ========================================================================
+# VALIDATION & METADATA
+#  🧪 Esta sección NO aplica permisos. Sirve para checks en el generador.
+# ========================================================================
+validation:
+  total_roles: 5
+  total_permissions: 0
+  rls_enforced: true
+  tenant_settings_integration: true
+  wildcard_usage: "NONE"
+  yaml_valid: true
+
+# ========================================================================
+# DEPLOYMENT NOTES
+#  ✅ Aquí se documenta cómo se conecta RBAC ↔ RLS ↔ Helpers.
+#  RLS se implementa en SQL (policies) usando:
+#     • app.current_tenant_id()
+#     • app.is_admin(), app.is_project_manager(), etc.
+# ========================================================================
+deployment_notes:
+  generator_compatibility: "rbac-generator-v10.x"
+  rls_requirements:
+    - "All TENANT tables MUST have RLS enabled"
+    - "All RLS policies must enforce \"tenantId\" = app.current_tenant_id()"
+    - "Helpers from rls-foundation-v9.sql MUST exist in schema app"
+  tenant_settings_flags: []
+  future_phases:
+    - "Phase 2: External roles (Customer Portal) — RBAC + RLS + PublicLink"
+    - "Phase 3: AccessPolicies (ABAC/ReBAC over relationships & attributes)"
+    - "Phase 4: Advanced ABAC (risk, device, geo, time-of-day)"
+
+# ========================================================================
+# USAGE NOTES
+#  ✅ Cómo se usa esto en código (capa de aplicación).
+#  RBAC:
+#    requirePermission(ctx, 'estimate:create')
+#  RLS:
+#    withRLS(ctx) => set_config(...) + policies en Postgres.
+# ========================================================================
+usage_notes:
+  rbac_check: "requirePermission(ctx, 'domain:action:subaction')"
+  rls_wrapper: "await withRLS(ctx, async (db) => { ... })"
+  tenant_settings_example: |
+    // RBAC
+    // requirePermission(ctx, 'estimate:approve')
+    //
+    // ABAC via TenantSettings:
+    // if (!settings.pmCanApproveEstimates) throw ForbiddenError('PM approvals disabled')
+  audit_example: |
+    // createdByActorId: ctx.actorId
+    // updatedByActorId: ctx.actorId

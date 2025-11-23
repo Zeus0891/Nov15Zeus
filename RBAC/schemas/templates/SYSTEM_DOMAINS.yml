@@ -1,0 +1,318 @@
+# 🌐 SYSTEM DOMAINS (GLOBAL)
+# Authoritative Classification for BeeSmart ERP
+
+metadata:
+  date: "2025-11-19"
+  version: "1.0"
+  classification: "GLOBAL"
+  description: "No tenantId, System-Wide"
+
+# ============================================================================
+# DEFINITION: GLOBAL/SYSTEM Tables
+# ============================================================================
+definition:
+  description: "Tables that have NO tenantId field, NO RLS policies, shared across ALL tenants"
+  criteria:
+    - "NO tenantId field"
+    - "NO RLS policies"
+    - "Shared across ALL tenants"
+    - "System-level infrastructure only"
+  note: "These are the ONLY tables that exist at the platform level"
+
+# ============================================================================
+# GLOBAL DOMAINS
+# ============================================================================
+
+domains:
+  # --------------------------------------------------------------------------
+  # 1. IDENTITY CORE (4 tables)
+  # --------------------------------------------------------------------------
+  - key: "identity_core"
+    module: "identity.prisma"
+    description: "Core identity system - Users exist before tenant membership"
+    table_count: 4
+    tables:
+      - name: "Actor"
+        purpose: "System-wide actor identity (can be User or ServiceAccount)"
+      - name: "User"
+        purpose: "System-wide user accounts (created at signup, before tenant membership)"
+      - name: "Session"
+        purpose: "Authentication sessions (system-wide)"
+      - name: "UserApiKey"
+        purpose: "API keys for programmatic access (system-wide)"
+    
+    tenant_scoped_counterparts:
+      note: "The following are NOT global (they are tenant-scoped)"
+      tables:
+        - "UserProfile - Tenant-specific profile data"
+        - "UserSetting - Tenant-specific user settings"
+        - "UserInvitation - Tenant-specific invitations"
+        - "UserHistoryEvent - Tenant-specific audit trail"
+
+  # --------------------------------------------------------------------------
+  # 2. IDENTITY SECURITY (10 tables)
+  # --------------------------------------------------------------------------
+  - key: "identity_security"
+    module: "identitysecurity.prisma"
+    description: "Security infrastructure shared across all tenants"
+    table_count: 10
+    tables:
+      - name: "IdentityProvider"
+        purpose: "SSO providers (Google, Microsoft, Okta, etc.) - system catalog"
+      - name: "AuthFactor"
+        purpose: "Authentication factors (system-wide MFA)"
+      - name: "AuthFactorChallenge"
+        purpose: "MFA challenges (system-wide)"
+      - name: "PasswordResetToken"
+        purpose: "Password reset tokens (system-wide)"
+      - name: "AccountLockout"
+        purpose: "Account security lockouts (system-wide)"
+      - name: "SecurityEvent"
+        purpose: "Security audit events (system-wide)"
+      - name: "SSOSession"
+        purpose: "SSO session tracking (system-wide)"
+      - name: "RecoveryCode"
+        purpose: "Account recovery codes (system-wide)"
+      - name: "UserDevice"
+        purpose: "Device tracking for security (system-wide)"
+      - name: "UserDeviceHistory"
+        purpose: "Device history audit (system-wide)"
+    
+    tenant_scoped_counterparts:
+      note: "The following is tenant-scoped"
+      tables:
+        - "TenantIdentityProvider - Tenant-specific SSO configuration (has tenantId)"
+
+  # --------------------------------------------------------------------------
+  # 3. ACCESS CONTROL (2 tables)
+  # --------------------------------------------------------------------------
+  - key: "accesscontrol"
+    module: "accesscontrol.prisma"
+    description: "Permission catalog is system-wide"
+    table_count: 2
+    tables:
+      - name: "Permission"
+        purpose: "System-wide permission definitions (e.g., 'estimate:create', 'invoice:approve')"
+      - name: "AccessResource"
+        purpose: "System-wide resource type definitions"
+    
+    tenant_scoped_counterparts:
+      note: "The following are tenant-scoped"
+      tables:
+        - "Role - Tenant-specific role instances"
+        - "RolePermission - Tenant-specific role-permission mappings"
+        - "MemberRole - Tenant-specific member-role assignments"
+        - "AccessPolicy - Tenant-specific access policies"
+        - "All other accesscontrol tables"
+
+  # --------------------------------------------------------------------------
+  # 4. PLATFORM TENANT REGISTRY (1 table)
+  # --------------------------------------------------------------------------
+  - key: "platform_tenant_registry"
+    module: "tenant.prisma"
+    description: "Tenant catalog itself is global"
+    table_count: 1
+    tables:
+      - name: "Tenant"
+        purpose: "Tenant registry - the catalog of all tenants in the system"
+    
+    tenant_scoped_counterparts:
+      note: "The following are tenant-scoped"
+      tables:
+        - "TenantSettings - Tenant-specific settings (has tenantId)"
+        - "TenantSubscription - Tenant-specific subscription (has tenantId)"
+        - "TenantUsageRecord - Tenant-specific usage (has tenantId)"
+        - "All other tenant configuration tables"
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+summary:
+  domains:
+    - domain: "identity_core"
+      module: "identity.prisma"
+      table_count: 4
+    - domain: "identity_security"
+      module: "identitysecurity.prisma"
+      table_count: 10
+    - domain: "accesscontrol"
+      module: "accesscontrol.prisma"
+      table_count: 2
+    - domain: "platform_tenant_registry"
+      module: "tenant.prisma"
+      table_count: 1
+  
+  total_global_tables: 17
+
+# ============================================================================
+# CRITICAL PRINCIPLES
+# ============================================================================
+
+principles:
+  - title: "GLOBAL = Absolute Minimum"
+    description: "Only tables that MUST be shared across all tenants belong here"
+  
+  - title: "External Interaction ≠ Global"
+    description: "Tables do NOT become global just because"
+    reasons:
+      - "External clients interact with them"
+      - "They have public links"
+      - "They represent external entities (CRM)"
+      - "They have globalId for traceability"
+  
+  - title: "CustomerPortal is NOT Global"
+    description: "CustomerPortalUser is tenant-scoped"
+    details:
+      - "External users access tenant data via token-based public links OR portal RBAC"
+      - "Portal RBAC is separate from internal RBAC"
+  
+  - title: "CRM is NOT Global"
+    description: "CRM tables are tenant-scoped"
+    details:
+      - "CRMAccount, CRMContact represent external parties"
+      - "But the tables are tenant-scoped (have tenantId)"
+      - "External parties don't access these tables directly"
+  
+  - title: "Public Links Are Access Mechanism"
+    description: "Not a security domain"
+    flow:
+      - "Estimate (tenant table, has tenantId)"
+      - "└── EstimatePublicLink (tenant table, token-based access)"
+      - "    └── External client accesses via token URL"
+      - "        └── NO RBAC needed"
+      - "        └── NO global access needed"
+      - "        └── RLS bypass via public context"
+
+# ============================================================================
+# IDENTITY FLOW: Global → Tenant
+# ============================================================================
+
+identity_flow:
+  global_context:
+    - step: "User created (global, no tenant)"
+    - step: "User logs in → Session (global)"
+    - step: "User selects/creates Tenant"
+  
+  tenant_context:
+    - step: "Member created (links User → Tenant)"
+    - step: "MemberRole assigned (links Member → Role)"
+    - step: "Role has Permissions (tenant-scoped)"
+    - step: "All business operations use Member context"
+
+# ============================================================================
+# VALIDATION CHECKLIST
+# ============================================================================
+
+validation_checklist:
+  title: "For a table to be GLOBAL, it must satisfy ALL of these"
+  criteria:
+    - check: "Has NO tenantId field"
+      required: true
+    - check: "Is NOT tenant-specific in any way"
+      required: true
+    - check: "Is shared identically across all tenants"
+      required: true
+    - check: "Is infrastructure (identity, security, permissions, tenant registry)"
+      required: true
+    - check: "Cannot function with tenant isolation"
+      required: true
+  
+  rule: "If ANY answer is No, the table is TENANT-SCOPED"
+
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+
+usage_examples:
+  database_schema:
+    global_table_example: |
+      -- GLOBAL tables (no RLS)
+      CREATE TABLE users (
+        id UUID PRIMARY KEY,
+        email TEXT NOT NULL,
+        -- NO tenantId
+      );
+    
+    tenant_table_example: |
+      -- TENANT tables (with RLS)
+      CREATE TABLE estimates (
+        id UUID PRIMARY KEY,
+        tenant_id UUID NOT NULL, -- RLS enforced
+        global_id UUID NOT NULL, -- For traceability, not security
+        -- ...
+      );
+      
+      CREATE POLICY estimate_isolation ON estimates
+        USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
+  
+  rbac_schema:
+    global_domain_example:
+      key: "system"
+      description: "System administration (global)"
+    
+    tenant_domain_example:
+      key: "estimate"
+      description: "Estimate management"
+      tenant_scoped: true
+  
+  api_services:
+    global_context_example: |
+      // GLOBAL context
+      const user = await db.users.findUnique({ where: { id } });
+    
+    tenant_context_example: |
+      // TENANT context (with RLS)
+      const estimates = await withRLS(ctx, async (db) => {
+        return db.estimates.findMany(); // Automatically filtered by tenantId
+      });
+    
+    public_link_context_example: |
+      // PUBLIC link context (bypasses RBAC, respects resource scope)
+      const estimate = await getEstimateByPublicToken(token);
+
+# ============================================================================
+# KEY ARCHITECTURAL INSIGHTS
+# ============================================================================
+
+architecture:
+  security_model:
+    name: "2-tier security model"
+    tiers:
+      - tier: "GLOBAL"
+        description: "System infrastructure"
+        table_count: 17
+      - tier: "TENANT"
+        description: "All business data"
+        table_count: 610
+  
+  classification:
+    approach: "No hybrid classification"
+    details:
+      - "There is no middle tier"
+      - "Either system-wide OR tenant-scoped"
+      - "Clean separation"
+  
+  external_access:
+    principle: "External access is orthogonal"
+    mechanisms:
+      - "Public links = token-based access mechanism"
+      - "CustomerPortal = separate RBAC domain (still tenant-scoped)"
+      - "Neither changes table classification"
+  
+  rls_implementation:
+    simple: true
+    rules:
+      - "GLOBAL: No RLS policy"
+      - "TENANT: Single RLS policy on tenantId"
+
+# ============================================================================
+# METADATA
+# ============================================================================
+
+document_info:
+  generated: "2025-11-19"
+  status: "AUTHORITATIVE"
+  next_document: "See TENANT_DOMAINS.yml for all business modules"
+  total_tables: 17
+  format_version: "2.0"

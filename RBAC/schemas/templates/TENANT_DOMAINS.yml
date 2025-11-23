@@ -1,0 +1,1455 @@
+# 🏢 TENANT DOMAINS
+# Authoritative Classification for BeeSmart ERP
+# 100% ALIGNED WITH: ERP_AUTHORITATIVE_MODULE_STRUCTURE_v2.0.md
+
+metadata:
+  date: "2025-11-19"
+  version: "2.0"
+  classification: "TENANT"
+  description: "Has tenantId, RLS-Isolated"
+  source_of_truth: "ERP_AUTHORITATIVE_MODULE_STRUCTURE_v2.0.md"
+  alignment_status: "100% SYNCHRONIZED"
+
+# ============================================================================
+# DEFINITION: TENANT Tables
+# ============================================================================
+
+definition:
+  description: "Tables that ALWAYS have tenantId field and RLS policies enforced"
+  criteria:
+    - "ALWAYS have tenantId field"
+    - "ALWAYS have RLS policies enforced"
+    - "Tenant-isolated (one tenant cannot see another's data)"
+    - "All business operations"
+  scope: "These represent ALL business modules in the ERP"
+
+# ============================================================================
+# SUMMARY (From ERP_AUTHORITATIVE_MODULE_STRUCTURE_v2.0.md)
+# ============================================================================
+
+summary:
+  total_modules_with_tenant_tables: 60
+  total_tenant_tables: 607
+  
+  breakdown:
+    from_global_modules:
+      module_count: 4
+      table_count: 24
+      modules:
+        - "identity (4 tenant tables)"
+        - "identitysecurity (1 tenant table)"
+        - "accesscontrol (10 tenant tables)"
+        - "tenant (9 tenant tables)"
+    
+    from_hybrid_modules:
+      module_count: 17
+      table_count: 189
+      note: "ALL tables in HYBRID modules are tenant-scoped with PublicLink external access"
+    
+    from_tenant_modules:
+      module_count: 40
+      table_count: 417
+      note: "Pure internal operations, no external access"
+
+# ============================================================================
+# TENANT TABLES FROM GLOBAL MODULES
+# ============================================================================
+
+global_modules_with_tenant_tables:
+  description: "TENANT tables within GLOBAL infrastructure modules"
+  
+  modules:
+    # ------------------------------------------------------------------------
+    # 1. identity (GLOBAL module with TENANT tables)
+    # ------------------------------------------------------------------------
+    - module_name: "identity"
+      module_file: "identity.prisma"
+      scope: "GLOBAL"
+      total_tables: 8
+      global_tables: 4
+      tenant_tables: 4
+      description: "Core identity infrastructure - tenant-specific user data"
+      
+      tenant_table_list:
+        - name: "UserProfile"
+          purpose: "Tenant-specific user profile data. Different profile per tenant"
+        - name: "UserSetting"
+          purpose: "Tenant-specific user preferences and settings"
+        - name: "UserInvitation"
+          purpose: "Tenant-specific user invitation records"
+        - name: "UserHistoryEvent"
+          purpose: "Tenant-specific audit trail for user actions within tenant context"
+    
+    # ------------------------------------------------------------------------
+    # 2. identitysecurity (GLOBAL module with TENANT tables)
+    # ------------------------------------------------------------------------
+    - module_name: "identitysecurity"
+      module_file: "identitysecurity.prisma"
+      scope: "GLOBAL"
+      total_tables: 11
+      global_tables: 10
+      tenant_tables: 1
+      description: "Security infrastructure - tenant-specific SSO configuration"
+      
+      tenant_table_list:
+        - name: "TenantIdentityProvider"
+          purpose: "Tenant-specific SSO configuration. Links tenant to global IdentityProvider with custom settings"
+    
+    # ------------------------------------------------------------------------
+    # 3. accesscontrol (GLOBAL module with TENANT tables)
+    # ------------------------------------------------------------------------
+    - module_name: "accesscontrol"
+      module_file: "accesscontrol.prisma"
+      scope: "GLOBAL"
+      total_tables: 12
+      global_tables: 2
+      tenant_tables: 10
+      description: "Permission catalog - tenant-specific role mappings"
+      
+      tenant_table_list:
+        - name: "Role"
+          purpose: "Tenant-specific role instances (ADMIN, PROJECT_MANAGER, etc.). References global Permissions"
+        - name: "RolePermission"
+          purpose: "Maps global Permissions to tenant Roles. Many-to-many relationship"
+        - name: "MemberRole"
+          purpose: "Maps Members to Roles within tenant. User's effective permissions"
+        - name: "AccessPolicy"
+          purpose: "Advanced access policies for ABAC (Attribute-Based Access Control). Tenant-specific rules"
+        - name: "AccessPolicyCondition"
+          purpose: "Conditions for access policies (time-based, location-based, etc.)"
+        - name: "AccessScope"
+          purpose: "Defines access scopes (own, team, department, tenant)"
+        - name: "AccessScopeAssignment"
+          purpose: "Assigns scopes to roles or members"
+        - name: "AccessAuditEvent"
+          purpose: "Audit trail for access control changes within tenant"
+        - name: "ServiceAccount"
+          purpose: "Tenant-specific service accounts for API access and automation"
+        - name: "ServiceAccountKey"
+          purpose: "API keys for tenant service accounts"
+    
+    # ------------------------------------------------------------------------
+    # 4. tenant (GLOBAL module with TENANT tables)
+    # ------------------------------------------------------------------------
+    - module_name: "tenant"
+      module_file: "tenant.prisma"
+      scope: "GLOBAL"
+      total_tables: 10
+      global_tables: 1
+      tenant_tables: 9
+      description: "Tenant registry - tenant-specific configuration"
+      
+      tenant_table_list:
+        - name: "TenantSettings"
+          purpose: "Tenant-specific configuration and preferences"
+        - name: "TenantSubscription"
+          purpose: "Subscription and billing information for tenant"
+        - name: "TenantUsageRecord"
+          purpose: "Usage tracking and metering for billing"
+        - name: "TenantDomain"
+          purpose: "Custom domain mappings for tenant (e.g., acme.beesmart.pro)"
+        - name: "TenantBranding"
+          purpose: "Tenant-specific branding (logo, colors, etc.)"
+        - name: "TenantModule"
+          purpose: "Module enablement flags per tenant (which modules are active)"
+        - name: "TenantFeatureFlag"
+          purpose: "Feature flag configuration per tenant"
+        - name: "TenantComplianceSetting"
+          purpose: "Compliance and regulatory settings per tenant"
+        - name: "TenantHistoryEvent"
+          purpose: "Audit trail for tenant-level configuration changes"
+
+# ============================================================================
+# HYBRID MODULES (External-Facing Business Operations)
+# ALL TABLES ARE TENANT-SCOPED
+# ============================================================================
+
+hybrid_modules:
+  description: "Modules with TENANT tables + PublicLink external access"
+  total_modules: 17
+  total_tables: 189
+  note: "ALL tables in HYBRID modules are tenant-scoped"
+  
+  modules:
+    # ------------------------------------------------------------------------
+    # 6. estimate (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "estimate"
+      module_file: "estimate.prisma"
+      table_count: 16
+      description: "Estimate/proposal management for external client review and approval"
+      external_access: "EstimatePublicLink - Client can view, approve, or decline estimates"
+      
+      tables:
+        - "Estimate"
+        - "EstimateRevision"
+        - "EstimateSection"
+        - "EstimateLineItem"
+        - "EstimateTax"
+        - "EstimateDiscount"
+        - "EstimateFee"
+        - "EstimateTerm"
+        - "EstimateAssumption"
+        - "EstimateExclusion"
+        - "EstimateAlternate"
+        - "EstimateAttachment"
+        - "EstimateComment"
+        - "EstimateComparison"
+        - "EstimateHistoryEvent"
+        - "EstimatePublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 7. invoice (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "invoice"
+      module_file: "invoice.prisma"
+      table_count: 18
+      description: "Invoice management with external client payment capability"
+      external_access: "InvoicePublicLink - Clients can view invoices and make payments"
+      
+      tables:
+        - "Invoice"
+        - "InvoiceLineItem"
+        - "InvoiceTax"
+        - "InvoiceDiscount"
+        - "InvoiceFee"
+        - "InvoiceRetainage"
+        - "InvoiceProgress"
+        - "InvoiceMilestone"
+        - "InvoicePaymentApplication"
+        - "InvoiceAttachment"
+        - "InvoiceComment"
+        - "InvoiceRevision"
+        - "InvoiceAdjustment"
+        - "InvoiceCredit"
+        - "InvoiceDebit"
+        - "InvoiceHistory"
+        - "InvoicePublicLink ⭐"
+        - "InvoiceReminder"
+    
+    # ------------------------------------------------------------------------
+    # 8. projectsCore (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "projectsCore"
+      module_file: "projectsCore.prisma"
+      table_count: 11
+      description: "Core project management with client visibility"
+      external_access: "ProjectPublicLink - Client progress tracking via Customer Portal or public links"
+      
+      tables:
+        - "Project"
+        - "ProjectPhase"
+        - "ProjectMilestone"
+        - "ProjectTeamMember"
+        - "ProjectLocation"
+        - "ProjectBudget"
+        - "ProjectBudgetLineItem"
+        - "ProjectDocument"
+        - "ProjectAttachment"
+        - "ProjectHistoryEvent"
+        - "ProjectPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 9. changeorder (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "changeorder"
+      module_file: "changeorder.prisma"
+      table_count: 10
+      description: "Change order management with client approval workflow"
+      external_access: "ChangeOrderPublicLink - Clients approve scope changes and cost adjustments"
+      
+      tables:
+        - "ChangeOrder"
+        - "ChangeOrderLineItem"
+        - "ChangeOrderReason"
+        - "ChangeOrderImpact"
+        - "ChangeOrderScheduleImpact"
+        - "ChangeOrderScope"
+        - "ChangeOrderAttachment"
+        - "ChangeOrderRevision"
+        - "ChangeOrderHistoryEvent"
+        - "ChangeOrderPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 10. RFI (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "RFI"
+      module_file: "RFI.prisma"
+      table_count: 11
+      description: "Request for Information management with external party collaboration"
+      external_access: "RFIPublicLink - External parties (architects, engineers, clients) can view and respond"
+      
+      tables:
+        - "RFI"
+        - "RFIQuestion"
+        - "RFIResponse"
+        - "RFIAttachment"
+        - "RFIComment"
+        - "RFIStatus"
+        - "RFICategory"
+        - "RFIImpact"
+        - "RFIRecipient"
+        - "RFIHistoryEvent"
+        - "RFIPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 11. submittals (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "submittals"
+      module_file: "submittals.prisma"
+      table_count: 11
+      description: "Submittal management with external reviewer approval"
+      external_access: "SubmittalPublicLink - External reviewers (architects, engineers, inspectors) can review and approve"
+      
+      tables:
+        - "Submittal"
+        - "SubmittalItem"
+        - "SubmittalReview"
+        - "SubmittalAttachment"
+        - "SubmittalStatus"
+        - "SubmittalSpecSection"
+        - "SubmittalReviewer"
+        - "SubmittalWorkflowStep"
+        - "SubmittalDistribution"
+        - "SubmittalHistoryEvent"
+        - "SubmittalPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 12. contracts (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "contracts"
+      module_file: "contracts.prisma"
+      table_count: 11
+      description: "Contract management with external party signatures and collaboration"
+      external_access: "ContractPublicLink - External parties can view, sign, and download contracts"
+      
+      tables:
+        - "Contract"
+        - "ContractScope"
+        - "ContractTerm"
+        - "ContractDeliverable"
+        - "ContractMilestone"
+        - "ContractAmendment"
+        - "ContractAttachment"
+        - "ContractSignature"
+        - "ContractCompliance"
+        - "ContractHistoryEvent"
+        - "ContractPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 13. documentscore (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "documentscore"
+      module_file: "documentscore.prisma"
+      table_count: 11
+      description: "Document management with external sharing capability"
+      external_access: "DocumentPublicLink - External document sharing with watermarking and DRM options"
+      
+      tables:
+        - "Document"
+        - "DocumentFolder"
+        - "DocumentVersion"
+        - "DocumentRevision"
+        - "DocumentComment"
+        - "DocumentTag"
+        - "DocumentShareLink"
+        - "DocumentPermission"
+        - "DocumentAttachment"
+        - "DocumentHistoryEvent"
+        - "DocumentPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 14. esignature (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "esignature"
+      module_file: "esignature.prisma"
+      table_count: 11
+      description: "E-signature workflow with external signers"
+      external_access: "ESignaturePublicLink - External parties can view, sign, decline, or delegate documents"
+      
+      tables:
+        - "ESignatureEnvelope"
+        - "ESignatureDocument"
+        - "ESignatureRecipient"
+        - "ESignatureRecipientAction"
+        - "ESignatureField"
+        - "ESignatureAuditTrail"
+        - "ESignatureWorkflowStep"
+        - "ESignatureAttachment"
+        - "ESignatureNotification"
+        - "ESignatureHistoryEvent"
+        - "ESignaturePublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 15. crmcore (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "crmcore"
+      module_file: "crmcore.prisma"
+      table_count: 11
+      description: "CRM for external parties (clients, leads, prospects)"
+      external_access: "CRMAccountPublicLink - Portal invitation for external contacts"
+      note: "Represents external entities but stored as tenant data"
+      
+      tables:
+        - "CRMAccount"
+        - "CRMContact"
+        - "CRMAddress"
+        - "CRMInteraction"
+        - "CRMInteractionAttachment"
+        - "CRMNote"
+        - "CRMTag"
+        - "CRMAccountTag"
+        - "CRMActivity"
+        - "CRMHistoryEvent"
+        - "CRMAccountPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 16. customerportal (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "customerportal"
+      module_file: "customerportal.prisma"
+      table_count: 11
+      description: "Customer Portal for ongoing external user access"
+      external_access: "CustomerPortalInviteLink - One-time portal registration link"
+      note: "Separate RBAC domain for external parties (CLIENT, VENDOR, PARTNER roles)"
+      
+      tables:
+        - "CustomerPortalUser"
+        - "CustomerPortalSession"
+        - "CustomerPortalAccess"
+        - "CustomerPortalProjectView"
+        - "CustomerPortalEstimateView"
+        - "CustomerPortalInvoiceView"
+        - "CustomerPortalPaymentMethod"
+        - "CustomerPortalMessage"
+        - "CustomerPortalDocument"
+        - "CustomerPortalHistoryEvent"
+        - "CustomerPortalInviteLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 17. paymentsARCashApplication (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "paymentsARCashApplication"
+      module_file: "paymentsARCashApplication.prisma"
+      table_count: 11
+      description: "Payment processing with external payment sources"
+      external_access: "PaymentPublicLink - Standalone payment requests"
+      
+      tables:
+        - "Payment"
+        - "PaymentMethod"
+        - "PaymentGatewayTransaction"
+        - "PaymentApplication"
+        - "PaymentUnapplied"
+        - "PaymentRefund"
+        - "PaymentReconciliation"
+        - "PaymentDispute"
+        - "PaymentAttachment"
+        - "PaymentHistoryEvent"
+        - "PaymentPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 18. procurementPo (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "procurementPo"
+      module_file: "procurementPo.prisma"
+      table_count: 10
+      description: "Purchase order management with external vendor collaboration"
+      external_access: "PurchaseOrderPublicLink - Vendors can view PO, acknowledge, update shipping"
+      
+      tables:
+        - "PurchaseOrder"
+        - "PurchaseOrderLineItem"
+        - "PurchaseRequisition"
+        - "PurchaseRequisitionItem"
+        - "PurchaseOrderReceipt"
+        - "PurchaseOrderReceiptItem"
+        - "PurchaseOrderReturn"
+        - "PurchaseOrderAttachment"
+        - "PurchaseOrderHistoryEvent"
+        - "PurchaseOrderPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 19. workOrders (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "workOrders"
+      module_file: "workOrders.prisma"
+      table_count: 11
+      description: "Work order management with customer signature capability"
+      external_access: "WorkOrderPublicLink - Customer can view, sign completion, rate service, pay"
+      
+      tables:
+        - "WorkOrder"
+        - "WorkOrderTask"
+        - "WorkOrderAssignment"
+        - "WorkOrderMaterial"
+        - "WorkOrderLabor"
+        - "WorkOrderNote"
+        - "WorkOrderAttachment"
+        - "WorkOrderSignature"
+        - "WorkOrderInvoiceLink"
+        - "WorkOrderHistoryEvent"
+        - "WorkOrderPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 20. emailengine (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "emailengine"
+      module_file: "emailengine.prisma"
+      table_count: 11
+      description: "Email management with external party communication"
+      external_access: "EmailTrackingLink - Email open and click tracking"
+      
+      tables:
+        - "EmailMessage"
+        - "EmailRecipient"
+        - "EmailAttachment"
+        - "EmailTemplate"
+        - "EmailCampaign"
+        - "EmailAccount"
+        - "EmailThreadLink"
+        - "EmailSendLog"
+        - "EmailBounce"
+        - "EmailHistoryEvent"
+        - "EmailTrackingLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 21. smscalls (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "smscalls"
+      module_file: "smscalls.prisma"
+      table_count: 11
+      description: "SMS and phone call management with external party communication"
+      external_access: "SMSPublicLink - SMS reply links for appointment confirmation, feedback"
+      
+      tables:
+        - "SMSMessage"
+        - "SMSAttachment"
+        - "SMSHistoryEvent"
+        - "PhoneCall"
+        - "PhoneCallRecording"
+        - "PhoneCallHistoryEvent"
+        - "PhoneIVRMenu"
+        - "PhoneQueue"
+        - "PhoneNumberPool"
+        - "CommunicationProvider"
+        - "SMSPublicLink ⭐"
+    
+    # ------------------------------------------------------------------------
+    # 22. billing (HYBRID)
+    # ------------------------------------------------------------------------
+    - module_name: "billing"
+      module_file: "billing.prisma"
+      table_count: 11
+      description: "Billing operations with external client payment tracking"
+      external_access: "BillingStatementPublicLink - Monthly statements with multiple invoices"
+      
+      tables:
+        - "BillingSchedule"
+        - "BillingMilestone"
+        - "BillingProgress"
+        - "BillingRetainage"
+        - "BillingDeposit"
+        - "BillingAdjustment"
+        - "ReceivableLedger"
+        - "ReceivablePaymentApplication"
+        - "ReceivableAgingSnapshot"
+        - "BillingHistoryEvent"
+        - "BillingStatementPublicLink ⭐"
+
+# ============================================================================
+# TENANT MODULES (Internal Operations Only)
+# ALL TABLES ARE TENANT-SCOPED
+# ============================================================================
+
+tenant_modules:
+  description: "Pure tenant-internal modules with no external access requirements"
+  total_modules: 40
+  total_tables: 417
+  note: "ALL operations are internal-only"
+  
+  modules:
+    # ------------------------------------------------------------------------
+    # 23. membership (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "membership"
+      module_file: "membership.prisma"
+      table_count: 6
+      description: "Internal member management. Bridges global User to tenant-specific Member context"
+      
+      tables:
+        - "Member"
+        - "MemberSettings"
+        - "MemberInvitation"
+        - "MemberExternalLink"
+        - "MemberDocument"
+        - "MemberHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 24. aicore (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "aicore"
+      module_file: "aicore.prisma"
+      table_count: 10
+      description: "AI model management and automation workflows. Tenant-specific AI operations"
+      
+      tables:
+        - "AIModel"
+        - "AIModelVersion"
+        - "AIPromptTemplate"
+        - "AIAction"
+        - "AIActionRun"
+        - "AIPlaybook"
+        - "AIPlaybookStep"
+        - "AIEmbedding"
+        - "AIJob"
+        - "AIJobArtifact"
+    
+    # ------------------------------------------------------------------------
+    # 25. aidocument (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "aidocument"
+      module_file: "aidocument.prisma"
+      table_count: 10
+      description: "AI-powered document processing (OCR, extraction, classification). Internal use only"
+      
+      tables:
+        - "AIDocumentIndex"
+        - "AIDocumentChunk"
+        - "AIOCRResult"
+        - "AIExtractionResult"
+        - "AIClassificationResult"
+        - "AIDocumentAttachment"
+        - "AIDocumentHistoryEvent"
+        - "AIAnnotation"
+        - "AIEntity"
+        - "AIInsightFeedback"
+    
+    # ------------------------------------------------------------------------
+    # 26. aiinsights (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "aiinsights"
+      module_file: "aiinsights.prisma"
+      table_count: 9
+      description: "AI-generated business insights and analytics. Internal decision support"
+      
+      tables:
+        - "AIInsight"
+        - "AIInsightHistory"
+        - "AIPrediction"
+        - "AIRecommendation"
+        - "AIAnomaly"
+        - "AITrend"
+        - "AIForecast"
+        - "AIWhatIfRun"
+        - "AIInsightAttachment"
+    
+    # ------------------------------------------------------------------------
+    # 27. approvals (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "approvals"
+      module_file: "approvals.prisma"
+      table_count: 10
+      description: "Internal approval workflow engine. Multi-level approval routing"
+      
+      tables:
+        - "ApprovalRequest"
+        - "ApprovalRule"
+        - "ApprovalLevel"
+        - "ApprovalDecision"
+        - "ApprovalAssignment"
+        - "ApprovalStep"
+        - "ApprovalEscalation"
+        - "ApprovalCondition"
+        - "ApprovalAttachment"
+        - "ApprovalHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 28. analytics (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "analytics"
+      module_file: "analytics.prisma"
+      table_count: 10
+      description: "Internal business analytics and reporting. Data warehouse functionality"
+      
+      tables:
+        - "AnalyticsDataset"
+        - "AnalyticsDatasetField"
+        - "AnalyticsCube"
+        - "AnalyticsMetric"
+        - "AnalyticsDimension"
+        - "AnalyticsFilter"
+        - "AnalyticsQuery"
+        - "AnalyticsInsight"
+        - "AnalyticsInsightHistoryEvent"
+        - "AnalyticsAttachment"
+    
+    # ------------------------------------------------------------------------
+    # 29. dashboards (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "dashboards"
+      module_file: "dashboards.prisma"
+      table_count: 10
+      description: "Internal dashboard management for business intelligence"
+      
+      tables:
+        - "Dashboard"
+        - "DashboardWidget"
+        - "DashboardWidgetConfig"
+        - "DashboardUserView"
+        - "DashboardSchedule"
+        - "DashboardBookmark"
+        - "DashboardSharing"
+        - "DashboardTemplate"
+        - "DashboardFolder"
+        - "DashboardHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 30. documentsai (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "documentsai"
+      module_file: "documentsai.prisma"
+      table_count: 10
+      description: "Internal AI document processing infrastructure"
+      
+      tables:
+        - "DocumentOCRResult"
+        - "DocumentAIExtraction"
+        - "DocumentAIClassification"
+        - "DocumentAnnotation"
+        - "DocumentIndex"
+        - "DocumentChunk"
+        - "DocumentEmbedding"
+        - "DocumentTrainingSample"
+        - "DocumentAIModel"
+        - "DocumentAIHistory"
+    
+    # ------------------------------------------------------------------------
+    # 31. messaging (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "messaging"
+      module_file: "messaging.prisma"
+      table_count: 10
+      description: "Internal team messaging and collaboration"
+      
+      tables:
+        - "MessageThread"
+        - "Message"
+        - "MessageParticipant"
+        - "MessageAttachment"
+        - "MessageReaction"
+        - "MessageMention"
+        - "MessageVisibilityRule"
+        - "MessageReadReceipt"
+        - "MessagePin"
+        - "MessageHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 32. compliance (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "compliance"
+      module_file: "compliance.prisma"
+      table_count: 10
+      description: "Internal compliance management and tracking"
+      
+      tables:
+        - "ComplianceRequirement"
+        - "ComplianceDocument"
+        - "ComplianceCheck"
+        - "ComplianceViolation"
+        - "ComplianceCorrectionAction"
+        - "ComplianceAudit"
+        - "ComplianceAuditFinding"
+        - "ComplianceTrainingRecord"
+        - "ComplianceAttachment"
+        - "ComplianceHistory"
+    
+    # ------------------------------------------------------------------------
+    # 33. expensecore (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "expensecore"
+      module_file: "expensecore.prisma"
+      table_count: 9
+      description: "Internal expense management and reimbursement"
+      
+      tables:
+        - "ExpenseReport"
+        - "ExpenseLine"
+        - "ExpenseCategory"
+        - "ExpenseReceipt"
+        - "ExpensePolicy"
+        - "ExpensePolicyViolation"
+        - "ExpensePayment"
+        - "ExpenseAttachment"
+        - "ExpenseHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 34. expenses (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "expenses"
+      module_file: "expenses.prisma"
+      table_count: 9
+      description: "Corporate card management. Internal card tracking"
+      
+      tables:
+        - "CorpCard"
+        - "CorpCardTransaction"
+        - "CorpCardReconciliation"
+        - "CorpCardLimit"
+        - "CorpCardDispute"
+        - "CorpCardVendor"
+        - "CorpCardReceipt"
+        - "CorpCardAttachment"
+        - "CorpCardHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 35. generalledger (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "generalledger"
+      module_file: "generalledger.prisma"
+      table_count: 10
+      description: "Internal general ledger and chart of accounts"
+      
+      tables:
+        - "GLAccount"
+        - "GLAccountCategory"
+        - "GLAccountSegment"
+        - "GLFiscalYear"
+        - "GLFiscalPeriod"
+        - "GLJournal"
+        - "GLJournalLine"
+        - "GLPostingBatch"
+        - "GLTrialBalanceSnapshot"
+        - "GLHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 36. accountingtransaction (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "accountingtransaction"
+      module_file: "accountingtransaction.prisma"
+      table_count: 9
+      description: "Internal transaction management for accounting"
+      
+      tables:
+        - "Transaction"
+        - "TransactionLine"
+        - "TransactionSourceLink"
+        - "TransactionType"
+        - "TransactionBatch"
+        - "TransactionAttachment"
+        - "TransactionReversal"
+        - "TransactionAllocation"
+        - "TransactionHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 37. banking (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "banking"
+      module_file: "banking.prisma"
+      table_count: 10
+      description: "Internal bank account management and reconciliation"
+      
+      tables:
+        - "BankAccount"
+        - "BankTransaction"
+        - "BankReconciliation"
+        - "BankReconciliationItem"
+        - "BankFeedConnection"
+        - "BankStatement"
+        - "BankRule"
+        - "BankTransfer"
+        - "BankDeposit"
+        - "BankHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 38. taxcompliance (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "taxcompliance"
+      module_file: "taxcompliance.prisma"
+      table_count: 10
+      description: "Internal tax management and compliance"
+      
+      tables:
+        - "TaxJurisdiction"
+        - "TaxRate"
+        - "TaxCode"
+        - "TaxRule"
+        - "TaxLiability"
+        - "TaxPayment"
+        - "TaxReturn"
+        - "TaxFilingAttachment"
+        - "TaxExemptionCertificate"
+        - "TaxHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 39. hrcore (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "hrcore"
+      module_file: "hrcore.prisma"
+      table_count: 10
+      description: "Internal human resources management"
+      
+      tables:
+        - "Employee"
+        - "EmployeeAddress"
+        - "EmployeeContact"
+        - "EmployeePosition"
+        - "EmployeeDepartment"
+        - "EmployeeCompensation"
+        - "EmployeeStatus"
+        - "EmployeeSkill"
+        - "EmployeeDocument"
+        - "EmployeeHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 40. payroll (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "payroll"
+      module_file: "payroll.prisma"
+      table_count: 10
+      description: "Internal payroll processing"
+      
+      tables:
+        - "PayrollRun"
+        - "PayrollEarning"
+        - "PayrollDeduction"
+        - "PayrollTax"
+        - "PayrollCalendar"
+        - "PayrollBenefit"
+        - "PayrollGarnishment"
+        - "PayrollCheck"
+        - "PayrollDirectDeposit"
+        - "PayrollHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 41. timeattendance (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "timeattendance"
+      module_file: "timeattendance.prisma"
+      table_count: 9
+      description: "Internal time tracking and attendance"
+      
+      tables:
+        - "Timesheet"
+        - "TimesheetEntry"
+        - "TimesheetBreak"
+        - "TimesheetOvertime"
+        - "TimesheetGeoLocation"
+        - "TimesheetSignature"
+        - "TimesheetAdjustment"
+        - "TimesheetExport"
+        - "TimesheetHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 42. integrationsCore (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "integrationsCore"
+      module_file: "integrationsCore.prisma"
+      table_count: 10
+      description: "Internal integration management with external systems"
+      
+      tables:
+        - "IntegrationConnection"
+        - "IntegrationProvider"
+        - "IntegrationOAuthToken"
+        - "IntegrationApiKey"
+        - "IntegrationMapping"
+        - "IntegrationFieldTransform"
+        - "IntegrationEvent"
+        - "IntegrationError"
+        - "IntegrationAttachment"
+        - "IntegrationConnectionHistory"
+    
+    # ------------------------------------------------------------------------
+    # 43. integrationsSyncEngine (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "integrationsSyncEngine"
+      module_file: "integrationsSyncEngine.prisma"
+      table_count: 10
+      description: "Internal integration sync engine for data synchronization"
+      
+      tables:
+        - "IntegrationSyncJob"
+        - "IntegrationSyncLog"
+        - "IntegrationWebhook"
+        - "IntegrationWebhookDelivery"
+        - "IntegrationInboundWebhook"
+        - "IntegrationQueueItem"
+        - "IntegrationRateLimit"
+        - "IntegrationRetryPolicy"
+        - "IntegrationSchemaVersion"
+        - "IntegrationHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 44. inventoryCore (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "inventoryCore"
+      module_file: "inventoryCore.prisma"
+      table_count: 10
+      description: "Internal inventory and stock management"
+      
+      tables:
+        - "InventoryItem"
+        - "InventoryCategory"
+        - "InventoryLocation"
+        - "InventoryBin"
+        - "InventoryUnitOfMeasure"
+        - "InventoryStock"
+        - "InventorySupplier"
+        - "InventoryItemVendor"
+        - "InventoryAttachment"
+        - "InventoryHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 45. inventoryTransactions (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "inventoryTransactions"
+      module_file: "inventoryTransactions.prisma"
+      table_count: 10
+      description: "Internal inventory transaction processing"
+      
+      tables:
+        - "InventoryTransaction"
+        - "InventoryTransactionLine"
+        - "InventoryAdjustment"
+        - "InventoryTransfer"
+        - "InventoryTransferLine"
+        - "InventoryReturn"
+        - "InventoryReturnLine"
+        - "InventoryCount"
+        - "InventoryCountLine"
+        - "InventoryTransactionHistory"
+    
+    # ------------------------------------------------------------------------
+    # 46. inventoryControl (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "inventoryControl"
+      module_file: "inventoryControl.prisma"
+      table_count: 10
+      description: "Internal inventory control and loss prevention"
+      
+      tables:
+        - "InventoryLossEvent"
+        - "InventoryLossCause"
+        - "InventoryLossInvestigation"
+        - "InventoryAudit"
+        - "InventoryAuditLine"
+        - "InventoryReservation"
+        - "InventoryCommitment"
+        - "InventoryReorderPoint"
+        - "InventorySafetyStock"
+        - "InventoryControlHistory"
+    
+    # ------------------------------------------------------------------------
+    # 47. jobCosting (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "jobCosting"
+      module_file: "jobCosting.prisma"
+      table_count: 10
+      description: "Internal job costing and profitability analysis"
+      
+      tables:
+        - "CostCode"
+        - "CostCategory"
+        - "CostType"
+        - "CostCenter"
+        - "JobCostLedger"
+        - "JobCostLine"
+        - "JobCostBudget"
+        - "JobCostBudgetLine"
+        - "JobCostForecast"
+        - "JobCostHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 48. maintenanceService (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "maintenanceService"
+      module_file: "maintenanceService.prisma"
+      table_count: 10
+      description: "Internal service contract management"
+      
+      tables:
+        - "ServiceContract"
+        - "ServiceContractPlan"
+        - "ServiceContractSchedule"
+        - "ServiceContractTask"
+        - "ServiceContractPricing"
+        - "ServiceContractPaymentMethod"
+        - "ServiceContractRenewal"
+        - "ServiceContractCancelation"
+        - "ServiceContractNotification"
+        - "ServiceContractHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 49. notifications (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "notifications"
+      module_file: "notifications.prisma"
+      table_count: 10
+      description: "Internal notification system"
+      
+      tables:
+        - "Notification"
+        - "NotificationPreference"
+        - "NotificationChannel"
+        - "NotificationTemplate"
+        - "NotificationDelivery"
+        - "NotificationDigest"
+        - "NotificationRule"
+        - "NotificationQueueItem"
+        - "NotificationAttachment"
+        - "NotificationHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 50. projectTaskScheduling (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "projectTaskScheduling"
+      module_file: "projectTaskScheduling.prisma"
+      table_count: 10
+      description: "Internal project task and schedule management"
+      
+      tables:
+        - "ProjectTask"
+        - "ProjectTaskAssignment"
+        - "ProjectTaskDependency"
+        - "ProjectSchedule"
+        - "ProjectScheduleItem"
+        - "ProjectCriticalPath"
+        - "ProjectBaseline"
+        - "ProjectChecklistItem"
+        - "ProjectTaskComment"
+        - "ProjectTaskAttachment"
+    
+    # ------------------------------------------------------------------------
+    # 51. projectRisk (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "projectRisk"
+      module_file: "projectRisk.prisma"
+      table_count: 10
+      description: "Internal project risk and issue management"
+      
+      tables:
+        - "ProjectRisk"
+        - "ProjectIssue"
+        - "ProjectDecision"
+        - "ProjectDailyLog"
+        - "ProjectDailyLogLabor"
+        - "ProjectDailyLogEquipment"
+        - "ProjectDailyLogMaterial"
+        - "ProjectDailyLogPhoto"
+        - "ProjectProgress"
+        - "ProjectNote"
+    
+    # ------------------------------------------------------------------------
+    # 52. quality (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "quality"
+      module_file: "quality.prisma"
+      table_count: 10
+      description: "Internal quality management and inspections"
+      
+      tables:
+        - "QualityInspection"
+        - "QualityInspectionItem"
+        - "QualityNonConformance"
+        - "QualityNonConformanceAction"
+        - "QualityPunchListItem"
+        - "QualityMaterialTest"
+        - "QualityMaterialTestResult"
+        - "QualityStandard"
+        - "QualityAttachment"
+        - "QualityInspectionHistory"
+    
+    # ------------------------------------------------------------------------
+    # 53. roomModel (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "roomModel"
+      module_file: "roomModel.prisma"
+      table_count: 10
+      description: "Internal 3D room modeling for construction"
+      
+      tables:
+        - "RoomModel"
+        - "RoomModelWall"
+        - "RoomModelOpening"
+        - "RoomModelSurface"
+        - "RoomModelItem"
+        - "RoomModelMeasurement"
+        - "RoomModelTakeoff"
+        - "RoomModelCostMapping"
+        - "RoomModelAttachment"
+        - "RoomModelHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 54. roomScanner (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "roomScanner"
+      module_file: "roomScanner.prisma"
+      table_count: 10
+      description: "Internal room scanning and 3D capture"
+      
+      tables:
+        - "RoomScanSession"
+        - "RoomScanFrame"
+        - "RoomScanPointCloud"
+        - "RoomScanMesh"
+        - "RoomScanSemanticLabel"
+        - "RoomScanProcessing"
+        - "RoomScanCalibration"
+        - "RoomScanMetadata"
+        - "RoomScanOutput"
+        - "RoomScanHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 55. safety (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "safety"
+      module_file: "safety.prisma"
+      table_count: 10
+      description: "Internal safety management and incident tracking"
+      
+      tables:
+        - "SafetyIncident"
+        - "SafetyIncidentPerson"
+        - "SafetyIncidentInvestigation"
+        - "SafetyIncidentCorrectiveAction"
+        - "SafetyInspection"
+        - "SafetyInspectionItem"
+        - "SafetyHazard"
+        - "SafetyTrainingRecord"
+        - "SafetyWeatherRisk"
+        - "SafetyIncidentHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 56. schedulingCore (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "schedulingCore"
+      module_file: "schedulingCore.prisma"
+      table_count: 10
+      description: "Internal resource scheduling"
+      
+      tables:
+        - "Schedule"
+        - "ScheduleItem"
+        - "ScheduleAssignment"
+        - "ScheduleAvailability"
+        - "ScheduleTimeOff"
+        - "ScheduleException"
+        - "ScheduleShift"
+        - "ScheduleResource"
+        - "ScheduleNote"
+        - "ScheduleHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 57. scheduling (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "scheduling"
+      module_file: "scheduling.prisma"
+      table_count: 10
+      description: "Internal scheduling optimization and AI"
+      
+      tables:
+        - "ScheduleConstraint"
+        - "ScheduleConstraintRule"
+        - "ScheduleOptimizationRun"
+        - "ScheduleOptimizationResult"
+        - "ScheduleConflictingItem"
+        - "ScheduleTravelTime"
+        - "ScheduleWeatherAdjustment"
+        - "ScheduleForecast"
+        - "ScheduleCapacity"
+        - "ScheduleAIRecommendation"
+    
+    # ------------------------------------------------------------------------
+    # 58. tasks (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "tasks"
+      module_file: "tasks.prisma"
+      table_count: 10
+      description: "Internal task management (not project tasks)"
+      
+      tables:
+        - "Task"
+        - "TaskAssignment"
+        - "TaskChecklistItem"
+        - "TaskComment"
+        - "TaskAttachment"
+        - "TaskReminder"
+        - "TaskDependency"
+        - "TaskLabel"
+        - "TaskLabelAssignment"
+        - "TaskHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 59. weatherIntelligenceCore (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "weatherIntelligenceCore"
+      module_file: "weatherIntelligenceCore.prisma"
+      table_count: 10
+      description: "Internal weather data and monitoring"
+      
+      tables:
+        - "WeatherStation"
+        - "WeatherObservation"
+        - "WeatherForecast"
+        - "WeatherAlert"
+        - "WeatherCondition"
+        - "WeatherDataSource"
+        - "WeatherAttachment"
+        - "WeatherSensor"
+        - "WeatherSensorReading"
+        - "WeatherHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 60. weatherImpactAlerts (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "weatherImpactAlerts"
+      module_file: "weatherImpactAlerts.prisma"
+      table_count: 10
+      description: "Internal weather impact analysis and alerts"
+      
+      tables:
+        - "WeatherImpactRule"
+        - "WeatherImpactCondition"
+        - "WeatherProjectForecast"
+        - "WeatherImpactEvent"
+        - "WeatherImpactTask"
+        - "WeatherImpactNotification"
+        - "WeatherDelayRecommendation"
+        - "WeatherRiskAssessment"
+        - "WeatherMitigation"
+        - "WeatherImpactHistoryEvent"
+    
+    # ------------------------------------------------------------------------
+    # 61. zeroLoss (TENANT)
+    # ------------------------------------------------------------------------
+    - module_name: "zeroLoss"
+      module_file: "zeroLoss.prisma"
+      table_count: 10
+      description: "Internal loss prevention and zero-loss initiatives"
+      
+      tables:
+        - "ZeroLossEvent"
+        - "ZeroLossItem"
+        - "ZeroLossCause"
+        - "ZeroLossInvestigation"
+        - "ZeroLossCorrectiveAction"
+        - "ZeroLossAnalytics"
+        - "ZeroLossAlert"
+        - "ZeroLossAuditTrail"
+        - "ZeroLossPreventionPlan"
+        - "ZeroLossHistoryEvent"
+
+# ============================================================================
+# CRITICAL PRINCIPLES (From ERP Document)
+# ============================================================================
+
+principles:
+  - title: "ALL business data is tenant-scoped"
+    description: "Every single business operation in the ERP is tenant-isolated"
+    note: "TENANT tables have tenantId field and RLS policy"
+  
+  - title: "External interaction does NOT change classification"
+    description: "Tables remain tenant-scoped even when external clients interact via public links"
+    cases:
+      - "External clients interact via public links"
+      - "External parties are represented (CRM)"
+      - "Payments come from external sources"
+      - "Documents are shared with external parties"
+      - "E-signatures involve external signers"
+  
+  - title: "Public links are access mechanism, not security domain"
+    description: "PublicLink tables are TENANT tables that enable token-based external access"
+    pattern: "Estimate (tenant table) → EstimatePublicLink (tenant table) → External client accesses via token"
+  
+  - title: "Customer Portal uses separate RBAC domain"
+    internal_rbac: "ADMIN, PROJECT_MANAGER, WORKER, DRIVER, VIEWER (use Member context)"
+    external_portal_rbac: "CLIENT, VENDOR, PARTNER (use CustomerPortalUser context)"
+    note: "Different API layer, different permission model, still tenant-scoped tables"
+  
+  - title: "CRM represents external, but tables are tenant-scoped"
+    explanation: "CRMAccount/CRMContact represent external parties but tables have tenantId"
+    access: "External parties interact via PublicLinks or CustomerPortal, not direct CRM access"
+
+# ============================================================================
+# VALIDATION CHECKLIST
+# ============================================================================
+
+validation_checklist:
+  criteria:
+    - check: "Has tenantId field"
+      status: "✅ All tables"
+    - check: "Has RLS policy enforcing tenant isolation"
+      status: "✅ All tables"
+    - check: "Belongs to a business module"
+      status: "✅ All 60 modules"
+    - check: "Is NOT part of global identity/security infrastructure"
+      status: "✅ Confirmed"
+    - check: "Is NOT the Tenant registry itself"
+      status: "✅ Tenant registry is GLOBAL"
+
+# ============================================================================
+# GRAND TOTALS (From ERP Document)
+# ============================================================================
+
+grand_totals:
+  global_tables: 17
+  tenant_tables: 607
+  total_tables: 624
+  tenant_percentage: 97.3
+  global_percentage: 2.7
+
+# ============================================================================
+# ARCHITECTURAL MODEL
+# ============================================================================
+
+architecture:
+  model: "BeeSmart's 2-Tier Security Model"
+  classification: "GLOBAL/HYBRID/TENANT with Public Link Pattern"
+  
+  tiers:
+    global:
+      table_count: 17
+      purpose: "System infrastructure"
+      includes:
+        - "User, Actor, Session"
+        - "IdentityProvider, AuthFactor"
+        - "Permission, AccessResource"
+        - "Tenant (registry)"
+        - "PublicLinkEngine"
+    
+    tenant:
+      table_count: 607
+      purpose: "ALL business data"
+      includes:
+        - "All business modules"
+        - "Estimate, Invoice, Project"
+        - "CRM, CustomerPortal"
+        - "Everything else"
+  
+  external_access_patterns:
+    public_links:
+      type: "No-login token-based access"
+      mechanism: "Token validation → Load resource → Bypass RBAC → Tenant-scoped actions"
+    
+    customer_portal:
+      type: "Portal RBAC (separate from internal)"
+      mechanism: "Portal login → Portal Auth → Tenant context → Filtered data"
+  
+  multi_tenant_isolation:
+    rule: "ALL TENANT tables have tenantId NOT NULL + RLS policy + indexed on tenantId"
+    enforcement: "Cannot cross tenant boundaries"
+
+# ============================================================================
+# METADATA
+# ============================================================================
+
+document_info:
+  generated: "2025-11-19"
+  status: "AUTHORITATIVE"
+  version: "2.0"
+  alignment: "100% SYNCHRONIZED WITH ERP_AUTHORITATIVE_MODULE_STRUCTURE_v2.0.md"
+  total_modules: 60
+  total_tenant_tables: 607
+  format_version: "2.0"
+  model: "GLOBAL/HYBRID/TENANT with Public Link Pattern"
