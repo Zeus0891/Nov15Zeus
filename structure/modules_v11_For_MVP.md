@@ -12,6 +12,7 @@ User
 Session
 RecoveryCode
 UserProfile
+Actor
 
 **identityAuthN.prisma**
 PasswordResetToken
@@ -738,4 +739,3 @@ ZeroLossAlert
 ZeroLossAuditTrail
 ZeroLossPreventionPlan
 ZeroLossHistoryEvent
-

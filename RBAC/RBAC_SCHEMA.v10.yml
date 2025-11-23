@@ -80,92 +80,95 @@ security_configuration:
 #  🔐 RLS: cada domain apunta a módulos .prisma con tenantId y policies.
 # ========================================================================
 domains:
-  # GLOBAL / PLATFORM CONTEXT (configuración y control del tenant)
-  - { key: "tenant",        module: "tenantConfig.prisma" }
+  # ========================================================================
+  # ALL HYBRID & TENANT MODULES (59 modules total)
+  # Excludes only the 5 GLOBAL modules: PLATFORM_IDENTITY, PLATFORM_AUTHENTICATION,
+  # PLATFORM_GOVERNANCE, PUBLICLINKENGINE, PLATFORM_AUTHORIZATION
+  # ========================================================================
+
+  # HYBRID MODULES (17 modules) - External-facing business operations
+  - { key: "estimate", module: "estimate.prisma" }
+  - { key: "invoice", module: "invoice.prisma" }
+  - { key: "projectscore", module: "projectsCore.prisma" }
+  - { key: "changeorder", module: "changeorder.prisma" }
+  - { key: "rfi", module: "RFI.prisma" }
+  - { key: "submittals", module: "submittals.prisma" }
+  - { key: "contracts", module: "contracts.prisma" }
+  - { key: "documentscore", module: "documentscore.prisma" }
+  - { key: "esignature", module: "esignature.prisma" }
+  - { key: "crmcore", module: "crmcore.prisma" }
+  - { key: "customerportal", module: "customerportal.prisma" }
+  - { key: "payments", module: "paymentsARCashApplication.prisma" }
+  - { key: "procurementpo", module: "procurementPo.prisma" }
+  - { key: "workorders", module: "workOrders.prisma" }
+  - { key: "emailengine", module: "emailengine.prisma" }
+  - { key: "smscalls", module: "smscalls.prisma" }
+  - { key: "billing", module: "billing.prisma" }
+
+  # TENANT MODULES (42 modules) - Internal business operations
+  # Configuration & Access Control
   - { key: "accesscontrol", module: "accessControlTenant.prisma" }
-  - { key: "identity",      module: "identityCore.prisma, identityAuthN.prisma, identityAuthZ.prisma" }
-  - { key: "membership",    module: "membership.prisma" }
+  - { key: "tenantconfig", module: "tenantConfig.prisma" }
+  - { key: "membership", module: "membership.prisma" }
 
-  # CORE BUSINESS (TENANT CONTEXT — RLS OBLIGATORIO)
-  - { key: "estimate",      module: "estimate.prisma" }
-  - { key: "invoice",       module: "invoice.prisma" }
-  - {
-      key: "project",
-      module: "projectsCore.prisma, projectTaskScheduling.prisma, projectRisk.prisma, RFI.prisma, submittals.prisma, contracts.prisma, workOrders.prisma"
-    }
+  # AI & Intelligence
+  - { key: "aicore", module: "aicore.prisma" }
+  - { key: "aidocument", module: "aidocument.prisma" }
+  - { key: "aiinsights", module: "aiinsights.prisma" }
 
-  - { key: "task",          module: "tasks.prisma" }
-  - { key: "expenses",      module: "expensecore.prisma" }
+  # Workflow & Process
+  - { key: "approvals", module: "approvals.prisma" }
+  - { key: "analytics", module: "analytics.prisma" }
+  - { key: "dashboards", module: "dashboards.prisma" }
+  - { key: "messaging", module: "messaging.prisma" }
+  - { key: "compliance", module: "compliance.prisma" }
 
-  - {
-      key: "inventory",
-      module: "inventoryCore.prisma, inventoryTransactions.prisma, inventoryControl.prisma"
-    }
+  # Financial Management
+  - { key: "expensecore", module: "expensecore.prisma" }
+  - { key: "corpcards", module: "corpcards.prisma" }
+  - { key: "generalledger", module: "generalledger.prisma" }
+  - { key: "accountingtransaction", module: "accountingtransaction.prisma" }
+  - { key: "banking", module: "banking.prisma" }
+  - { key: "taxcompliance", module: "taxcompliance.prisma" }
 
-  - {
-      key: "scheduling",
-      module: "schedulingCore.prisma, schedulingEngine.prisma"
-    }
+  # Human Resources
+  - { key: "hrcore", module: "hrcore.prisma" }
+  - { key: "payroll", module: "payroll.prisma" }
+  - { key: "timeattendance", module: "timeattendance.prisma" }
 
-  - { key: "time",          module: "timeattendance.prisma" }
-  - { key: "payroll",       module: "payroll.prisma" }
+  # Operations & Inventory
+  - { key: "inventorycore", module: "inventoryCore.prisma" }
+  - { key: "inventorytransactions", module: "inventoryTransactions.prisma" }
+  - { key: "inventorycontrol", module: "inventoryControl.prisma" }
+  - { key: "jobcosting", module: "jobCosting.prisma" }
+  - { key: "maintenanceservice", module: "maintenanceService.prisma" }
 
-  - {
-      key: "crm",
-      module: "crmcore.prisma, crmcommunication.prisma, crmrelationships.prisma, customerportal.prisma"
-    }
+  # Project Management
+  - { key: "projecttaskscheduling", module: "projectTaskScheduling.prisma" }
+  - { key: "projectrisk", module: "projectRisk.prisma" }
+  - { key: "quality", module: "quality.prisma" }
+  - { key: "safety", module: "safety.prisma" }
 
-  - {
-      key: "documents",
-      module: "documentscore.prisma, esignature.prisma, aidocument.prisma"
-    }
+  # Scheduling & Resources
+  - { key: "schedulingcore", module: "schedulingCore.prisma" }
+  - { key: "schedulingengine", module: "schedulingEngine.prisma" }
+  - { key: "tasks", module: "tasks.prisma" }
 
-  - { key: "changeorder",   module: "changeorder.prisma" }
+  # CRM Extensions
+  - { key: "crmcommunication", module: "crmcommunication.prisma" }
+  - { key: "crmrelationships", module: "crmrelationships.prisma" }
 
-  - {
-      key: "ai",
-      module: "aicore.prisma, aiinsights.prisma"
-    }
+  # Technology & Innovation
+  - { key: "roommodel", module: "roomModel.prisma" }
+  - { key: "roomscanner", module: "roomScanner.prisma" }
+  - { key: "weatherintelligence", module: "weatherIntelligenceCore.prisma" }
+  - { key: "weatherimpact", module: "weatherImpactAlerts.prisma" }
+  - { key: "zeroloss", module: "zeroLoss.prisma" }
 
-  - {
-      key: "analytics",
-      module: "analytics.prisma, dashboards.prisma"
-    }
-
-  # FINANCE & ACCOUNTING DOMAINS
-  - { key: "billing",       module: "billing.prisma" }
-  - { key: "banking",       module: "banking.prisma" }
-  - { key: "accounting",    module: "accountingtransaction.prisma, generalledger.prisma" }
-  - { key: "payments",      module: "paymentsARCashApplication.prisma" }
-  - { key: "corpcards",     module: "corpcards.prisma" }
-  - { key: "tax",           module: "taxcompliance.prisma" }
-
-  # QUALITY & RISK DOMAINS
-  - { key: "quality",       module: "quality.prisma" }
-  - { key: "safety",        module: "safety.prisma" }
-  - { key: "compliance",    module: "compliance.prisma" }
-  - { key: "approvals",     module: "approvals.prisma" }
-
-  # PROCUREMENT & OPERATIONS
-  - { key: "procurement",   module: "procurementPo.prisma" }
-  - { key: "jobcosting",    module: "jobCosting.prisma" }
-  - { key: "maintenance",   module: "maintenanceService.prisma" }
-
-  # HUMAN RESOURCES
-  - { key: "hr",            module: "hrcore.prisma" }
-
-  # PLATFORM & INTEGRATIONS
-  - { key: "platform",      module: "platformRegistry.prisma, publicLinkEngine.prisma" }
-  - { key: "integrations",  module: "integrationsCore.prisma, integrationsSyncEngine.prisma" }
+  # Integrations & Platform
+  - { key: "integrationscore", module: "integrationsCore.prisma" }
+  - { key: "integrationssync", module: "integrationsSyncEngine.prisma" }
   - { key: "notifications", module: "notifications.prisma" }
-
-  # COMMUNICATION / MESSAGING LAYER
-  - { key: "messaging",     module: "messaging.prisma, emailengine.prisma, smscalls.prisma" }
-
-  # CONSTRUCTION SPECIALIZED DOMAINS
-  - { key: "roomtech",      module: "roomModel.prisma, roomScanner.prisma" }
-  - { key: "weather",       module: "weatherIntelligenceCore.prisma, weatherImpactAlerts.prisma" }
-  - { key: "zeroloss",      module: "zeroLoss.prisma" }
 
 # ========================================================================
 # ACTIONS — Standardized Vocabulary
@@ -270,10 +273,7 @@ roles:
 #      - "estimate:read:own"
 # ========================================================================
 permission_catalog:
-  tenant: []
-  accesscontrol: []
-  identity: []
-  membership: []
+  # HYBRID MODULES (17 domains)
   estimate:
     # Core CRUD Operations
     - "estimate:create"
@@ -286,7 +286,7 @@ permission_catalog:
     - "estimate:delete"
     - "estimate:delete:own"
     - "estimate:list"
-    
+
     # Estimate Structure Management
     - "estimate:create:section"
     - "estimate:update:section"
@@ -294,18 +294,18 @@ permission_catalog:
     - "estimate:create:lineitem"
     - "estimate:update:lineitem"
     - "estimate:delete:lineitem"
-    
+
     # Financial Components
     - "estimate:create:tax"
     - "estimate:update:tax"
     - "estimate:delete:tax"
-    - "estimate:create:discount" 
+    - "estimate:create:discount"
     - "estimate:update:discount"
     - "estimate:delete:discount"
     - "estimate:create:fee"
     - "estimate:update:fee"
     - "estimate:delete:fee"
-    
+
     # Terms & Conditions
     - "estimate:create:term"
     - "estimate:update:term"
@@ -316,7 +316,7 @@ permission_catalog:
     - "estimate:create:exclusion"
     - "estimate:update:exclusion"
     - "estimate:delete:exclusion"
-    
+
     # Workflow & Collaboration
     - "estimate:approve"
     - "estimate:send"
@@ -325,50 +325,76 @@ permission_catalog:
     - "estimate:create:revision"
     - "estimate:compare"
     - "estimate:create:alternate"
-    
+
     # Public Link Management
     - "estimate:create:publiclink"
     - "estimate:read:publiclink"
     - "estimate:update:publiclink"
     - "estimate:delete:publiclink"
-    
+
     # Financial Visibility
     - "estimate:read:financial"
     - "estimate:read:profit"
   invoice: []
-  project: []
-  task: []
-  expenses: []
-  inventory: []
-  scheduling: []
-  time: []
-  payroll: []
-  crm: []
-  documents: []
+  projectscore: []
   changeorder: []
-  ai: []
-  analytics: []
-  billing: []
-  banking: []
-  accounting: []
+  rfi: []
+  submittals: []
+  contracts: []
+  documentscore: []
+  esignature: []
+  crmcore: []
+  customerportal: []
   payments: []
+  procurementpo: []
+  workorders: []
+  emailengine: []
+  smscalls: []
+  billing: []
+
+  # TENANT MODULES (42 domains)
+  accesscontrol: []
+  tenantconfig: []
+  membership: []
+  aicore: []
+  aidocument: []
+  aiinsights: []
+  approvals: []
+  analytics: []
+  dashboards: []
+  messaging: []
+  compliance: []
+  expensecore: []
   corpcards: []
-  tax: []
+  generalledger: []
+  accountingtransaction: []
+  banking: []
+  taxcompliance: []
+  hrcore: []
+  payroll: []
+  timeattendance: []
+  inventorycore: []
+  inventorytransactions: []
+  inventorycontrol: []
+  jobcosting: []
+  maintenanceservice: []
+  projecttaskscheduling: []
+  projectrisk: []
   quality: []
   safety: []
-  compliance: []
-  approvals: []
-  procurement: []
-  jobcosting: []
-  maintenance: []
-  hr: []
-  platform: []
-  integrations: []
-  notifications: []
-  messaging: []
-  roomtech: []
-  weather: []
+  schedulingcore: []
+  schedulingengine: []
+  tasks: []
+  crmcommunication: []
+  crmrelationships: []
+  roommodel: []
+  roomscanner: []
+  weatherintelligence: []
+  weatherimpact: []
   zeroloss: []
+  integrationscore: []
+  integrationssync: []
+  notifications: []
 
 # ========================================================================
 # ROLE GRANTS — EMPTY (Populate After Permission Catalog)
@@ -383,14 +409,14 @@ role_grants:
       - "estimate:create"
       - "estimate:read"
       - "estimate:read:own"
-      - "estimate:read:team" 
+      - "estimate:read:team"
       - "estimate:read:tenant"
       - "estimate:update"
       - "estimate:update:own"
       - "estimate:delete"
       - "estimate:delete:own"
       - "estimate:list"
-      
+
       # Estimate Structure Management
       - "estimate:create:section"
       - "estimate:update:section"
@@ -398,7 +424,7 @@ role_grants:
       - "estimate:create:lineitem"
       - "estimate:update:lineitem"
       - "estimate:delete:lineitem"
-      
+
       # Financial Components
       - "estimate:create:tax"
       - "estimate:update:tax"
@@ -409,7 +435,7 @@ role_grants:
       - "estimate:create:fee"
       - "estimate:update:fee"
       - "estimate:delete:fee"
-      
+
       # Terms & Conditions
       - "estimate:create:term"
       - "estimate:update:term"
@@ -420,7 +446,7 @@ role_grants:
       - "estimate:create:exclusion"
       - "estimate:update:exclusion"
       - "estimate:delete:exclusion"
-      
+
       # Workflow & Collaboration
       - "estimate:approve"
       - "estimate:send"
@@ -429,13 +455,13 @@ role_grants:
       - "estimate:create:revision"
       - "estimate:compare"
       - "estimate:create:alternate"
-      
+
       # Public Link Management
       - "estimate:create:publiclink"
       - "estimate:read:publiclink"
       - "estimate:update:publiclink"
       - "estimate:delete:publiclink"
-      
+
       # Financial Visibility
       - "estimate:read:financial"
       - "estimate:read:profit"
@@ -470,12 +496,17 @@ critical_permissions:
 # ========================================================================
 validation:
   total_roles: 5
-  total_permissions: 47
+  total_domains: 59
+  total_hybrid_modules: 17
+  total_tenant_modules: 42
+  excluded_global_modules: 5
   permissions_implemented_domains: ["estimate"]
+  estimate_permissions_count: 47
   admin_permissions_count: 47
   rls_enforced: true
   tenant_settings_integration: true
   wildcard_usage: "NONE"
+  complete_architecture: true
   yaml_valid: true
 
 # ========================================================================
@@ -489,7 +520,7 @@ deployment_notes:
   generator_compatibility: "rbac-generator-v10.x"
   rls_requirements:
     - "All TENANT tables MUST have RLS enabled"
-    - "All RLS policies must enforce \"tenantId\" = app.current_tenant_id()"
+    - 'All RLS policies must enforce "tenantId" = app.current_tenant_id()'
     - "Helpers from rls-foundation-v9.sql (app.*) MUST exist in schema app"
   tenant_settings_flags: []
   future_phases:

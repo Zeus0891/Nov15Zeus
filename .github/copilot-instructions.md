@@ -28,7 +28,7 @@ This is a **multi-tenant ERP system** built with **Prisma ORM** and **PostgreSQL
 
 ## 📚 Detailed Instructions
 
-See complete model inventory in [`Modules_Structure.md`](../structure/Modules_Structure.md)
+See complete model inventory in [`Modules_Structure.md`](../structure/MODULES_Structure_V11.md)
 See complete project flow [`PROJECT_FLOW.md`](../docs/modules/projects/PROJECT_FLOW.md)
 See complete project diagram [`PROJECT_ARCHITECTURE_DIAGRAM.md`](../docs/modules/projects/PROJECT_ARCHITECTURE_DIAGRAM.md)
 
